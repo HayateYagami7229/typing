@@ -879,8 +879,8 @@ function renderGodStatue() {
 function renderGodGarden() {
   const n = save.godStatue.gardenRestorations || 0;
   const maxed = n >= GOD_GARDEN_MAX_RESTORATIONS;
-  const bonusPct = (n * GOD_GARDEN_EMBLEM_BONUS_PER * 100).toFixed(1);
-  el.godGardenText.textContent = `復興 ${n} / ${GOD_GARDEN_MAX_RESTORATIONS}（魔王の紋章 出現率 +${bonusPct}%）`;
+  const bonusSuffix = save.maouGateRevealed ? `（魔王の紋章 出現率 +${(n * GOD_GARDEN_EMBLEM_BONUS_PER * 100).toFixed(1)}%）` : '';
+  el.godGardenText.textContent = `復興 ${n} / ${GOD_GARDEN_MAX_RESTORATIONS}${bonusSuffix}`;
   el.godGardenBtn.textContent = maxed ? '🌸 女神の園は完全に復興した' : `🌸 女神の園を復興する（-${GOD_GARDEN_RESTORE_COST.toLocaleString()}pt）`;
   el.godGardenBtn.disabled = maxed || save.pt < GOD_GARDEN_RESTORE_COST;
 }
@@ -1715,7 +1715,7 @@ function buyConsumableItem(itemId) {
 
   if (item.effect === 'exp') {
     const levelBefore = save.level;
-    const levelsGained = gainExp(item.value, { countsForHappyGrass: false });
+    const levelsGained = addExp(save, item.value);
     if (levelsGained.length > 0) {
       pushAnnouncement('🎉', `Lv.${levelBefore} → Lv.${save.level} に到達しました`);
       showLevelUpPopup(save.level);
@@ -2221,7 +2221,7 @@ function handleTypedChar(ch) {
         save.pt += res.rareBonus.pt;
         save.totalPtEarned += res.rareBonus.pt;
         sessionPtEarned += res.rareBonus.pt;
-        const levelsGainedFromRare = gainExp(res.rareBonus.exp);
+        const levelsGainedFromRare = gainExp(res.rareBonus.exp, { countsForHappyGrass: false });
         renderGameExpBar();
         if (levelsGainedFromRare.length > 0) showLevelUpPopup(save.level);
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
