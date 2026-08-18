@@ -777,8 +777,8 @@ function isRicoFullyOwned(s) {
 }
 
 const ACHIEVEMENTS = [
-  { id: 'prestige_once', icon: '🌟', label: 'プレステージを達成', check: (s) => s.prestige >= 1 },
-  { id: 'prestige_awaken', icon: '💫', label: 'プレステージ10回達成（覚醒）', check: (s) => !!s.prestigeAwakened },
+  { id: 'prestige_once', icon: '🌟', label: '転生を達成', check: (s) => s.prestige >= 1 },
+  { id: 'prestige_awaken', icon: '💫', label: '転生10回達成（覚醒）', check: (s) => !!s.prestigeAwakened },
   { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
   { id: 'rank_ss_word', icon: '🗡️', label: '単語の間でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:word'], 'SS') },
   { id: 'rank_ss_sentence', icon: '⚔️', label: '文章の回廊でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:sentence'], 'SS') },
@@ -839,7 +839,7 @@ function renderPlayerCard() {
   const mult = fullPtMultiplier();
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
   const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
-  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} プレ+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}）`;
+  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}）`;
   el.prestigeBtn.classList.toggle('hidden', !canPrestige(save));
 
   el.playerCard.className = `player-card design-${save.profile.cardDesign}`;
@@ -1590,7 +1590,7 @@ el.prestigeBtn.addEventListener('click', () => {
   const ok = window.confirm('転生すると Lv.1 に戻ります。pt・実績・履歴は引き継がれます。よろしいですか？');
   if (!ok) return;
   const { newTiers } = doPrestige(save);
-  pushAnnouncement('🌟', `プレステージ +${save.prestige} を達成しました`);
+  pushAnnouncement('🌟', `転生 +${save.prestige} を達成しました`);
   persistSave();
   renderPlayerCard();
   renderAnnouncements();
@@ -2388,7 +2388,7 @@ function renderResult({ rank, levelsGained, levelBefore }) {
   const prestigeReady = canPrestige(save);
   el.resultPrestigeBanner.classList.toggle('hidden', !prestigeReady);
   if (prestigeReady) {
-    el.resultPrestigeBanner.textContent = '★ プレステージが可能になりました！ホーム画面から転生が可能です';
+    el.resultPrestigeBanner.textContent = '★ 転生の準備が整いました！ホーム画面から転生が可能です';
   }
 
   const rows = [
