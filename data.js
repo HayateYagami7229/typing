@@ -455,3 +455,29 @@ const ICON_CATALOG = {
     { id: 'icon_unicorn', icon: '🦄', price: 1500 },
   ],
 };
+
+const BGM_CATALOG = [
+  {
+    id: 'bgm_default',
+    name: '通常のBGM（ダンジョンごとの自動生成）',
+    price: 0,
+  },
+  {
+    id: 'bgm_shamisen',
+    name: 'しゃみせん',
+    price: 1000000,
+    file: 'BGM/しゃみせん.mp3',
+  },
+  {
+    id: 'bgm_pop_music',
+    name: 'ぽっぷみゅーじっく',
+    price: 1000000,
+    file: 'BGM/ぽっぷみゅーじっく.mp3',
+  },
+  {
+    id: 'bgm_kawaime_battle',
+    name: 'かわいめバトル',
+    price: 1000000,
+    file: 'BGM/かわいめバトル.mp3',
+  },
+];

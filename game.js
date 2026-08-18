@@ -71,8 +71,8 @@ function defaultSave() {
     totalPtEarned: 0,
     totalPtSpent: 0,
     profile: { name: 'Typer', icon: '🗡️', cardDesign: 'default', iconFrame: 'none' },
-    equipment: { swordId: null, shieldId: null, armorId: 'armor_cloth', ringId: null, titleFrontId: null, titleBackId: null, titleConnectiveId: 'conn_no' },
-    inventory: { swords: [], shields: [], armors: ['armor_cloth'], rings: [], titleFronts: [], titleBacks: [], icons: [], consumables: {} },
+    equipment: { swordId: null, shieldId: null, armorId: 'armor_cloth', ringId: null, titleFrontId: null, titleBackId: null, titleConnectiveId: 'conn_no', bgmId: 'bgm_default' },
+    inventory: { swords: [], shields: [], armors: ['armor_cloth'], rings: [], titleFronts: [], titleBacks: [], icons: [], consumables: {}, bgm: ['bgm_default'] },
     godStatue: { restoration: 0, sent: 0, completed: false, gardenRestorations: 0 },
     godStatueBuffs: { expBoostStacks: 0, heartCostReduction: 0, rareBonusStacks: 0 },
     disciple: {
@@ -142,7 +142,7 @@ function normalizeSave(raw) {
     ...raw,
     maxLevelReached: Math.max(raw.maxLevelReached || 1, raw.level || 1),
     profile: { ...base.profile, ...(raw.profile || {}) },
-    equipment: { ...base.equipment, ...(raw.equipment || {}) },
+    equipment: { ...base.equipment, ...(raw.equipment || {}), bgmId: (raw.equipment && raw.equipment.bgmId) || 'bgm_default' },
     godStatue: { ...base.godStatue, ...(raw.godStatue || {}) },
     godStatueBuffs: { ...base.godStatueBuffs, ...(raw.godStatueBuffs || {}) },
     disciple: {
@@ -161,6 +161,7 @@ function normalizeSave(raw) {
       titleBacks: (raw.inventory && raw.inventory.titleBacks) || [],
       icons: (raw.inventory && raw.inventory.icons) || [],
       consumables: (raw.inventory && raw.inventory.consumables) || {},
+      bgm: [...new Set(['bgm_default', ...((raw.inventory && raw.inventory.bgm) || [])])],
     },
     dungeonPlayCounts: { ...base.dungeonPlayCounts, ...(raw.dungeonPlayCounts || {}) },
     bestRankByKey: { ...(raw.bestRankByKey || {}) },
@@ -363,6 +364,11 @@ const SFX = {
   },
 };
 
+function getEquippedBgmTrack() {
+  const track = BGM_CATALOG.find((t) => t.id === save.equipment.bgmId);
+  return track && track.file ? track : null;
+}
+
 const BGM = {
   gainNode: null,
   timer: null,
@@ -398,6 +404,19 @@ const BGM = {
   start(mode) {
     this.stop();
     if (save.muted) return;
+    const track = getEquippedBgmTrack();
+    if (track) {
+      const audio = el.customBgmAudio;
+      if (audio.dataset.trackId !== track.id) {
+        audio.src = encodeURI(track.file);
+        audio.dataset.trackId = track.id;
+      }
+      audio.loop = true;
+      audio.volume = 0.35;
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+      return;
+    }
     const pattern = this.patterns[mode] || this.patterns.word;
     let i = 0;
     this.playNote(pattern.notes[0], pattern.step / 1000);
@@ -410,6 +429,9 @@ const BGM = {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
+    }
+    if (el.customBgmAudio && !el.customBgmAudio.paused) {
+      el.customBgmAudio.pause();
     }
   },
 };
@@ -532,6 +554,7 @@ const el = {
   historyList: document.getElementById('historyList'),
   historyEmpty: document.getElementById('historyEmpty'),
   historyBackBtn: document.getElementById('historyBackBtn'),
+  customBgmAudio: document.getElementById('customBgmAudio'),
   shopTabBadges: {
     sword: document.querySelector('#shopTabs button[data-tab="sword"] .tab-comp-badge'),
     shield: document.querySelector('#shopTabs button[data-tab="shield"] .tab-comp-badge'),
@@ -1611,15 +1634,17 @@ const SHOP_CATALOGS = {
   ring: RING_CATALOG,
   titleFront: TITLE_FRONT_CATALOG,
   titleBack: TITLE_BACK_CATALOG,
+  bgm: BGM_CATALOG,
 };
-const SHOP_INVENTORY_KEYS = { sword: 'swords', shield: 'shields', armor: 'armors', ring: 'rings', titleFront: 'titleFronts', titleBack: 'titleBacks' };
-const SHOP_EQUIP_KEYS = { sword: 'swordId', shield: 'shieldId', armor: 'armorId', ring: 'ringId', titleFront: 'titleFrontId', titleBack: 'titleBackId' };
+const SHOP_INVENTORY_KEYS = { sword: 'swords', shield: 'shields', armor: 'armors', ring: 'rings', titleFront: 'titleFronts', titleBack: 'titleBacks', bgm: 'bgm' };
+const SHOP_EQUIP_KEYS = { sword: 'swordId', shield: 'shieldId', armor: 'armorId', ring: 'ringId', titleFront: 'titleFrontId', titleBack: 'titleBackId', bgm: 'bgmId' };
 
 function shopItemEffectLabel(tab, item) {
   if (tab === 'sword') return swordEffectLabel(item);
   if (tab === 'shield') return shieldEffectLabel(item);
   if (tab === 'armor') return armorEffectLabel(item);
   if (tab === 'ring') return ringEffectLabel(item);
+  if (tab === 'bgm') return item.credit ? `♪ ${item.credit}` : '';
   return '';
 }
 
@@ -1785,9 +1810,7 @@ function renderShopList() {
   el.shopItemList.innerHTML = '';
   updateShopTabBadges();
 
-  if (currentShopTab === 'design') {
-    el.shopItemList.innerHTML = '<div class="shop-empty">近日公開予定です。お楽しみに。</div>';
-  } else if (currentShopTab === 'title') {
+  if (currentShopTab === 'title') {
     renderTitleShop();
     const newTitleLists = [...el.shopItemList.querySelectorAll('.title-column-list')];
     newTitleLists.forEach((node, i) => {

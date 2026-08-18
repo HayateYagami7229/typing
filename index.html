@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Typing Dungeon</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
@@ -266,7 +267,7 @@
         <button data-tab="title" class="choice-btn">称号<span class="tab-comp-badge hidden">🏆</span></button>
         <button data-tab="icon" class="choice-btn">アイコン<span class="tab-comp-badge hidden">🏆</span></button>
         <button data-tab="item" class="choice-btn">道具</button>
-        <button data-tab="design" class="choice-btn">デザイン</button>
+        <button data-tab="bgm" class="choice-btn">BGM</button>
       </div>
       <div class="shop-item-list" id="shopItemList"></div>
       <div class="btn-row">
@@ -277,6 +278,7 @@
 </div>
 
 <div id="levelUpBanner" class="levelup-banner-fixed"></div>
+<audio id="customBgmAudio" preload="none"></audio>
 
 <div id="disciplePopup" class="disciple-popup hidden">
   <div class="disciple-popup-inner">
