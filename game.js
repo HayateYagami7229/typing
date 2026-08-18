@@ -61,7 +61,7 @@ const RICO_STRENGTHEN_GROWTH = { sword: 1.03003, shield: 1.03003, armor: 1.03753
 const COMPLETION_TABS = ['sword', 'shield', 'armor', 'ring', 'title', 'icon'];
 const RICO_MEET_SHARD_REQUIREMENT = 1000000;
 const RICO_MET_EMBLEM_BONUS = 0.005;
-const RICO_PRAYER_COST = 10000;
+const RICO_PRAYER_COST = 100000;
 const RICO_PRAYER_EMBLEM_BONUS = 0.05;
 const RICO_PRAYER_MAX_CHARGES = 99;
 
@@ -114,6 +114,7 @@ function defaultSave() {
     completedRuns: 0,
     abortCount: 0,
     totalKeystrokes: 0,
+    totalTypingTimeMs: 0,
     totalCorrect: 0,
     totalMistakes: 0,
     totalWordsCompleted: 0,
@@ -142,6 +143,9 @@ function normalizeSave(raw) {
     ...base,
     ...raw,
     maxLevelReached: Math.max(raw.maxLevelReached || 1, raw.level || 1),
+    prestigeAwakenedTiers: raw.prestigeAwakenedTiers
+      ? raw.prestigeAwakenedTiers
+      : PRESTIGE_AWAKENING_TIERS.filter((t) => (raw.prestige || 0) >= t.at).map((t) => t.at),
     profile: { ...base.profile, ...(raw.profile || {}) },
     equipment: { ...base.equipment, ...(raw.equipment || {}), bgmId: (raw.equipment && raw.equipment.bgmId) || 'bgm_default' },
     godStatue: { ...base.godStatue, ...(raw.godStatue || {}) },
@@ -789,6 +793,9 @@ const ACHIEVEMENTS = [
   { id: 'total_taps_10man', icon: '🥈', label: '総タイプ数10万達成', check: (s) => s.totalCorrect >= 100000 },
   { id: 'total_taps_100man', icon: '🥇', label: '総タイプ数100万達成', check: (s) => s.totalCorrect >= 1000000 },
   { id: 'total_taps_1000man', icon: '💎', label: '総タイプ数1000万達成', check: (s) => s.totalCorrect >= 10000000 },
+  { id: 'typing_time_1h', icon: '⏱️', label: '総タイピング時間1時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 3600000 },
+  { id: 'typing_time_10h', icon: '⏰', label: '総タイピング時間10時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 36000000 },
+  { id: 'typing_time_100h', icon: '🕰️', label: '総タイピング時間100時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 360000000 },
 ];
 
 function discipleMaxStreakOf(s) {
@@ -2275,6 +2282,7 @@ function finishSession() {
   stopTimerLoop();
   BGM.stop();
   session.finish();
+  save.totalTypingTimeMs = (save.totalTypingTimeMs || 0) + session.elapsedMs;
 
   const prevBestRank = save.bestRank;
   const prevBestCombo = save.bestCombo;
@@ -2339,6 +2347,7 @@ function abortSession() {
   stopTimerLoop();
   BGM.stop();
   save.abortCount++;
+  save.totalTypingTimeMs = (save.totalTypingTimeMs || 0) + session.elapsedMs;
   persistSave();
   session = null;
   goHome();
@@ -2411,6 +2420,14 @@ function formatTypeVolume(count) {
   return `${unit.name} ${display}${unit.suffix}`;
 }
 
+function formatDuration(ms) {
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours <= 0) return `${minutes}分`;
+  return `${hours.toLocaleString()}時間${minutes}分`;
+}
+
 function renderStats() {
   const totalAttempts = save.totalCorrect + save.totalMistakes;
   const overallAccuracy = totalAttempts === 0 ? 100 : Math.round((save.totalCorrect / totalAttempts) * 1000) / 10;
@@ -2420,6 +2437,7 @@ function renderStats() {
   const rows = [
     ['総タイプ数', save.totalCorrect.toLocaleString()],
     ['__sub__', `📄 ${formatTypeVolume(save.totalCorrect)}`],
+    ['総タイピング時間', formatDuration(save.totalTypingTimeMs || 0)],
     ['総ミスタイプ数', save.totalMistakes.toLocaleString()],
     ['クリアしたワード数', save.totalWordsCompleted.toLocaleString()],
     ['単語の間 挑戦回数', save.dungeonPlayCounts.word],
