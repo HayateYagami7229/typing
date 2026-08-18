@@ -20,7 +20,7 @@ function rankTitle(code) {
 const PRESTIGE_AWAKENING_TIERS = [
   { at: 10, ptBonus: 1000, expMultiplier: 2 },
   { at: 20, ptBonus: 500, expMultiplier: 2 },
-  { at: 30, ptBonus: 500, expMultiplier: 2 },
+  { at: 30, ptBonus: 3000, expMultiplier: 2 },
 ];
 
 function prestigeAwakeningPtBonus(save) {
