@@ -10,12 +10,19 @@ const LANG_LABELS = { jp: '日本語', en: 'English' };
 
 const GOD_STATUE_RESTORE_COST = 10000;
 const GOD_STATUE_MAX = 100;
+const GOD_STATUE_MAX_SENT = 100;
 const GOD_STATUE_HEART_COST_FLOOR = 75;
 const GOD_STATUE_RARE_BONUS_CAP = 0.50;
 const PRESTIGE_RARE_BONUS_PER = 0.01;
 const PRESTIGE_RARE_BONUS_CAP = 0.10;
 const HAPPY_GRASS_EXP_PER_STOCK = 500;
 const HAPPY_GRASS_MAX_STOCK = 99;
+const GOD_GARDEN_RESTORE_COST = 10000000;
+const GOD_GARDEN_MAX_RESTORATIONS = 20;
+const GOD_GARDEN_EMBLEM_BONUS_PER = 0.001;
+const MAOU_EMBLEM_BASE_CHANCE = 0.001;
+const MAOU_EMBLEM_REQUIRED = 100;
+const DISCIPLE_CLASS_UP_THRESHOLD = 1000;
 
 const GOD_STATUE_BUFFS = [
   { id: 'exp_boost', name: '経験の祝福', desc: 'EXPが永続的に+20%' },
@@ -45,11 +52,18 @@ const DISCIPLE_BULK_THRESHOLDS = [
   { count: 10, minTotal: 1000 },
 ];
 
-const RICO_FIELD = { sword: 'value', shield: 'expBonus', armor: 'capRatio', ring: 'rareChanceBonus' };
-const RICO_INCREMENT = 0.01;
-const RICO_STRENGTHEN_BASE_COST = { sword: 200, shield: 200, armor: 10000, ring: 10000 };
-const RICO_STRENGTHEN_GROWTH = 1.15;
+const RICO_FIELD = { sword: 'value', shield: 'expBonus', armor: 'comboSeconds', ring: 'rareChanceBonus' };
+const RICO_BASE_VALUE = { sword: 0.01, shield: 0.01, armor: 2, ring: 0.01 };
+const RICO_INCREMENT = { sword: 0.01, shield: 0.01, armor: 0.1, ring: 0.01 };
+const RICO_STRENGTHEN_BASE_COST = { sword: 20, shield: 20, armor: 20, ring: 20 };
+const RICO_MAX_VALUE = { sword: 2.00, shield: 2.00, armor: 18, ring: 0.20 };
+const RICO_STRENGTHEN_GROWTH = { sword: 1.03003, shield: 1.03003, armor: 1.03753, ring: 1.38464 };
 const COMPLETION_TABS = ['sword', 'shield', 'armor', 'ring', 'title', 'icon'];
+const RICO_MEET_SHARD_REQUIREMENT = 1000000;
+const RICO_MET_EMBLEM_BONUS = 0.005;
+const RICO_PRAYER_COST = 10000;
+const RICO_PRAYER_EMBLEM_BONUS = 0.05;
+const RICO_PRAYER_MAX_CHARGES = 99;
 
 function defaultSave() {
   return {
@@ -59,7 +73,7 @@ function defaultSave() {
     profile: { name: 'Typer', icon: '🗡️', cardDesign: 'default', iconFrame: 'none' },
     equipment: { swordId: null, shieldId: null, armorId: 'armor_cloth', ringId: null, titleFrontId: null, titleBackId: null, titleConnectiveId: 'conn_no' },
     inventory: { swords: [], shields: [], armors: ['armor_cloth'], rings: [], titleFronts: [], titleBacks: [], icons: [], consumables: {} },
-    godStatue: { restoration: 0, sent: 0 },
+    godStatue: { restoration: 0, sent: 0, completed: false, gardenRestorations: 0 },
     godStatueBuffs: { expBoostStacks: 0, heartCostReduction: 0, rareBonusStacks: 0 },
     disciple: {
       name: '弟子',
@@ -80,7 +94,13 @@ function defaultSave() {
       bulkUnlocked: { 5: false, 10: false },
       heartVesselOwned: false,
       heartVesselAnnounced: false,
+      classUpped: false,
     },
+    maouEmblems: 0,
+    maouGateRevealed: false,
+    ricoShardsEarned: 0,
+    ricoMet: false,
+    maouPrayerCharges: 0,
     level: 1,
     maxLevelReached: 1,
     exp: 0,
@@ -400,6 +420,7 @@ let screen = 'home';
 let timerHandle = null;
 let levelAtSessionStart = 1;
 let sessionPtEarned = 0;
+let sessionMaouPrayerBonus = 0;
 let currentShopTab = 'sword';
 let awaitingStart = false;
 
@@ -433,6 +454,16 @@ const el = {
   godStatueText: document.getElementById('godStatueText'),
   godStatueSent: document.getElementById('godStatueSent'),
   godStatueBtn: document.getElementById('godStatueBtn'),
+  godStatuePanel: document.getElementById('godStatuePanel'),
+  godGardenPanel: document.getElementById('godGardenPanel'),
+  godGardenText: document.getElementById('godGardenText'),
+  godGardenBtn: document.getElementById('godGardenBtn'),
+  maouGatePanel: document.getElementById('maouGatePanel'),
+  maouGateText: document.getElementById('maouGateText'),
+  simpleRevealPopup: document.getElementById('simpleRevealPopup'),
+  simpleRevealTitle: document.getElementById('simpleRevealTitle'),
+  simpleRevealDesc: document.getElementById('simpleRevealDesc'),
+  simpleRevealCloseBtn: document.getElementById('simpleRevealCloseBtn'),
   discipleIconBtn: document.getElementById('discipleIconBtn'),
   discipleIconPicker: document.getElementById('discipleIconPicker'),
   discipleName: document.getElementById('discipleName'),
@@ -468,6 +499,7 @@ const el = {
   readyOverlay: document.getElementById('readyOverlay'),
   rareMonsterBadge: document.getElementById('rareMonsterBadge'),
   fairyDustBadge: document.getElementById('fairyDustBadge'),
+  maouPrayerBadge: document.getElementById('maouPrayerBadge'),
   rareBonusPopup: document.getElementById('rareBonusPopup'),
   levelUpBanner: document.getElementById('levelUpBanner'),
   accuracyDisplay: document.getElementById('accuracyDisplay'),
@@ -545,7 +577,8 @@ function applyRicoBonus(item, slot) {
   const lvl = (save.ricoLevels && save.ricoLevels[slot]) || 0;
   if (lvl <= 0) return item;
   const field = RICO_FIELD[slot];
-  return { ...item, [field]: item[field] + lvl * RICO_INCREMENT };
+  const raw = item[field] + lvl * RICO_INCREMENT[slot];
+  return { ...item, [field]: Math.round(raw * 10000) / 10000 };
 }
 
 function getEquippedSword() {
@@ -567,14 +600,53 @@ function getEquippedRing() {
 
 function ricoStrengthenCost(slot) {
   const lvl = (save.ricoLevels && save.ricoLevels[slot]) || 0;
-  return Math.round(RICO_STRENGTHEN_BASE_COST[slot] * Math.pow(RICO_STRENGTHEN_GROWTH, lvl));
+  return Math.round(RICO_STRENGTHEN_BASE_COST[slot] * Math.pow(RICO_STRENGTHEN_GROWTH[slot], lvl));
+}
+
+function ricoMaxLevel(slot) {
+  const max = RICO_MAX_VALUE[slot];
+  if (max === undefined) return Infinity;
+  return Math.round((max - RICO_BASE_VALUE[slot]) / RICO_INCREMENT[slot]);
+}
+
+function isRicoMaxed(slot) {
+  const lvl = (save.ricoLevels && save.ricoLevels[slot]) || 0;
+  return lvl >= ricoMaxLevel(slot);
 }
 
 function strengthenRicoItem(slot) {
+  if (isRicoMaxed(slot)) return;
   const cost = ricoStrengthenCost(slot);
   if (save.ricoShards < cost) return;
   save.ricoShards -= cost;
   save.ricoLevels[slot] = (save.ricoLevels[slot] || 0) + 1;
+  SFX.correct();
+  persistSave();
+  renderPlayerCard();
+  checkRicoMeeting();
+}
+
+function isAllRicoMaxed() {
+  return ['sword', 'shield', 'armor', 'ring'].every((slot) => isRicoMaxed(slot));
+}
+
+function checkRicoMeeting() {
+  if (save.ricoMet) return;
+  if (!isAllRicoMaxed() || (save.ricoShardsEarned || 0) < RICO_MEET_SHARD_REQUIREMENT) return;
+  save.ricoMet = true;
+  pushAnnouncement('✨', 'リコに出会った……');
+  persistSave();
+  renderAnnouncements();
+  renderPlayerCard();
+  queueReveal('リコ', 'ずっと影から支えてくれていたのは、かつて名を馳せた鍛冶の魂だった。リコの力が魔王に楔を打ち込む——これでようやく、届く場所まで魔王は弱くなるはずだ。以後、魔王の紋章の出現率がわずかに上昇する。');
+}
+
+function prayAtRicoTablet() {
+  if (!save.ricoMet) return;
+  if (save.ricoShards < RICO_PRAYER_COST) return;
+  if ((save.maouPrayerCharges || 0) >= RICO_PRAYER_MAX_CHARGES) return;
+  save.ricoShards -= RICO_PRAYER_COST;
+  save.maouPrayerCharges = (save.maouPrayerCharges || 0) + 1;
   SFX.correct();
   persistSave();
   renderPlayerCard();
@@ -678,6 +750,7 @@ function renderPlayerCard() {
 
   renderEquipmentSummary();
   renderGodStatue();
+  renderMaouGate();
 }
 
 function godStatueSvg(stage) {
@@ -718,6 +791,13 @@ function godStatueSvg(stage) {
 }
 
 function renderGodStatue() {
+  el.godStatuePanel.classList.toggle('hidden', save.godStatue.completed);
+  el.godGardenPanel.classList.toggle('hidden', !save.godStatue.completed);
+  if (save.godStatue.completed) {
+    renderGodGarden();
+    return;
+  }
+
   const pct = Math.round((save.godStatue.restoration / GOD_STATUE_MAX) * 100);
   el.godStatueBarFill.style.width = `${pct}%`;
   el.godStatueText.textContent = `復興 ${save.godStatue.restoration} / ${GOD_STATUE_MAX}`;
@@ -731,6 +811,86 @@ function renderGodStatue() {
     : `🛠️ 女神像を再建築する（-${GOD_STATUE_RESTORE_COST.toLocaleString()}pt） <span class="key-hint">M</span>`;
   el.godStatueBtn.classList.toggle('ready', ready);
   el.godStatueBtn.disabled = !ready && save.pt < GOD_STATUE_RESTORE_COST;
+}
+
+function renderGodGarden() {
+  const n = save.godStatue.gardenRestorations || 0;
+  const maxed = n >= GOD_GARDEN_MAX_RESTORATIONS;
+  const bonusPct = (n * GOD_GARDEN_EMBLEM_BONUS_PER * 100).toFixed(1);
+  el.godGardenText.textContent = `復興 ${n} / ${GOD_GARDEN_MAX_RESTORATIONS}（魔王の紋章 出現率 +${bonusPct}%）`;
+  el.godGardenBtn.textContent = maxed ? '🌸 女神の園は完全に復興した' : `🌸 女神の園を復興する（-${GOD_GARDEN_RESTORE_COST.toLocaleString()}pt）`;
+  el.godGardenBtn.disabled = maxed || save.pt < GOD_GARDEN_RESTORE_COST;
+}
+
+function restoreGodGarden() {
+  if ((save.godStatue.gardenRestorations || 0) >= GOD_GARDEN_MAX_RESTORATIONS) return;
+  if (save.pt < GOD_GARDEN_RESTORE_COST) return;
+  save.pt -= GOD_GARDEN_RESTORE_COST;
+  save.totalPtSpent += GOD_GARDEN_RESTORE_COST;
+  save.godStatue.gardenRestorations = (save.godStatue.gardenRestorations || 0) + 1;
+  persistSave();
+  refreshTotalPt();
+  renderGodGarden();
+}
+
+function renderMaouGate() {
+  el.maouGatePanel.classList.toggle('hidden', !save.maouGateRevealed);
+  if (!save.maouGateRevealed) return;
+  el.maouGateText.textContent = `魔王の紋章 ${Math.min(save.maouEmblems, MAOU_EMBLEM_REQUIRED).toLocaleString()} / ${MAOU_EMBLEM_REQUIRED}`;
+}
+
+let revealQueue = [];
+function queueReveal(title, desc) {
+  revealQueue.push({ title, desc });
+  if (revealQueue.length === 1) showNextReveal();
+}
+function showNextReveal() {
+  if (revealQueue.length === 0) return;
+  const { title, desc } = revealQueue[0];
+  el.simpleRevealTitle.textContent = title;
+  el.simpleRevealDesc.textContent = desc;
+  el.simpleRevealPopup.classList.remove('hidden');
+}
+
+function checkGodStatueCompletion() {
+  if (save.godStatue.completed || save.godStatue.sent < GOD_STATUE_MAX_SENT) return;
+  save.godStatue.completed = true;
+  pushAnnouncement('⛩️', 'ラグナロクに全ての女神を帰した');
+  persistSave();
+  renderAnnouncements();
+  renderGodStatue();
+  queueReveal('ラグナロクに全ての女神を帰した', '女神像の再建は、もう必要ないようだ……代わりに「女神の園」の復興が始まった。');
+  checkMaouGateReveal();
+}
+
+function checkDiscipleClassUp() {
+  if (save.disciple.classUpped || discipleTotalParams() <= DISCIPLE_CLASS_UP_THRESHOLD) return;
+  save.disciple.classUpped = true;
+  pushAnnouncement('⚔️', `${save.disciple.name}は勇者だった！勇者にクラスアップした`);
+  persistSave();
+  renderAnnouncements();
+  queueReveal('弟子の様子が…！？', `${save.disciple.name}は勇者だった！勇者にクラスアップした！`);
+  checkMaouGateReveal();
+}
+
+function checkMaouGateReveal() {
+  if (save.maouGateRevealed || !save.godStatue.completed || !save.disciple.classUpped) return;
+  save.maouGateRevealed = true;
+  pushAnnouncement('🏰', '魔王城への道が見えてきた……');
+  persistSave();
+  renderAnnouncements();
+  renderMaouGate();
+  queueReveal('魔王城への道', `魔王の紋章を${MAOU_EMBLEM_REQUIRED}個集めれば、魔王城へ向かえるようになるかもしれない`);
+}
+
+let maouEmblemPopupTimer = null;
+function showMaouEmblemPopup() {
+  el.rareBonusPopup.textContent = `🔱 魔王の紋章を手に入れた！（${Math.min(save.maouEmblems, MAOU_EMBLEM_REQUIRED)}/${MAOU_EMBLEM_REQUIRED}）`;
+  el.rareBonusPopup.classList.remove('show');
+  void el.rareBonusPopup.offsetWidth;
+  el.rareBonusPopup.classList.add('show');
+  clearTimeout(maouEmblemPopupTimer);
+  maouEmblemPopupTimer = setTimeout(() => el.rareBonusPopup.classList.remove('show'), 1800);
 }
 
 function restoreGodStatue() {
@@ -761,15 +921,26 @@ function sendGodStatueToRagnarok() {
   openGodStatueBuffPopup();
 }
 
+function isGodBuffMaxed(buffId) {
+  if (buffId === 'heart_cost_down') {
+    return (save.godStatueBuffs.heartCostReduction || 0) >= (DISCIPLE_HEART_EXP_COST - GOD_STATUE_HEART_COST_FLOOR);
+  }
+  if (buffId === 'rare_luck') {
+    return (save.godStatueBuffs.rareBonusStacks || 0) >= 50;
+  }
+  return false;
+}
+
 function renderGodStatueBuffOptions() {
   el.godBuffOptions.innerHTML = '';
   GOD_STATUE_BUFFS.forEach((buff) => {
+    const maxed = isGodBuffMaxed(buff.id);
     const card = document.createElement('div');
-    card.className = 'god-buff-card';
+    card.className = maxed ? 'god-buff-card maxed' : 'god-buff-card';
     card.innerHTML = `
       <div class="god-buff-name">${buff.name}</div>
       <div class="god-buff-desc">${buff.desc}</div>
-      <button class="shop-btn" data-buff="${buff.id}">選ぶ</button>
+      <button class="shop-btn" data-buff="${buff.id}" ${maxed ? 'disabled' : ''}>${maxed ? '効果最大' : '選ぶ'}</button>
     `;
     el.godBuffOptions.appendChild(card);
   });
@@ -800,6 +971,7 @@ function chooseGodStatueBuff(buffId) {
   el.godStatueBuffPopup.classList.add('hidden');
   renderPlayerCard();
   renderAnnouncements();
+  checkGodStatueCompletion();
 }
 
 el.godBuffOptions.addEventListener('click', (e) => {
@@ -811,6 +983,12 @@ el.godBuffOptions.addEventListener('click', (e) => {
 el.godStatueBtn.addEventListener('click', () => {
   if (save.godStatue.restoration >= GOD_STATUE_MAX) sendGodStatueToRagnarok();
   else restoreGodStatue();
+});
+el.godGardenBtn.addEventListener('click', restoreGodGarden);
+el.simpleRevealCloseBtn.addEventListener('click', () => {
+  el.simpleRevealPopup.classList.add('hidden');
+  revealQueue.shift();
+  if (revealQueue.length > 0) setTimeout(showNextReveal, 300);
 });
 
 const DISCIPLE_PRICE_HIKE_TIERS = [
@@ -870,6 +1048,7 @@ function upgradeDiscipleStat(stat, count = 1) {
   save.disciple.upgrades[stat] += count;
   save.disciple.strengthenCount += count;
   checkDiscipleBulkUnlocks();
+  checkDiscipleClassUp();
   persistSave();
   refreshTotalPt();
   renderDisciple();
@@ -892,7 +1071,7 @@ function checkHeartVesselUnlock() {
   if (save.disciple.heartVesselOwned || save.disciple.heartVesselAnnounced) return;
   if (discipleMaxStreak() <= 1000) return;
   save.disciple.heartVesselAnnounced = true;
-  pushAnnouncement('❤️', 'ショップに「ハートの器」が入荷しました');
+  pushAnnouncement('❓', 'ショップに何かが入荷されたようです');
   renderAnnouncements();
 }
 
@@ -928,9 +1107,9 @@ function gainHappyGrassStock(exp) {
   if (save.happyGrassStock >= HAPPY_GRASS_MAX_STOCK) save.happyGrassExpProgress = 0;
 }
 
-function gainExp(amount) {
+function gainExp(amount, opts = {}) {
   const boosted = Math.round(amount * godStatueExpMultiplier());
-  gainHappyGrassStock(boosted);
+  if (opts.countsForHappyGrass !== false) gainHappyGrassStock(boosted);
   return addExp(save, boosted);
 }
 
@@ -1185,14 +1364,26 @@ function renderEquipmentSummary() {
     el.equipmentSummary.appendChild(shardRow);
   }
 
+  if (save.ricoMet) {
+    const canPray = save.ricoShards >= RICO_PRAYER_COST && (save.maouPrayerCharges || 0) < RICO_PRAYER_MAX_CHARGES;
+    const prayerRow = document.createElement('div');
+    prayerRow.className = 'equip-row rico-prayer-row';
+    prayerRow.innerHTML = `<span class="equip-label">🙏 リコの位牌</span><span class="equip-right"><span class="equip-value">祈りの加護 ${save.maouPrayerCharges || 0}</span><button class="equip-strengthen-btn" data-action="pray" ${canPray ? '' : 'disabled'}>祈る（${RICO_PRAYER_COST.toLocaleString()}）</button></span>`;
+    el.equipmentSummary.appendChild(prayerRow);
+  }
+
   rows.forEach(([label, item, text, slot]) => {
     const row = document.createElement('div');
     row.className = 'equip-row';
     let strengthenHtml = '';
     if (item && item.rico) {
-      const cost = ricoStrengthenCost(slot);
-      const canAfford = save.ricoShards >= cost;
-      strengthenHtml = `<button class="equip-strengthen-btn" data-slot="${slot}" ${canAfford ? '' : 'disabled'}>✨強化（${cost.toLocaleString()}）</button>`;
+      if (isRicoMaxed(slot)) {
+        strengthenHtml = '<button class="equip-strengthen-btn" disabled>✨成長限界</button>';
+      } else {
+        const cost = ricoStrengthenCost(slot);
+        const canAfford = save.ricoShards >= cost;
+        strengthenHtml = `<button class="equip-strengthen-btn" data-slot="${slot}" ${canAfford ? '' : 'disabled'}>✨強化（${cost.toLocaleString()}）</button>`;
+      }
     }
     row.innerHTML = `<span class="equip-label">${label}</span><span class="equip-right"><span class="equip-value">${text}</span>${strengthenHtml}</span>`;
     el.equipmentSummary.appendChild(row);
@@ -1200,9 +1391,13 @@ function renderEquipmentSummary() {
 }
 
 el.equipmentSummary.addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-slot]');
-  if (!btn) return;
-  strengthenRicoItem(btn.dataset.slot);
+  const strengthenBtn = e.target.closest('button[data-slot]');
+  if (strengthenBtn) {
+    strengthenRicoItem(strengthenBtn.dataset.slot);
+    return;
+  }
+  const prayBtn = e.target.closest('button[data-action="pray"]');
+  if (prayBtn) prayAtRicoTablet();
 });
 
 function renderIconPicker() {
@@ -1449,7 +1644,7 @@ function buyConsumableItem(itemId) {
 
   if (item.effect === 'exp') {
     const levelBefore = save.level;
-    const levelsGained = gainExp(item.value);
+    const levelsGained = gainExp(item.value, { countsForHappyGrass: false });
     if (levelsGained.length > 0) {
       pushAnnouncement('🎉', `Lv.${levelBefore} → Lv.${save.level} に到達しました`);
       showLevelUpPopup(save.level);
@@ -1687,6 +1882,14 @@ function startSession() {
   }
   el.fairyDustBadge.classList.toggle('hidden', !fairyDustActive);
 
+  sessionMaouPrayerBonus = 0;
+  if ((save.maouPrayerCharges || 0) > 0) {
+    save.maouPrayerCharges -= 1;
+    sessionMaouPrayerBonus = RICO_PRAYER_EMBLEM_BONUS;
+    pushAnnouncement('🙏', 'リコの祈りの力を感じる（魔王の紋章の出現率が大幅に上昇している）');
+  }
+  el.maouPrayerBadge.classList.toggle('hidden', sessionMaouPrayerBonus <= 0);
+
   session = new TimeAttackSession(pool, buildFn, currentDuration, {
     expFactor: dungeon.expFactor,
     shieldExpBonus: shield ? shield.expBonus : 0,
@@ -1903,7 +2106,24 @@ function handleTypedChar(ch) {
     sessionPtEarned += gain;
     save.totalCorrect++;
     save.totalKeystrokes++;
-    if (save.ricoUnlocked) save.ricoShards = (save.ricoShards || 0) + 1;
+    if (save.ricoUnlocked) {
+      const shardGain = 1 + (save.godStatue.gardenRestorations || 0);
+      save.ricoShards = (save.ricoShards || 0) + shardGain;
+      save.ricoShardsEarned = (save.ricoShardsEarned || 0) + shardGain;
+      checkRicoMeeting();
+    }
+    if (save.maouGateRevealed && save.maouEmblems < MAOU_EMBLEM_REQUIRED) {
+      const dropChance = MAOU_EMBLEM_BASE_CHANCE
+        + (save.godStatue.gardenRestorations || 0) * GOD_GARDEN_EMBLEM_BONUS_PER
+        + (save.ricoMet ? RICO_MET_EMBLEM_BONUS : 0)
+        + sessionMaouPrayerBonus;
+      if (Math.random() < dropChance) {
+        save.maouEmblems += 1;
+        renderMaouGate();
+        showMaouEmblemPopup();
+        SFX.rare();
+      }
+    }
     refreshTotalPt();
 
     if (res.comboBonus > 0) {

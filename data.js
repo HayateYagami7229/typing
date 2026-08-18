@@ -365,7 +365,7 @@ const ARMOR_CATALOG = [
   { id: 'armor_steel', name: '鋼鉄の鎧', price: 18000, comboStep: 40, comboSeconds: 6, capRatio: 0.7 },
   { id: 'armor_dragon', name: '竜鱗の鎧', price: 60000, comboStep: 50, comboSeconds: 9, capRatio: 0.8 },
   { id: 'armor_champion', name: '覇者の鎧', price: 200000, comboStep: 65, comboSeconds: 12, capRatio: 0.9 },
-  { id: 'armor_rico', name: 'リコの鎧', price: 10000000, comboStep: 20, comboSeconds: 2, capRatio: 0.01, rico: true },
+  { id: 'armor_rico', name: 'リコの鎧', price: 10000000, comboStep: 80, comboSeconds: 2, capRatio: 0.9, rico: true },
 ];
 
 const RING_CATALOG = [

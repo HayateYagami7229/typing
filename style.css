@@ -826,6 +826,31 @@ body {
   50% { box-shadow: 0 0 16px rgba(255, 209, 102, 0.5); }
 }
 
+.god-garden-panel {
+  background: linear-gradient(160deg, var(--bg-panel), #2a1830);
+  border-color: #6b3a5a;
+}
+
+.god-garden-panel .god-statue-btn {
+  border-color: #d68ab0;
+  background: rgba(255, 138, 200, 0.12);
+  color: #ffd3ea;
+}
+
+.god-garden-panel .god-statue-btn:hover:not(:disabled) {
+  background: rgba(255, 138, 200, 0.22);
+  box-shadow: 0 3px 12px rgba(255, 138, 200, 0.3);
+}
+
+.maou-gate-panel {
+  background: linear-gradient(160deg, var(--bg-panel), #2a1414);
+  border-color: #6b2a2a;
+}
+
+.maou-gate-panel .god-statue-header h2 {
+  color: #ff8a8a;
+}
+
 /* disciple */
 .disciple-panel {
   background: linear-gradient(160deg, var(--bg-panel), #1a2438);
@@ -1124,6 +1149,13 @@ body {
   text-align: left;
 }
 
+.god-buff-card.maxed {
+  border-color: var(--border);
+  background: var(--bg-panel-2);
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
 .god-buff-name {
   font-weight: 800;
   color: #e2c2ff;
@@ -1384,6 +1416,12 @@ body {
 
 .fairy-dust-badge.hidden {
   display: none;
+}
+
+.maou-prayer-badge {
+  background: rgba(255, 138, 138, 0.1);
+  border-color: #b04a4a;
+  color: #ffb3b3;
 }
 
 .rare-bonus-popup {
