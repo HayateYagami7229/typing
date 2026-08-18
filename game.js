@@ -104,6 +104,7 @@ function defaultSave() {
     maouPrayerCount: 0,
     maouDefeated: false,
     prestigeAwakened: false,
+    prestigeAwakenedTiers: [],
     level: 1,
     maxLevelReached: 1,
     exp: 0,
@@ -751,7 +752,7 @@ function fullPtMultiplier() {
   const sword = getEquippedSword();
   const swordBonus = sword && sword.statType === 'keystroke' ? sword.value : 0;
   const base = 1 + levelBonus + prestigeBonus;
-  const awakeningBonus = save.prestigeAwakened ? PRESTIGE_AWAKENING_PT_BONUS : 0;
+  const awakeningBonus = prestigeAwakeningPtBonus(save);
   const total = base * (1 + swordBonus) + awakeningBonus;
   return { levelBonus, prestigeBonus, swordBonus, awakeningBonus, total };
 }
@@ -770,7 +771,7 @@ function isRicoFullyOwned(s) {
 
 const ACHIEVEMENTS = [
   { id: 'prestige_once', icon: '🌟', label: 'プレステージを達成', check: (s) => s.prestige >= 1 },
-  { id: 'prestige_awaken', icon: '💫', label: `プレステージ${PRESTIGE_AWAKENING_AT}回達成（覚醒）`, check: (s) => !!s.prestigeAwakened },
+  { id: 'prestige_awaken', icon: '💫', label: 'プレステージ10回達成（覚醒）', check: (s) => !!s.prestigeAwakened },
   { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
   { id: 'rank_ss_word', icon: '🗡️', label: '単語の間でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:word'], 'SS') },
   { id: 'rank_ss_sentence', icon: '⚔️', label: '文章の回廊でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:sentence'], 'SS') },
@@ -820,7 +821,7 @@ function renderPlayerCard() {
   el.playerLevel.textContent = `Lv.${save.level}`;
   el.playerPrestige.textContent = save.prestige > 0 ? `+${save.prestige}` : '';
 
-  const need = expToNextLevel(save.level, save.prestigeAwakened ? PRESTIGE_AWAKENING_EXP_MULTIPLIER : 1);
+  const need = expToNextLevel(save.level, prestigeAwakeningExpMultiplier(save));
   const atMax = save.level >= MAX_LEVEL;
   const pct = atMax ? 100 : Math.min(100, Math.round((save.exp / need) * 100));
   el.expBarFill.style.width = `${pct}%`;
@@ -1559,20 +1560,20 @@ el.prestigeBtn.addEventListener('click', () => {
   if (!canPrestige(save)) return;
   const ok = window.confirm('プレステージすると Lv.1 に戻ります。pt・実績・履歴は引き継がれます。よろしいですか？');
   if (!ok) return;
-  const { justAwakened } = doPrestige(save);
+  const { newTiers } = doPrestige(save);
   pushAnnouncement('🌟', `プレステージ +${save.prestige} を達成しました`);
   persistSave();
   renderPlayerCard();
   renderAnnouncements();
   SFX.prestige();
-  if (justAwakened) {
-    pushAnnouncement('✨', `眠っていた力が目覚めた（pt倍率+${PRESTIGE_AWAKENING_PT_BONUS}・以後の経験値テーブルが変化）`);
+  newTiers.forEach((tier) => {
+    pushAnnouncement('✨', `眠っていた力が目覚めた（pt倍率+${tier.ptBonus}・以後の経験値テーブルが${tier.expMultiplier}倍）`);
     renderAnnouncements();
     queueReveal(
       '体が眩く光り出す…！',
-      `眠っていた力が目覚めたようだ。\n※pt倍率に+${PRESTIGE_AWAKENING_PT_BONUS}されました\n※以後の経験値テーブルが変化します`,
+      `眠っていた力が目覚めたようだ。\n※pt倍率に+${tier.ptBonus}されました\n※以後の経験値テーブルが${tier.expMultiplier}倍になりました`,
     );
-  }
+  });
 });
 
 el.dungeonGrid.addEventListener('click', (e) => {
@@ -2019,7 +2020,7 @@ function beginTyping() {
 }
 
 function renderGameExpBar() {
-  const need = expToNextLevel(save.level, save.prestigeAwakened ? PRESTIGE_AWAKENING_EXP_MULTIPLIER : 1);
+  const need = expToNextLevel(save.level, prestigeAwakeningExpMultiplier(save));
   const atMax = save.level >= MAX_LEVEL;
   const pct = atMax ? 100 : Math.min(100, Math.round((save.exp / need) * 100));
   el.gameExpBarFill.style.width = `${pct}%`;
@@ -2380,7 +2381,7 @@ function renderResult({ rank, levelsGained, levelBefore }) {
     el.resultStats.appendChild(row);
   });
 
-  const need = expToNextLevel(save.level, save.prestigeAwakened ? PRESTIGE_AWAKENING_EXP_MULTIPLIER : 1);
+  const need = expToNextLevel(save.level, prestigeAwakeningExpMultiplier(save));
   const atMax = save.level >= MAX_LEVEL;
   const pct = atMax ? 100 : Math.min(100, Math.round((save.exp / need) * 100));
   el.resultExpBarFill.style.width = `${pct}%`;
