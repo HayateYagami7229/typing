@@ -147,6 +147,9 @@ function normalizeSave(raw) {
     prestigeAwakenedTiers: raw.prestigeAwakenedTiers
       ? raw.prestigeAwakenedTiers
       : PRESTIGE_AWAKENING_TIERS.filter((t) => (raw.prestige || 0) >= t.at).map((t) => t.at),
+    godGardenHintShown: raw.godGardenHintShown !== undefined
+      ? raw.godGardenHintShown
+      : !!(raw.godStatue && raw.godStatue.gardenRestorations >= GOD_GARDEN_MAX_RESTORATIONS),
     profile: { ...base.profile, ...(raw.profile || {}) },
     equipment: { ...base.equipment, ...(raw.equipment || {}), bgmId: (raw.equipment && raw.equipment.bgmId) || 'bgm_default' },
     godStatue: { ...base.godStatue, ...(raw.godStatue || {}) },
