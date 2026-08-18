@@ -1354,6 +1354,7 @@ function fightDiscipleOpponent(opp) {
   persistSave();
   refreshTotalPt();
   renderDisciple();
+  renderPlayerCard();
   showDiscipleBattleResult(result, earned, opp, streakAfter);
 }
 
