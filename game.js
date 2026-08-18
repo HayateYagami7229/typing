@@ -992,11 +992,12 @@ function checkDiscipleClassUp() {
 function checkMaouGateReveal() {
   if (save.maouGateRevealed || !save.godStatue.completed || !save.disciple.classUpped) return;
   save.maouGateRevealed = true;
+  save.maouEmblems = MAOU_EMBLEM_REQUIRED;
   pushAnnouncement('🏰', '魔王城への道が見えてきた……');
   persistSave();
   renderAnnouncements();
   renderMaouGate();
-  queueReveal('魔王城への道', `魔王の紋章を${MAOU_EMBLEM_REQUIRED}個集めれば、魔王城へ向かえるようになるかもしれない`);
+  queueReveal('魔王城への道', '気づけば魔王の紋章は既に揃っていた。魔王城へ向かえるかもしれない……');
 }
 
 let maouEmblemPopupTimer = null;
