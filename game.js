@@ -1587,7 +1587,7 @@ el.renameBtn.addEventListener('click', () => {
 
 el.prestigeBtn.addEventListener('click', () => {
   if (!canPrestige(save)) return;
-  const ok = window.confirm('プレステージすると Lv.1 に戻ります。pt・実績・履歴は引き継がれます。よろしいですか？');
+  const ok = window.confirm('転生すると Lv.1 に戻ります。pt・実績・履歴は引き継がれます。よろしいですか？');
   if (!ok) return;
   const { newTiers } = doPrestige(save);
   pushAnnouncement('🌟', `プレステージ +${save.prestige} を達成しました`);
@@ -2388,7 +2388,7 @@ function renderResult({ rank, levelsGained, levelBefore }) {
   const prestigeReady = canPrestige(save);
   el.resultPrestigeBanner.classList.toggle('hidden', !prestigeReady);
   if (prestigeReady) {
-    el.resultPrestigeBanner.textContent = '★ プレステージが可能になりました！ホーム画面から挑戦できます';
+    el.resultPrestigeBanner.textContent = '★ プレステージが可能になりました！ホーム画面から転生が可能です';
   }
 
   const rows = [
