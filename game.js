@@ -103,6 +103,7 @@ function defaultSave() {
     maouPrayerCharges: 0,
     maouPrayerCount: 0,
     maouDefeated: false,
+    godGardenHintShown: false,
     prestigeAwakened: false,
     prestigeAwakenedTiers: [],
     level: 1,
@@ -489,6 +490,7 @@ const el = {
   godGardenPanel: document.getElementById('godGardenPanel'),
   godGardenText: document.getElementById('godGardenText'),
   godGardenBtn: document.getElementById('godGardenBtn'),
+  godGardenHintBtn: document.getElementById('godGardenHintBtn'),
   maouGatePanel: document.getElementById('maouGatePanel'),
   maouGateText: document.getElementById('maouGateText'),
   simpleRevealPopup: document.getElementById('simpleRevealPopup'),
@@ -914,7 +916,17 @@ function renderGodGarden() {
   el.godGardenText.textContent = `復興 ${n} / ${GOD_GARDEN_MAX_RESTORATIONS}${bonusSuffix}`;
   el.godGardenBtn.textContent = maxed ? '🌸 女神の園は完全に復興した' : `🌸 女神の園を復興する（-${GOD_GARDEN_RESTORE_COST.toLocaleString()}pt）`;
   el.godGardenBtn.disabled = maxed || save.pt < GOD_GARDEN_RESTORE_COST;
+  el.godGardenHintBtn.classList.toggle('hidden', !save.godGardenHintShown);
 }
+
+function showGodGardenHint() {
+  queueReveal(
+    '女神の呟き',
+    '私達を追いやった魔王軍を倒す為には、あなたではない力。そして彼女と会ってください…ではないと…\n魔王城にすら辿り着けないかもしれません……',
+  );
+}
+
+el.godGardenHintBtn.addEventListener('click', showGodGardenHint);
 
 function restoreGodGarden() {
   if ((save.godStatue.gardenRestorations || 0) >= GOD_GARDEN_MAX_RESTORATIONS) return;
@@ -922,9 +934,18 @@ function restoreGodGarden() {
   save.pt -= GOD_GARDEN_RESTORE_COST;
   save.totalPtSpent += GOD_GARDEN_RESTORE_COST;
   save.godStatue.gardenRestorations = (save.godStatue.gardenRestorations || 0) + 1;
+  const justCompleted = save.godStatue.gardenRestorations >= GOD_GARDEN_MAX_RESTORATIONS && !save.godGardenHintShown;
+  if (justCompleted) {
+    save.godGardenHintShown = true;
+    pushAnnouncement('❔', '女神が何かを仄めかしている……');
+  }
   persistSave();
   refreshTotalPt();
   renderGodGarden();
+  if (justCompleted) {
+    renderAnnouncements();
+    showGodGardenHint();
+  }
 }
 
 function renderMaouGate() {
