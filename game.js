@@ -101,6 +101,9 @@ function defaultSave() {
     ricoShardsEarned: 0,
     ricoMet: false,
     maouPrayerCharges: 0,
+    maouPrayerCount: 0,
+    maouDefeated: false,
+    prestigeAwakened: false,
     level: 1,
     maxLevelReached: 1,
     exp: 0,
@@ -442,6 +445,7 @@ const el = {
   playerName: document.getElementById('playerName'),
   renameBtn: document.getElementById('renameBtn'),
   playerTitle: document.getElementById('playerTitle'),
+  achievementIcons: document.getElementById('achievementIcons'),
   playerLevel: document.getElementById('playerLevel'),
   playerPrestige: document.getElementById('playerPrestige'),
   expBarFill: document.getElementById('expBarFill'),
@@ -647,6 +651,7 @@ function prayAtRicoTablet() {
   if ((save.maouPrayerCharges || 0) >= RICO_PRAYER_MAX_CHARGES) return;
   save.ricoShards -= RICO_PRAYER_COST;
   save.maouPrayerCharges = (save.maouPrayerCharges || 0) + 1;
+  save.maouPrayerCount = (save.maouPrayerCount || 0) + 1;
   SFX.correct();
   persistSave();
   renderPlayerCard();
@@ -723,26 +728,84 @@ function fullPtMultiplier() {
   const sword = getEquippedSword();
   const swordBonus = sword && sword.statType === 'keystroke' ? sword.value : 0;
   const base = 1 + levelBonus + prestigeBonus;
-  const total = base * (1 + swordBonus);
-  return { levelBonus, prestigeBonus, swordBonus, total };
+  const awakeningBonus = save.prestigeAwakened ? PRESTIGE_AWAKENING_PT_BONUS : 0;
+  const total = base * (1 + swordBonus) + awakeningBonus;
+  return { levelBonus, prestigeBonus, swordBonus, awakeningBonus, total };
+}
+
+function rankAtLeast(rank, threshold) {
+  if (!rank) return false;
+  return RANK_ORDER.indexOf(rank) >= RANK_ORDER.indexOf(threshold);
+}
+
+function isRicoFullyOwned(s) {
+  return s.inventory.swords.includes('sword_rico')
+    && s.inventory.shields.includes('shield_rico')
+    && s.inventory.armors.includes('armor_rico')
+    && s.inventory.rings.includes('ring_rico');
+}
+
+const ACHIEVEMENTS = [
+  { id: 'prestige_once', icon: '🌟', label: 'プレステージを達成', check: (s) => s.prestige >= 1 },
+  { id: 'prestige_awaken', icon: '💫', label: `プレステージ${PRESTIGE_AWAKENING_AT}回達成（覚醒）`, check: (s) => !!s.prestigeAwakened },
+  { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
+  { id: 'rank_ss_word', icon: '🗡️', label: '単語の間でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:word'], 'SS') },
+  { id: 'rank_ss_sentence', icon: '⚔️', label: '文章の回廊でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:sentence'], 'SS') },
+  { id: 'rank_ss_long', icon: '🗼', label: '長文の塔でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:long'], 'SS') },
+  { id: 'shop_complete', icon: '🏆', label: 'ショップの装備・称号・アイコンをコンプ', check: (s) => !!s.ricoUnlocked },
+  { id: 'rico_all_owned', icon: '🕶️', label: 'リコ装備を全て購入', check: isRicoFullyOwned, red: true },
+  { id: 'god_statue_once', icon: '🛠️', label: '女神像を復興した', check: (s) => (s.godStatue.sent || 0) >= 1 },
+  { id: 'god_statue_complete', icon: '⛩️', label: 'ラグナロクに決着をつけた（女神像100回）', check: (s) => !!s.godStatue.completed },
+  { id: 'disciple_params_500', icon: '💪', label: '弟子のパラメーター合計が500を達成', check: (s) => discipleTotalParamsOf(s) >= 500 },
+  { id: 'disciple_params_1000', icon: '👑', label: '弟子のパラメーター合計が1000を達成（勇者化）', check: (s) => !!s.disciple.classUpped },
+  { id: 'maou_gate_seen', icon: '🏰', label: '魔王城への道が見えてきた', check: (s) => !!s.maouGateRevealed },
+  { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated },
+  { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
+  { id: 'total_taps_1man', icon: '🥉', label: '総タイプ数1万達成', check: (s) => s.totalCorrect >= 10000 },
+  { id: 'total_taps_10man', icon: '🥈', label: '総タイプ数10万達成', check: (s) => s.totalCorrect >= 100000 },
+  { id: 'total_taps_100man', icon: '🥇', label: '総タイプ数100万達成', check: (s) => s.totalCorrect >= 1000000 },
+  { id: 'total_taps_1000man', icon: '💎', label: '総タイプ数1000万達成', check: (s) => s.totalCorrect >= 10000000 },
+];
+
+function discipleMaxStreakOf(s) {
+  const streaks = s.disciple.streaks || {};
+  return Math.max(streaks.weak || 0, streaks.normal || 0, streaks.strong || 0);
+}
+
+function discipleTotalParamsOf(s) {
+  return s.disciple.hp + s.disciple.str + s.disciple.dex + s.disciple.spd;
+}
+
+function renderAchievements() {
+  el.achievementIcons.innerHTML = '';
+  ACHIEVEMENTS.forEach((a) => {
+    if (!a.check(save)) return;
+    const span = document.createElement('span');
+    span.className = a.red ? 'achievement-icon achievement-icon-red' : 'achievement-icon';
+    span.title = a.label;
+    span.textContent = a.icon;
+    el.achievementIcons.appendChild(span);
+  });
 }
 
 function renderPlayerCard() {
   el.profileIconBtn.textContent = save.profile.icon;
   el.playerName.textContent = save.profile.name;
+  renderAchievements();
   const titleText = getEquippedTitleText();
   el.playerTitle.textContent = titleText ? `称号：${titleText}` : '称号：未設定';
   el.playerLevel.textContent = `Lv.${save.level}`;
   el.playerPrestige.textContent = save.prestige > 0 ? `+${save.prestige}` : '';
 
-  const need = expToNextLevel(save.level);
+  const need = expToNextLevel(save.level, save.prestigeAwakened ? PRESTIGE_AWAKENING_EXP_MULTIPLIER : 1);
   const atMax = save.level >= MAX_LEVEL;
   const pct = atMax ? 100 : Math.min(100, Math.round((save.exp / need) * 100));
   el.expBarFill.style.width = `${pct}%`;
   el.expText.textContent = atMax ? `${save.exp} / ${need} EXP (MAX)` : `${save.exp} / ${need} EXP`;
   const mult = fullPtMultiplier();
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
-  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} プレ+${mult.prestigeBonus.toFixed(1)}${swordPart}）`;
+  const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
+  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} プレ+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}）`;
   el.prestigeBtn.classList.toggle('hidden', !canPrestige(save));
 
   el.playerCard.className = `player-card design-${save.profile.cardDesign}`;
@@ -1472,12 +1535,20 @@ el.prestigeBtn.addEventListener('click', () => {
   if (!canPrestige(save)) return;
   const ok = window.confirm('プレステージすると Lv.1 に戻ります。pt・実績・履歴は引き継がれます。よろしいですか？');
   if (!ok) return;
-  doPrestige(save);
+  const { justAwakened } = doPrestige(save);
   pushAnnouncement('🌟', `プレステージ +${save.prestige} を達成しました`);
   persistSave();
   renderPlayerCard();
   renderAnnouncements();
   SFX.prestige();
+  if (justAwakened) {
+    pushAnnouncement('✨', `眠っていた力が目覚めた（pt倍率+${PRESTIGE_AWAKENING_PT_BONUS}・以後の経験値テーブルが変化）`);
+    renderAnnouncements();
+    queueReveal(
+      '体が眩く光り出す…！',
+      `眠っていた力が目覚めたようだ。\n※pt倍率に+${PRESTIGE_AWAKENING_PT_BONUS}されました\n※以後の経験値テーブルが変化します`,
+    );
+  }
 });
 
 el.dungeonGrid.addEventListener('click', (e) => {
@@ -1924,7 +1995,7 @@ function beginTyping() {
 }
 
 function renderGameExpBar() {
-  const need = expToNextLevel(save.level);
+  const need = expToNextLevel(save.level, save.prestigeAwakened ? PRESTIGE_AWAKENING_EXP_MULTIPLIER : 1);
   const atMax = save.level >= MAX_LEVEL;
   const pct = atMax ? 100 : Math.min(100, Math.round((save.exp / need) * 100));
   el.gameExpBarFill.style.width = `${pct}%`;
@@ -2285,7 +2356,7 @@ function renderResult({ rank, levelsGained, levelBefore }) {
     el.resultStats.appendChild(row);
   });
 
-  const need = expToNextLevel(save.level);
+  const need = expToNextLevel(save.level, save.prestigeAwakened ? PRESTIGE_AWAKENING_EXP_MULTIPLIER : 1);
   const atMax = save.level >= MAX_LEVEL;
   const pct = atMax ? 100 : Math.min(100, Math.round((save.exp / need) * 100));
   el.resultExpBarFill.style.width = `${pct}%`;

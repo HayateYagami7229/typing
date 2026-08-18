@@ -17,20 +17,25 @@ function rankTitle(code) {
   return def ? def.title : '';
 }
 
-function expToNextLevel(level) {
-  return 20 + (level - 1) * 8;
+const PRESTIGE_AWAKENING_AT = 10;
+const PRESTIGE_AWAKENING_PT_BONUS = 1000;
+const PRESTIGE_AWAKENING_EXP_MULTIPLIER = 2;
+
+function expToNextLevel(level, multiplier = 1) {
+  return (20 + (level - 1) * 8) * multiplier;
 }
 
 function addExp(save, amount) {
   const levelsGained = [];
+  const expMultiplier = save.prestigeAwakened ? PRESTIGE_AWAKENING_EXP_MULTIPLIER : 1;
   save.exp += amount;
-  while (save.level < MAX_LEVEL && save.exp >= expToNextLevel(save.level)) {
-    save.exp -= expToNextLevel(save.level);
+  while (save.level < MAX_LEVEL && save.exp >= expToNextLevel(save.level, expMultiplier)) {
+    save.exp -= expToNextLevel(save.level, expMultiplier);
     save.level += 1;
     levelsGained.push(save.level);
   }
   if (save.level >= MAX_LEVEL) {
-    save.exp = Math.min(save.exp, expToNextLevel(MAX_LEVEL));
+    save.exp = Math.min(save.exp, expToNextLevel(MAX_LEVEL, expMultiplier));
   }
   save.maxLevelReached = Math.max(save.maxLevelReached || 1, save.level);
   return levelsGained;
@@ -45,7 +50,9 @@ function doPrestige(save) {
   save.prestige += 1;
   save.level = 1;
   save.exp = 0;
-  return true;
+  const justAwakened = save.prestige >= PRESTIGE_AWAKENING_AT && !save.prestigeAwakened;
+  if (justAwakened) save.prestigeAwakened = true;
+  return { success: true, justAwakened };
 }
 
 function ptMultiplierBreakdown(save) {
@@ -58,7 +65,8 @@ function ptMultiplierBreakdown(save) {
 
 function ptMultiplier(save) {
   const { levelBonus, prestigeBonus } = ptMultiplierBreakdown(save);
-  return 1 + levelBonus + prestigeBonus;
+  const base = 1 + levelBonus + prestigeBonus;
+  return save.prestigeAwakened ? base + PRESTIGE_AWAKENING_PT_BONUS : base;
 }
 
 function computeRank(kpm, accuracy) {
