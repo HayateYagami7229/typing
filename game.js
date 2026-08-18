@@ -2421,11 +2421,13 @@ function formatTypeVolume(count) {
 }
 
 function formatDuration(ms) {
-  const totalMinutes = Math.floor(ms / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours <= 0) return `${minutes}分`;
-  return `${hours.toLocaleString()}時間${minutes}分`;
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours.toLocaleString()}時間${minutes}分${seconds}秒`;
+  if (minutes > 0) return `${minutes}分${seconds}秒`;
+  return `${seconds}秒`;
 }
 
 function renderStats() {
