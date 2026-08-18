@@ -78,6 +78,8 @@ function defaultSave() {
       strengthenCount: 0,
       streaks: { weak: 0, normal: 0, strong: 0 },
       bulkUnlocked: { 5: false, 10: false },
+      heartVesselOwned: false,
+      heartVesselAnnounced: false,
     },
     level: 1,
     maxLevelReached: 1,
@@ -146,22 +148,58 @@ function normalizeSave(raw) {
   };
 }
 
+const SAVE_CIPHER_KEY = 'TypingDungeon-Rico-2026-Save-Cipher-v1';
+
+function xorBytes(bytes, keyStr) {
+  const keyBytes = new TextEncoder().encode(keyStr);
+  const out = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) out[i] = bytes[i] ^ keyBytes[i % keyBytes.length];
+  return out;
+}
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function encodeSaveData(obj) {
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(obj));
+  return bytesToBase64(xorBytes(jsonBytes, SAVE_CIPHER_KEY));
+}
+
+function decodeSaveData(encoded) {
+  const jsonBytes = xorBytes(base64ToBytes(encoded), SAVE_CIPHER_KEY);
+  return JSON.parse(new TextDecoder().decode(jsonBytes));
+}
+
 function loadSave() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return defaultSave();
   try {
-    const raw = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (!raw) return defaultSave();
-    return normalizeSave(raw);
+    return normalizeSave(decodeSaveData(raw));
   } catch (e) {
-    return defaultSave();
+    try {
+      return normalizeSave(JSON.parse(raw));
+    } catch (e2) {
+      return defaultSave();
+    }
   }
 }
 
 function persistSave() {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+  localStorage.setItem(SAVE_KEY, encodeSaveData(save));
 }
 
 function exportSaveString() {
-  return JSON.stringify({ app: 'typing-dungeon', version: 1, exportedAt: Date.now(), save }, null, 2);
+  return JSON.stringify({ app: 'typing-dungeon', version: 2, exportedAt: Date.now(), data: encodeSaveData(save) }, null, 2);
 }
 
 function downloadSaveFile() {
@@ -186,7 +224,20 @@ function importSaveFromText(text) {
     window.alert('セーブデータの読み込みに失敗しました（JSON形式が正しくありません）');
     return false;
   }
-  const raw = parsed && typeof parsed === 'object' && parsed.save ? parsed.save : parsed;
+  let raw = null;
+  if (parsed && typeof parsed === 'object') {
+    if (typeof parsed.data === 'string') {
+      try {
+        raw = decodeSaveData(parsed.data);
+      } catch (e) {
+        raw = null;
+      }
+    } else if (parsed.save) {
+      raw = parsed.save;
+    } else {
+      raw = parsed;
+    }
+  }
   if (!raw || typeof raw !== 'object') {
     window.alert('セーブデータの読み込みに失敗しました（形式が正しくありません）');
     return false;
@@ -407,6 +458,8 @@ const el = {
   shopPt: document.getElementById('shopPt'),
   shopItemList: document.getElementById('shopItemList'),
   timerDisplay: document.getElementById('timerDisplay'),
+  heartHudItem: document.getElementById('heartHudItem'),
+  heartHudValue: document.getElementById('heartHudValue'),
   wordsDisplay: document.getElementById('wordsDisplay'),
   comboCount: document.getElementById('comboCount'),
   comboGaugeFill: document.getElementById('comboGaugeFill'),
@@ -826,18 +879,36 @@ function effectiveHeartExpCost() {
   return Math.max(GOD_STATUE_HEART_COST_FLOOR, DISCIPLE_HEART_EXP_COST - (save.godStatueBuffs.heartCostReduction || 0));
 }
 
+function effectiveDiscipleHeartMax() {
+  return save.disciple.heartVesselOwned ? 999 : DISCIPLE_HEART_MAX;
+}
+
+function discipleMaxStreak() {
+  const s = save.disciple.streaks;
+  return Math.max(s.weak || 0, s.normal || 0, s.strong || 0);
+}
+
+function checkHeartVesselUnlock() {
+  if (save.disciple.heartVesselOwned || save.disciple.heartVesselAnnounced) return;
+  if (discipleMaxStreak() <= 1000) return;
+  save.disciple.heartVesselAnnounced = true;
+  pushAnnouncement('❤️', 'ショップに「ハートの器」が入荷しました');
+  renderAnnouncements();
+}
+
 function gainDiscipleHeartExp(exp) {
-  if (save.disciple.hearts >= DISCIPLE_HEART_MAX) {
+  const max = effectiveDiscipleHeartMax();
+  if (save.disciple.hearts >= max) {
     save.disciple.heartExpProgress = 0;
     return;
   }
   save.disciple.heartExpProgress += exp;
   const cost = effectiveHeartExpCost();
-  while (save.disciple.heartExpProgress >= cost && save.disciple.hearts < DISCIPLE_HEART_MAX) {
+  while (save.disciple.heartExpProgress >= cost && save.disciple.hearts < max) {
     save.disciple.heartExpProgress -= cost;
     save.disciple.hearts += 1;
   }
-  if (save.disciple.hearts >= DISCIPLE_HEART_MAX) save.disciple.heartExpProgress = 0;
+  if (save.disciple.hearts >= max) save.disciple.heartExpProgress = 0;
 }
 
 function godStatueExpMultiplier() {
@@ -1008,6 +1079,7 @@ function fightDiscipleOpponent(opp) {
     earned = opp.reward + bonusSteps * opp.streakBonus;
     streakAfter = streakBefore + 1;
     save.disciple.streaks[opp.tierKey] = streakAfter;
+    checkHeartVesselUnlock();
     save.pt += earned;
     save.totalPtEarned += earned;
     save.disciple.ptEarned += earned;
@@ -1338,6 +1410,23 @@ function buyConsumableItem(itemId) {
   const item = ITEM_CATALOG.find((i) => i.id === itemId);
   if (!item) return;
 
+  if (item.effect === 'heart_cap_up') {
+    if (save.disciple.heartVesselOwned) return;
+    if (save.pt < item.price) return;
+    save.pt -= item.price;
+    save.totalPtSpent += item.price;
+    save.disciple.heartVesselOwned = true;
+    pushAnnouncement('❤️', `「${item.name}」を手に入れた！弟子のハート上限が${item.value}になった`);
+    SFX.complete();
+    persistSave();
+    refreshTotalPt();
+    renderPlayerCard();
+    renderAnnouncements();
+    renderShopList();
+    renderHeartHud();
+    return;
+  }
+
   if (item.stackable) {
     const owned = save.inventory.consumables[itemId] || 0;
     if (owned >= item.maxStack) return;
@@ -1378,23 +1467,28 @@ function buyConsumableItem(itemId) {
 function itemEffectLabel(item) {
   if (item.effect === 'exp') return `即座にEXP+${item.value}`;
   if (item.effect === 'rare_chance_next_game') return `次のゲームでレア出現率+${Math.round(item.value * 100)}%`;
+  if (item.effect === 'heart_cap_up') return `弟子のハート上限が${item.value}になる（永続）`;
   return '';
 }
 
 function renderItemShop() {
   el.shopItemList.innerHTML = '';
   ITEM_CATALOG.forEach((item) => {
-    const owned = item.stackable ? (save.inventory.consumables[item.id] || 0) : 0;
-    const maxed = item.stackable && owned >= item.maxStack;
+    const isHeartVessel = item.effect === 'heart_cap_up';
+    const heartVesselOwned = isHeartVessel && save.disciple.heartVesselOwned;
+    if (item.requiresDiscipleStreak && !heartVesselOwned && discipleMaxStreak() <= item.requiresDiscipleStreak) return;
+
+    const owned = isHeartVessel ? (heartVesselOwned ? 1 : 0) : (item.stackable ? (save.inventory.consumables[item.id] || 0) : 0);
+    const maxed = heartVesselOwned || (item.stackable && owned >= item.maxStack);
     const outOfStock = item.hasShopStock && save.happyGrassStock <= 0;
     const canAfford = save.pt >= item.price;
     const disabled = maxed || outOfStock || !canAfford;
     let btnLabel = '購入';
-    if (maxed) btnLabel = '所持上限';
+    if (maxed) btnLabel = '所持済';
     else if (outOfStock) btnLabel = '在庫切れ';
     else if (!canAfford) btnLabel = 'pt不足';
     const row = document.createElement('div');
-    row.className = 'shop-item';
+    row.className = isHeartVessel ? 'shop-item shop-item-rico' : 'shop-item';
     row.innerHTML = `
       <div class="shop-item-main">
         <span class="shop-item-name">${item.name}</span>
@@ -1403,7 +1497,7 @@ function renderItemShop() {
         ${item.hasShopStock ? `<span class="shop-item-owned">在庫: ${save.happyGrassStock}/${HAPPY_GRASS_MAX_STOCK}</span>` : ''}
       </div>
       <div class="shop-item-side">
-        <span class="shop-item-price">${item.price.toLocaleString()} pt</span>
+        <span class="shop-item-price">${heartVesselOwned ? '所持済' : `${item.price.toLocaleString()} pt`}</span>
         <button class="shop-btn" data-action="use-item" data-item-id="${item.id}" ${disabled ? 'disabled' : ''}>${btnLabel}</button>
       </div>
     `;
@@ -1713,6 +1807,12 @@ function formatTime(ms) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+function renderHeartHud() {
+  const owned = save.disciple.heartVesselOwned;
+  el.heartHudItem.classList.toggle('hidden', !owned);
+  if (owned) el.heartHudValue.textContent = save.disciple.hearts;
+}
+
 function updateHud() {
   el.timerDisplay.textContent = formatTime(session.remainingMs);
   el.wordsDisplay.textContent = session.wordsCompleted;
@@ -1721,6 +1821,7 @@ function updateHud() {
   el.kpmDisplay.textContent = session.kpm;
   el.sessionPt.textContent = Math.floor(sessionPtEarned + session.wordclearPtGained);
   el.sessionExp.textContent = session.expGained;
+  renderHeartHud();
 
   const progress = session.combo % session.comboStep;
   const pct = Math.round((progress / session.comboStep) * 100);
@@ -1832,7 +1933,7 @@ function handleTypedChar(ch) {
         const levelsGainedFromRare = gainExp(res.rareBonus.exp);
         renderGameExpBar();
         if (levelsGainedFromRare.length > 0) showLevelUpPopup(save.level);
-        save.disciple.hearts = Math.min(DISCIPLE_HEART_MAX, save.disciple.hearts + res.rareBonus.heart);
+        save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
         save.rareMonstersDefeated += 1;
         refreshTotalPt();
         showRareBonusPopup(res.rareBonus);

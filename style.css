@@ -1264,6 +1264,15 @@ body {
   color: #a06bff;
 }
 
+.heart-item {
+  border-color: #ff6b9f;
+}
+
+.heart-item span:last-child {
+  color: #ff6b9f;
+  text-shadow: 0 0 10px rgba(255, 107, 159, 0.5);
+}
+
 .game-exp-row {
   width: 100%;
   max-width: 960px;
