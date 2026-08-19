@@ -113,15 +113,10 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
-    version: 'Beta0.59',
-    items: [
-      '特定の条件を満たすと永続コンボシステムを開放するアイテムがショップに並ぶようになりました。',
-    ],
-  },
-  {
     version: 'Beta0.58',
     items: [
-      'リコと出会った後の効果表示をタイピング画面でも常時わかるように改善しました。',
+      '特定の条件を満たすと永続コンボシステムを開放するアイテムがショップに並ぶようになりました。',
+      '弟子の連勝数がちょうど10000の場合に実績・一括対戦が解放されない不具合を修正しました。',
     ],
   },
   {
@@ -300,6 +295,7 @@ function defaultSave() {
     eternalComboMax: 0,
     eternalComboHeartMilestone: 0,
     reincarnationNecklaceAnnounced: false,
+    batchBattleAnnounced: false,
     playCount: 0,
     completedRuns: 0,
     abortCount: 0,
@@ -1071,7 +1067,7 @@ const ACHIEVEMENTS = [
   { id: 'prestige_awaken', icon: '💫', label: '転生10回達成（覚醒）', check: (s) => !!s.prestigeAwakened },
   { id: 'prestige_super_awaken', icon: '🌌', label: '転生30回達成（超覚醒）', check: (s) => (s.prestigeAwakenedTiers || []).includes(30) },
   { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
-  { id: 'disciple_streak_10000', icon: '🔥', label: '弟子が10000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 10000 },
+  { id: 'disciple_streak_10000', icon: '🔥', label: '弟子が10000連勝を達成', check: (s) => discipleMaxStreakOf(s) >= 10000 },
   { id: 'rank_ss_word', icon: '🗡️', label: '単語の間でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:word'], 'SS') },
   { id: 'rank_ss_sentence', icon: '⚔️', label: '文章の回廊でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:sentence'], 'SS') },
   { id: 'rank_ss_long', icon: '🗼', label: '長文の塔でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:long'], 'SS') },
@@ -1777,6 +1773,15 @@ function checkHeartVesselUnlock() {
   renderAnnouncements();
 }
 
+function checkBatchBattleReveal() {
+  if (save.batchBattleAnnounced) return;
+  if (discipleMaxStreak() < 10000) return;
+  save.batchBattleAnnounced = true;
+  pushAnnouncement('⚡', '10000連勝したことで一括対戦が解放されました');
+  renderAnnouncements();
+  queueReveal('一括対戦 解放', '10000連勝したことで一括対戦が解放されました');
+}
+
 function gainDiscipleHeartExp(exp) {
   const max = effectiveDiscipleHeartMax();
   if (save.disciple.hearts >= max) {
@@ -1892,7 +1897,7 @@ function renderDisciple() {
       : `❤️×${heartCount}`;
   el.discipleBattleBtn.disabled = save.disciple.hearts <= 0;
 
-  const batchUnlocked = discipleMaxStreak() > 10000;
+  const batchUnlocked = discipleMaxStreak() >= 10000;
   el.discipleBatchBattleBtn.classList.toggle('hidden', !batchUnlocked);
   if (batchUnlocked) el.discipleBatchBattleBtn.disabled = save.disciple.hearts <= 0;
 
@@ -1965,6 +1970,7 @@ function fightDiscipleOpponent(opp) {
     streakAfter = streakBefore + 1;
     save.disciple.streaks[opp.tierKey] = streakAfter;
     checkHeartVesselUnlock();
+    checkBatchBattleReveal();
     save.pt += earned;
     save.totalPtEarned += earned;
     save.disciple.ptEarned += earned;
