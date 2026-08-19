@@ -1559,6 +1559,7 @@ body {
 
 .eternal-combo-item {
   border-color: #9a5bc2;
+  cursor: pointer;
 }
 
 .eternal-combo-item .hud-label {

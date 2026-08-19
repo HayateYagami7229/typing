@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.59',
+    items: [
+      '永続コンボが有効になっている状態で永続コンボをクリックすると、コンボ、ミスカウントがリセットされるようになりました。',
+    ],
+  },
+  {
     version: 'Beta0.58',
     items: [
       '特定の条件を満たすと永続コンボシステムを開放するアイテムがショップに並ぶようになりました。',
@@ -2475,6 +2481,7 @@ el.openMaouBtn.addEventListener('click', () => {
   setScreen('maou');
 });
 el.maouBackBtn.addEventListener('click', goHome);
+el.eternalComboHud.addEventListener('click', resetEternalCombo);
 el.maouAttackBtn.addEventListener('click', () => {
   if (save.maouEmblems < MAOU_EMBLEM_REQUIRED) return;
   startMaouBattle();
@@ -3105,6 +3112,19 @@ function renderEternalCombo() {
   marks.forEach((mark, i) => {
     mark.classList.toggle('lit', i < save.eternalComboMisses);
   });
+}
+
+function resetEternalCombo() {
+  if (!save.eternalComboUnlocked) return;
+  const wasNewBest = save.eternalCombo > 0 && save.eternalCombo === save.eternalComboMax;
+  if (wasNewBest) {
+    pushAnnouncement('🔄', `最大永続コンボ記録を更新しました（${save.eternalCombo.toLocaleString()}）`);
+  }
+  save.eternalCombo = 0;
+  save.eternalComboMisses = 0;
+  save.eternalComboHeartMilestone = 0;
+  renderEternalCombo();
+  persistSave();
 }
 
 function startTimerLoop() {
