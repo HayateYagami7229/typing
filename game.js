@@ -305,6 +305,7 @@ function defaultSave() {
     maouDefeated: false,
     emptyPrayerClicks: 0,
     helpPopupSeen: false,
+    helpManualOpens: 0,
     godGardenHintShown: false,
     prestigeAwakened: false,
     prestigeAwakenedTiers: [],
@@ -1288,6 +1289,7 @@ const ACHIEVEMENTS = [
   { id: 'typing_time_10h', icon: '⏰', label: '総タイピング時間10時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 36000000 },
   { id: 'typing_time_100h', icon: '🕰️', label: '総タイピング時間100時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 360000000 },
   { id: 'empty_prayer_100', icon: '👀', label: '見てるからもう祈らないでください', check: (s) => (s.emptyPrayerClicks || 0) >= 100 },
+  { id: 'help_100', icon: '😰', label: '疑心暗鬼', check: (s) => (s.helpManualOpens || 0) >= 100 },
 ];
 
 function discipleMaxStreakOf(s) {
@@ -2628,7 +2630,18 @@ el.openChangelogBtn.addEventListener('click', () => {
 el.changelogCloseBtn.addEventListener('click', () => el.changelogPopup.classList.add('hidden'));
 enableBackdropClose(el.changelogPopup);
 
-el.openHelpBtn.addEventListener('click', showHelpPopup);
+el.openHelpBtn.addEventListener('click', () => {
+  save.helpManualOpens = (save.helpManualOpens || 0) + 1;
+  persistSave();
+  if (save.helpManualOpens === 100) {
+    pushAnnouncement('😰', '実績「疑心暗鬼」が解放されました。');
+    renderAnnouncements();
+    renderAchievements();
+    queueReveal('', 'まだ何か分らないことがありますか？\n実績「疑心暗鬼」が解放されました。');
+  } else {
+    showHelpPopup();
+  }
+});
 el.helpCloseBtn.addEventListener('click', () => el.helpPopup.classList.add('hidden'));
 enableBackdropClose(el.helpPopup);
 
@@ -2640,10 +2653,10 @@ el.secretKeyboardIcon.addEventListener('click', () => {
   if (save.secretKeyboardClicks <= 99) {
     queueReveal('', SECRET_KEYBOARD_LINES[save.secretKeyboardClicks - 1]);
   } else {
-    pushAnnouncement('😝', 'くだらないギミックのクリックを頑張ったで賞を解除しました');
+    pushAnnouncement('😝', '実績「くだらないギミックのクリックを頑張ったで賞」が解放されました。');
     renderAnnouncements();
     renderAchievements();
-    queueReveal('勘弁して下さい', 'くだらないギミックのクリックを頑張ったで賞\n実績を解除しました');
+    queueReveal('勘弁して下さい', '実績「くだらないギミックのクリックを頑張ったで賞」が解放されました。');
   }
 });
 
