@@ -1079,9 +1079,6 @@ const ACHIEVEMENTS = [
   { id: 'maou_gate_seen', icon: '🏰', label: '魔王城への道が見えてきた', check: (s) => !!s.maouGateRevealed },
   { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated },
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
-  { id: 'rico_prayer_25', icon: '🙏', label: 'リコの位牌に25回祈った', check: (s) => (s.maouPrayerCount || 0) >= 25 },
-  { id: 'rico_prayer_50', icon: '🙏', label: 'リコの位牌に50回祈った', check: (s) => (s.maouPrayerCount || 0) >= 50 },
-  { id: 'rico_prayer_99', icon: '🙏', label: 'リコの位牌に99回祈った', check: (s) => (s.maouPrayerCount || 0) >= 99 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
   { id: 'secret_keyboard_100', icon: '😝', label: 'くだらないギミックのクリックを頑張ったで賞', hoverText: 'いいからタイピングしなよ', check: (s) => (s.secretKeyboardClicks || 0) >= 100 },
   { id: 'eternal_combo_100', icon: '🔵', label: '永続コンボ100達成（輪廻の始まり）', check: (s) => (s.eternalComboMax || 0) >= 100 },
@@ -3316,7 +3313,6 @@ function renderStats() {
     ['最高ランク', save.bestRank ? `${save.bestRank}(${rankTitle(save.bestRank)})` : '-'],
     ['平均ランク', avgRank === '-' ? '-' : `${avgRank}(${rankTitle(avgRank)})`],
     ['最大コンボ', save.bestCombo],
-    ['最大永続コンボ', (save.eternalComboMax || 0).toLocaleString()],
     ['弟子強化回数', save.disciple.strengthenCount.toLocaleString()],
     ['弟子に使ったpt合計', Math.floor(save.disciple.ptSpent).toLocaleString()],
     ['弟子の勝利回数', save.disciple.battleWins.toLocaleString()],
@@ -3332,6 +3328,12 @@ function renderStats() {
   }
   if (save.godStatueBuffs.rareBonusStacks > 0) {
     rows.push(['女神の祝福：レア出現率', `+${Math.min(50, save.godStatueBuffs.rareBonusStacks)}%`]);
+  }
+  if (save.eternalComboUnlocked) {
+    rows.push(['最大永続コンボ', (save.eternalComboMax || 0).toLocaleString()]);
+  }
+  if ((save.maouPrayerCount || 0) > 0) {
+    rows.push(['リコへの祈り回数', save.maouPrayerCount.toLocaleString()]);
   }
 
   el.statsGrid.innerHTML = '';
