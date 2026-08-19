@@ -3037,10 +3037,13 @@ function handleTypedChar(ch) {
     if (save.eternalComboUnlocked) {
       save.eternalComboMisses += 1;
       if (save.eternalComboMisses >= 5) {
+        const wasNewBest = save.eternalCombo > 0 && save.eternalCombo === save.eternalComboMax;
+        if (wasNewBest) {
+          pushAnnouncement('🔄', `最大永続コンボ記録を更新しました（${save.eternalCombo.toLocaleString()}）`);
+        }
         save.eternalCombo = 0;
         save.eternalComboMisses = 0;
         save.eternalComboHeartMilestone = 0;
-        pushAnnouncement('💔', '永続コンボが途切れてしまいました');
       }
       renderEternalCombo();
     }
@@ -3058,7 +3061,6 @@ function handleTypedChar(ch) {
       if (milestoneCount > (save.eternalComboHeartMilestone || 0)) {
         save.eternalComboHeartMilestone = milestoneCount;
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + 10);
-        pushAnnouncement('🔄', `永続コンボが${save.eternalCombo}に到達し、弟子のハート+10を獲得しました`);
       }
       renderEternalCombo();
     }
