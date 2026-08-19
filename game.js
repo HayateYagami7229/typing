@@ -723,6 +723,7 @@ const el = {
   discipleHearts: document.getElementById('discipleHearts'),
   discipleStats: document.getElementById('discipleStats'),
   discipleBattleBtn: document.getElementById('discipleBattleBtn'),
+  discipleBatchBattleBtn: document.getElementById('discipleBatchBattleBtn'),
   discipleStreakSummary: document.getElementById('discipleStreakSummary'),
   disciplePopup: document.getElementById('disciplePopup'),
   discipleOpponents: document.getElementById('discipleOpponents'),
@@ -1870,6 +1871,10 @@ function renderDisciple() {
       : `❤️×${heartCount}`;
   el.discipleBattleBtn.disabled = save.disciple.hearts <= 0;
 
+  const batchUnlocked = discipleMaxStreak() > 10000;
+  el.discipleBatchBattleBtn.classList.toggle('hidden', !batchUnlocked);
+  if (batchUnlocked) el.discipleBatchBattleBtn.disabled = save.disciple.hearts <= 0;
+
   const s = save.disciple.streaks;
   el.discipleStreakSummary.textContent = `🔥 連勝: 弱${s.weak} ／ 普${s.normal} ／ 強${s.strong}`;
 }
@@ -1952,6 +1957,51 @@ function fightDiscipleOpponent(opp) {
   showDiscipleBattleResult(result, earned, opp, streakAfter);
 }
 
+function batchFightStrongOpponents() {
+  if (discipleMaxStreak() <= 10000) return;
+  const heartsToUse = save.disciple.hearts;
+  if (heartsToUse <= 0) return;
+
+  const strongTier = DISCIPLE_TIERS.find((t) => t.key === 'strong');
+  const streakBefore = save.disciple.streaks.strong || 0;
+  const ptBefore = save.pt;
+
+  let streak = streakBefore;
+  let ptEarned = 0;
+  let wins = 0;
+
+  for (let i = 0; i < heartsToUse; i++) {
+    const opp = rollDiscipleOpponent(strongTier);
+    const result = simulateDiscipleBattle(save.disciple, opp);
+    if (result.win) {
+      wins += 1;
+      const bonusSteps = Math.floor(streak / DISCIPLE_STREAK_STEP);
+      ptEarned += opp.reward + bonusSteps * opp.streakBonus;
+      streak += 1;
+    } else {
+      streak = 0;
+    }
+  }
+
+  save.disciple.hearts = 0;
+  save.disciple.battleCount += heartsToUse;
+  save.disciple.battleWins += wins;
+  save.disciple.streaks.strong = streak;
+  save.pt += ptEarned;
+  save.totalPtEarned += ptEarned;
+  save.disciple.ptEarned += ptEarned;
+  checkHeartVesselUnlock();
+  persistSave();
+  refreshTotalPt();
+  renderDisciple();
+  renderPlayerCard();
+
+  queueReveal(
+    '一括対戦 完了',
+    `連勝数：${streakBefore.toLocaleString()}→${streak.toLocaleString()}\n所持pt：${Math.floor(ptBefore).toLocaleString()}pt→${Math.floor(save.pt).toLocaleString()}pt`,
+  );
+}
+
 function showDiscipleBattleResult(result, earned, opp, streakAfter) {
   el.discipleOpponents.classList.add('hidden');
   el.discipleBattleResult.classList.remove('hidden');
@@ -2001,6 +2051,7 @@ function enableBackdropClose(popup, canCloseFn, onClose) {
 }
 
 el.discipleBattleBtn.addEventListener('click', openDisciplePopup);
+el.discipleBatchBattleBtn.addEventListener('click', batchFightStrongOpponents);
 el.disciplePopupCloseBtn.addEventListener('click', () => el.disciplePopup.classList.add('hidden'));
 enableBackdropClose(el.disciplePopup);
 el.ricoCompleteCloseBtn.addEventListener('click', () => {

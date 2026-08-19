@@ -1107,6 +1107,18 @@ body {
   cursor: not-allowed;
 }
 
+.batch-battle-btn {
+  margin-top: 8px;
+  border-color: #ffd166;
+  background: rgba(255, 209, 102, 0.12);
+  color: #ffd166;
+}
+
+.batch-battle-btn:hover:not(:disabled) {
+  background: rgba(255, 209, 102, 0.22);
+  box-shadow: 0 3px 12px rgba(255, 209, 102, 0.3);
+}
+
 .disciple-popup {
   position: fixed;
   inset: 0;
