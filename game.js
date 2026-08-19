@@ -1082,6 +1082,8 @@ const ACHIEVEMENTS = [
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
   { id: 'secret_keyboard_100', icon: '😝', label: 'くだらないギミックのクリックを頑張ったで賞', hoverText: 'いいからタイピングしなよ', check: (s) => (s.secretKeyboardClicks || 0) >= 100 },
+  { id: 'fairy_dust_500', icon: '🧚', label: '妖精の粉を500回購入した', hoverText: '不思議な粉', check: (s) => ((s.itemPurchaseCounts && s.itemPurchaseCounts.item_fairy_dust) || 0) >= 500 },
+  { id: 'happy_grass_500', icon: '🌿', label: 'しあわせ草を500回購入した', hoverText: '草中毒', check: (s) => ((s.itemPurchaseCounts && s.itemPurchaseCounts.item_happy_grass) || 0) >= 500 },
   { id: 'eternal_combo_100', icon: '🔵', label: '永続コンボ100達成（輪廻の始まり）', check: (s) => (s.eternalComboMax || 0) >= 100 },
   { id: 'eternal_combo_500', icon: '🟣', label: '永続コンボ500達成（輪廻は続く）', check: (s) => (s.eternalComboMax || 0) >= 500 },
   { id: 'eternal_combo_1000', icon: '🟤', label: '永続コンボ1000達成（輪廻魔眼）', check: (s) => (s.eternalComboMax || 0) >= 1000 },
