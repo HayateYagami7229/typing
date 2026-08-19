@@ -889,7 +889,7 @@ function checkRicoTabletDiscovery() {
   if (save.ricoTabletFound) return;
   if (!isAllRicoMaxed()) return;
   save.ricoTabletFound = true;
-  pushAnnouncement('🪦', 'リコの位牌を見つけた……');
+  pushAnnouncement('🪦', 'リコの位牌を見つけました');
   persistSave();
   renderAnnouncements();
   renderPlayerCard();
@@ -912,7 +912,7 @@ function prayAtRicoTablet() {
   const justUnlockedSeal = !save.maouSealUnlocked && prayerCount >= MAOU_SEAL_UNLOCK_PRAYER_COUNT;
   if (justUnlockedSeal) {
     save.maouSealUnlocked = true;
-    pushAnnouncement('🔒', 'リコが封紋章の作り方を教えてくれた……');
+    pushAnnouncement('🔒', 'リコが封紋章の作り方を教えてくれました');
   }
 
   persistSave();
@@ -921,7 +921,7 @@ function prayAtRicoTablet() {
   renderGodGarden();
 
   if (justMetRico) {
-    pushAnnouncement('✨', 'リコが現れた……');
+    pushAnnouncement('✨', 'リコが現れました');
     renderAnnouncements();
     queueReveal(
       'リコ',
@@ -1223,7 +1223,7 @@ function restoreGodGarden() {
   const justCompleted = save.godStatue.gardenRestorations >= GOD_GARDEN_MAX_RESTORATIONS && !save.godGardenHintShown;
   if (justCompleted) {
     save.godGardenHintShown = true;
-    pushAnnouncement('❔', '女神が何かを仄めかしている……');
+    pushAnnouncement('❔', '女神が何かを仄めかしています');
   }
   persistSave();
   refreshTotalPt();
@@ -1514,7 +1514,7 @@ function showNextReveal() {
 function checkGodStatueCompletion() {
   if (save.godStatue.completed || save.godStatue.sent < GOD_STATUE_MAX_SENT) return;
   save.godStatue.completed = true;
-  pushAnnouncement('⛩️', 'ラグナロクに全ての女神を帰した');
+  pushAnnouncement('⛩️', 'ラグナロクに全ての女神を帰しました');
   persistSave();
   renderAnnouncements();
   renderGodStatue();
@@ -1525,7 +1525,7 @@ function checkGodStatueCompletion() {
 function checkDiscipleClassUp() {
   if (save.disciple.classUpped || discipleTotalParams() < DISCIPLE_CLASS_UP_THRESHOLD) return;
   save.disciple.classUpped = true;
-  pushAnnouncement('⚔️', `${save.disciple.name}は勇者だった！勇者にクラスアップした`);
+  pushAnnouncement('⚔️', `${save.disciple.name}は勇者でした！勇者にクラスアップしました`);
   persistSave();
   renderAnnouncements();
   queueReveal('弟子の様子が…！？', `${save.disciple.name}は勇者だった！勇者にクラスアップした！`);
@@ -1536,7 +1536,7 @@ function checkMaouGateReveal() {
   if (save.maouGateRevealed || !save.disciple.classUpped) return;
   save.maouGateRevealed = true;
   save.maouEmblems = MAOU_EMBLEM_REQUIRED;
-  pushAnnouncement('🏰', '勇者が生まれた事で霧が晴れ、魔王城への道は開かれた……');
+  pushAnnouncement('🏰', '勇者が生まれた事で霧が晴れ、魔王城への道が開かれました');
   persistSave();
   renderAnnouncements();
   renderMaouGate();
@@ -1738,7 +1738,7 @@ function checkHeartVesselUnlock() {
   if (save.disciple.heartVesselOwned || save.disciple.heartVesselAnnounced) return;
   if (discipleMaxStreak() <= 1000) return;
   save.disciple.heartVesselAnnounced = true;
-  pushAnnouncement('❓', 'ショップに何かが入荷されたようです');
+  pushAnnouncement('❓', 'ショップに何かが入荷されました');
   renderAnnouncements();
 }
 
@@ -2018,7 +2018,7 @@ el.secretKeyboardIcon.addEventListener('click', () => {
   if (save.secretKeyboardClicks <= 99) {
     queueReveal('', SECRET_KEYBOARD_LINES[save.secretKeyboardClicks - 1]);
   } else {
-    pushAnnouncement('😝', 'くだらないギミックのクリックを頑張ったで賞を解除した……');
+    pushAnnouncement('😝', 'くだらないギミックのクリックを頑張ったで賞を解除しました');
     renderAnnouncements();
     renderAchievements();
     queueReveal('勘弁して下さい', 'くだらないギミックのクリックを頑張ったで賞\n実績を解除しました');
@@ -2239,7 +2239,7 @@ el.prestigeBtn.addEventListener('click', () => {
   renderAnnouncements();
   SFX.prestige();
   newTiers.forEach((tier) => {
-    pushAnnouncement('✨', `眠っていた力が目覚めた（pt倍率+${tier.ptBonus}・以後の経験値テーブルが${tier.expMultiplier}倍）`);
+    pushAnnouncement('✨', `眠っていた力が目覚めました（pt倍率+${tier.ptBonus}・以後の経験値テーブルが${tier.expMultiplier}倍）`);
     renderAnnouncements();
     queueReveal(
       '体が眩く光り出す…！',
@@ -2398,7 +2398,7 @@ function buyConsumableItem(itemId) {
     save.pt -= item.price;
     save.totalPtSpent += item.price;
     save.disciple.heartVesselOwned = true;
-    pushAnnouncement('❤️', `「${item.name}」を手に入れた！弟子のハート上限が${item.value}になった`);
+    pushAnnouncement('❤️', `「${item.name}」を手に入れました！弟子のハート上限が${item.value}になりました`);
     SFX.complete();
     persistSave();
     refreshTotalPt();
@@ -2646,6 +2646,7 @@ function renderTitleShop() {
 
 function startSession() {
   el.typingStage.classList.toggle('long-mode', currentMode === 'long');
+  el.typingStage.classList.toggle('maou-aura', save.maouGateRevealed && !save.maouDefeated);
   const dungeon = DUNGEONS[currentMode];
   const pool = dungeon.bank[currentLang];
   const buildFn = currentLang === 'jp' ? buildJpTarget : buildEnTarget;
@@ -2672,7 +2673,7 @@ function startSession() {
   if ((save.maouPrayerCharges || 0) > 0) {
     save.maouPrayerCharges -= 1;
     sessionMaouPrayerBonus = RICO_PRAYER_EMBLEM_BONUS;
-    pushAnnouncement('🙏', 'リコの祈りの力を感じる（魔王の紋章の出現率が大幅に上昇している）');
+    pushAnnouncement('🙏', 'リコの祈りの力を感じています（魔王の紋章の出現率が大幅に上昇しています）');
   }
   el.maouPrayerBadge.classList.toggle('hidden', sessionMaouPrayerBonus <= 0);
 
@@ -3020,10 +3021,10 @@ function finishSession() {
     pushAnnouncement('🗝️', `「${DUNGEONS[currentMode].label}」で自己ベストランク ${rank} を達成しました`);
   }
   if (session.maxCombo > prevBestCombo) {
-    pushAnnouncement('🔥', `最大コンボ記録を更新！ ${session.maxCombo}コンボ`);
+    pushAnnouncement('🔥', `最大コンボ記録を更新しました（${session.maxCombo}コンボ）`);
   }
   if (session.kpm > prevBestKpm) {
-    pushAnnouncement('⚡', `最高KPM記録を更新！ ${session.kpm}KPM`);
+    pushAnnouncement('⚡', `最高KPM記録を更新しました（${session.kpm}KPM）`);
   }
 
   refreshTotalPt();
@@ -3228,7 +3229,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     secretGrassClicks = 0;
     save.happyGrassStock = HAPPY_GRASS_MAX_STOCK;
-    pushAnnouncement('🍀', '裏技発動！しあわせ草が大量入荷した');
+    pushAnnouncement('🍀', '裏技発動！しあわせ草が大量入荷しました');
     persistSave();
     if (screen === 'shop') renderShopList();
     SFX.rare();

@@ -398,6 +398,14 @@ body {
   animation: shake 0.25s;
 }
 
+.typing-stage.maou-aura {
+  background:
+    radial-gradient(ellipse 500px 200px at 50% 0%, rgba(154, 59, 194, 0.22), transparent),
+    var(--panel-gradient);
+  border-color: #6d3a8c;
+  box-shadow: 0 0 40px rgba(154, 59, 194, 0.3), inset 0 0 60px rgba(124, 63, 160, 0.08);
+}
+
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-8px); }
