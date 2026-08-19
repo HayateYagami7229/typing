@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.61',
+    items: [
+      '初回起動時にヘルプが起動するようにしました。また右上でいつでもヘルプを起動することが出来ます。',
+    ],
+  },
+  {
     version: 'Beta0.6',
     items: [
       'ロゴを実装しました。',
@@ -298,6 +304,7 @@ function defaultSave() {
     maouPrayerCount: 0,
     maouDefeated: false,
     emptyPrayerClicks: 0,
+    helpPopupSeen: false,
     godGardenHintShown: false,
     prestigeAwakened: false,
     prestigeAwakenedTiers: [],
@@ -852,6 +859,10 @@ const el = {
   announcementHistoryEmpty: document.getElementById('announcementHistoryEmpty'),
   announcementHistoryCloseBtn: document.getElementById('announcementHistoryCloseBtn'),
   openChangelogBtn: document.getElementById('openChangelogBtn'),
+  openHelpBtn: document.getElementById('openHelpBtn'),
+  helpPopup: document.getElementById('helpPopup'),
+  helpPopupBody: document.getElementById('helpPopupBody'),
+  helpCloseBtn: document.getElementById('helpCloseBtn'),
   changelogPopup: document.getElementById('changelogPopup'),
   changelogList: document.getElementById('changelogList'),
   changelogCloseBtn: document.getElementById('changelogCloseBtn'),
@@ -987,6 +998,20 @@ function showPhase2Announcement() {
     .map((text, i) => `<div class="phase2-announce-section${i === 0 ? ' phase2-announce-intro' : ''}">${text}</div>`)
     .join('');
   el.phase2AnnouncePopup.classList.remove('hidden');
+}
+
+function showHelpPopup() {
+  const sections = [
+    '◯Endless Type-loopの世界へようこそ\nこの世界はあなたのタイピングによって物語が進みます。\nスタミナなどもありませんのでお好きな時にタイピングをしてお好きな時におやめください。',
+    '◯何をしたら良いの？\nタイピングをすれば良いと思います。\n\nだけだとイジワルですね。\nあなたにはお弟子様がいらっしゃいます。\nしかしながらとってもとっても非力なお弟子様のようです。\nタイピングで得られるポイントを使って強化をしてあげると、\n今よりも更に強くなるかもしれません。\n\n鍛えた弟子を戦いに出す事ができますがハートを消費します。\nハートがなくなったらどうしたらいいのか？\nタイピングをすれば良いのです。\n\n左上のメニューからショップに移動できます。\nショップにもあなたを手助けするアイテムが並んでおります。\nまずは一度覗かれる事をオススメします。\n\nそして壊れた女神像が御座います。\n気が向いたら是非とも直してあげていただけますと。\n修復が出来た暁には何か、御利益があるかもしれません。',
+    '◯セーブについて\nセーブは開いているPC、ブラウザに依存いたします。\n他PCで遊ばれたい場合は設定からデータのエクスポートをお試し下さい。',
+    '◯最後に\nあなたが、タイピングを続け世界を開こうとした時。\n自ずと次にやることが見つかるはずです。\nそれでは。ご武運を。',
+    '<span class="phase2-announce-note">【もっと詳しい遊び方ページはこちら】\n※工事中</span>',
+  ];
+  el.helpPopupBody.innerHTML = sections
+    .map((text, i) => `<div class="phase2-announce-section${i === 0 ? ' phase2-announce-intro' : ''}">${text}</div>`)
+    .join('');
+  el.helpPopup.classList.remove('hidden');
 }
 
 function refreshTotalPt() {
@@ -2603,6 +2628,10 @@ el.openChangelogBtn.addEventListener('click', () => {
 el.changelogCloseBtn.addEventListener('click', () => el.changelogPopup.classList.add('hidden'));
 enableBackdropClose(el.changelogPopup);
 
+el.openHelpBtn.addEventListener('click', showHelpPopup);
+el.helpCloseBtn.addEventListener('click', () => el.helpPopup.classList.add('hidden'));
+enableBackdropClose(el.helpPopup);
+
 el.secretKeyboardIcon.addEventListener('click', () => {
   const clicks = save.secretKeyboardClicks || 0;
   if (clicks >= 100) return;
@@ -4134,3 +4163,8 @@ renderAnnouncements();
 renderDisciple();
 updateLogos();
 setScreen('home');
+if (!save.helpPopupSeen) {
+  save.helpPopupSeen = true;
+  persistSave();
+  showHelpPopup();
+}

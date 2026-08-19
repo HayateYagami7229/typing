@@ -31,6 +31,7 @@
     </div>
     <div class="topbar-right">
       <div class="pt-display">💠 <span id="totalPt">0</span> pt</div>
+      <button id="openHelpBtn" class="icon-btn" title="遊び方">？</button>
       <button id="muteBtn" class="icon-btn" title="ミュート切替">🔊</button>
       <button id="openSettingsBtn" class="icon-btn" title="設定">⚙️</button>
     </div>
@@ -422,6 +423,14 @@
   </div>
 </div>
 
+<div id="helpPopup" class="disciple-popup hidden">
+  <div class="disciple-popup-inner phase2-announce-inner">
+    <h2>❓遊び方</h2>
+    <div class="phase2-announce-body" id="helpPopupBody"></div>
+    <button id="helpCloseBtn" class="choice-btn">閉じる</button>
+  </div>
+</div>
+
 <div id="simpleRevealPopup" class="disciple-popup hidden">
   <div class="disciple-popup-inner rico-complete-inner">
     <h2 id="simpleRevealTitle"></h2>
@@ -500,7 +509,7 @@
   </div>
 </div>
 
-<div id="appVersion" class="app-version">Beta0.6</div>
+<div id="appVersion" class="app-version">Beta0.61</div>
 
 <script src="data.js"></script>
 <script src="kana.js"></script>
