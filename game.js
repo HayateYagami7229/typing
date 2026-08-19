@@ -487,7 +487,6 @@ let awaitingStart = false;
 const el = {
   totalPt: document.getElementById('totalPt'),
   topbar: document.getElementById('topbar'),
-  maouCastleArt: document.getElementById('maouCastleArt'),
   muteBtn: document.getElementById('muteBtn'),
   screens: {
     home: document.getElementById('screen-home'),
@@ -3014,13 +3013,6 @@ el.topbar.addEventListener('click', (e) => {
   secretGrassClicks = Math.min(12, secretGrassClicks + 1);
 });
 
-let secretEmblemClicks = 0;
-if (el.maouCastleArt) {
-  el.maouCastleArt.addEventListener('click', () => {
-    secretEmblemClicks = Math.min(12, secretEmblemClicks + 1);
-  });
-}
-
 document.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (secretGrassClicks >= 12 && e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -3030,18 +3022,6 @@ document.addEventListener('keydown', (e) => {
     pushAnnouncement('🍀', '裏技発動！しあわせ草が大量入荷した');
     persistSave();
     if (screen === 'shop') renderShopList();
-    SFX.rare();
-    return;
-  }
-
-  if (secretEmblemClicks >= 12 && screen === 'maou' && e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault();
-    secretEmblemClicks = 0;
-    save.maouEmblems = Math.min(MAOU_EMBLEM_REQUIRED, save.maouEmblems + 100);
-    pushAnnouncement('🔱', '裏技発動！魔王の紋章が100個増えた');
-    persistSave();
-    renderMaouGate();
-    renderMaouCastleScreen();
     SFX.rare();
     return;
   }
