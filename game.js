@@ -9,7 +9,115 @@ const DUNGEONS = {
 const LANG_LABELS = { jp: '日本語', en: 'English' };
 const ANNOUNCEMENT_HISTORY_MAX = 500;
 
+const SECRET_KEYBOARD_LINES = [
+  'よくこんなくだらない所をクリックしたね',
+  'じゃあついでにくだらない話をひとつ',
+  'タイピングがスゴい大好きなんです',
+  '好きなんだけど……なんか違うって',
+  'タイピングが目的のゲームばっかりで',
+  'タイピングをすることで何かが起こるゲームが欲しくて',
+  '思いつきで開発をスタートしました',
+  '放置ゲーとかインフレゲーも好きなんです',
+  'でも、タイピングを主軸にしたい',
+  '何をするにもタイピングが起点であってほしい',
+  'そう考えると設計は意外と困難を極めまして',
+  'あれやこれや総当たりで考えてみて',
+  'こんなゲームデザインになりました',
+  'ちょっと昔のゲームみたいな考えですよね',
+  '例えば最初は何をしたら良いか分からない',
+  'でもタイピングをしてももらえるｐｔは僅か',
+  'どうしたらいいんだろう？',
+  '弟子ってなんだろう？',
+  'ショップを覗くと装備品で一番高いのは指輪',
+  'レア出現率ってなんだろう？',
+  '弟子のところに連勝数が記録されてるな',
+  'じゃあ、連勝したら何か有るのかな？',
+  'こういう手触り一つ一つが理解を深めていく',
+  '不親切だけどそこには手が加わっていて',
+  '少しずつゲームデザインを理解する',
+  'そんなゲームを創りたかったんです',
+  'このゲームの数値におけるデザインにおいて',
+  '一切計算をしていません',
+  '全てテストプレイの中で実際の体感を得て',
+  'こういうゲームが好きだなーって思えるように',
+  '数値を一つ一つ調整しながらテストプレイ',
+  'このゲームを一番プレイしているのは間違いなく私',
+  'でもおかげで本当に欲しかったゲームに',
+  'なってくれた気がしました。',
+  '昔タイピングゲームを探しているときに',
+  'こういうゲームがやりたいんだよなぁって思っても',
+  'どこにもなくて',
+  'じゃあ創ればいいじゃん！って乱暴な考えから',
+  'ここまで形になるとは思いませんでした',
+  '少しでも楽しんでくれているなら',
+  '楽しいと思いながら是非ともタイピングを',
+  '学んでもらえたら嬉しいです',
+  '実際に私もテストプレイしていて感じたのですが',
+  '全く苦痛なくタイプスピードが上がった気がします',
+  'だからあなたにもそんな効果があったら良いなって',
+  '楽しみながらどんどん主人公達を強くしてください',
+  'りんご',
+  'ごりら',
+  'らっぱ',
+  'ぱんぱーす',
+  'スリランカ',
+  'カモメ',
+  'メンタリスト',
+  'トマト',
+  'トラックボールマウス',
+  'スキマスイッチ',
+  'あ、しりとりです',
+  'もう書くことが無いんですよ',
+  'あなたも意地っ張りですね',
+  'まだ文字が出ると思ってクリックしてますよね？',
+  '世の中そんなに親切じゃないんですよ',
+  'そろそろ諦めませんか？',
+  'そう何回もクリックしてる暇があるなら',
+  'タイピングした方が良いですよ',
+  '技術も向上しますし',
+  'キャラクターも強くなりますし',
+  'んー。でもクリックしてくれてるしなぁ。',
+  '申し訳無い気持ちなので',
+  'ちょっとした豆知識を教えますね',
+  'このゲームの様々な在庫は大体が獲得EXPで',
+  '得られるようになっています。',
+  '弟子のハートとか、ショップのしあわせ草とか',
+  '最初のうちはしあわせ草の在庫があれば買って',
+  'ちゃっちゃとレベルアップするとよいですよ',
+  'ただし獲得EXPはあくまでタイピング時のみ',
+  'しあわせ草をいくら食べてもハートは回復しません',
+  'あしからず',
+  'あくまでタイピングゲーであってクリックゲーじゃないので',
+  'そこいらはご愛敬ということでお許し下さい',
+  '…………',
+  'まだクリックします？',
+  'もう良くないですか？',
+  '知ってます？',
+  'あなたもう84回クリックしてるんですよ',
+  '恐らくですが相当愚かな時間ですよ',
+  'もっとやれた事あるはずなのに',
+  'もういいじゃないですか',
+  'ねぇ？',
+  'ミスリードじゃないってば',
+  '分かりました。',
+  'カウントしてるってことはつまり',
+  '何か意味があるとお思いですね？',
+  'こわいこわい',
+  'こんな機能実装しなければ良かった',
+  '分かりました',
+  '報酬をちゃんと用意しますので',
+  'これにて勘弁して下さい',
+  'くだらない機能にお付き合い頂いて',
+  '本当にありがとうございました。',
+];
+
 const CHANGELOG = [
+  {
+    version: 'Beta0.56',
+    items: [
+      'くだらないギミックとそれに伴う実績を実装しました',
+    ],
+  },
   {
     version: 'Beta0.55',
     items: [
@@ -167,6 +275,7 @@ function defaultSave() {
     prestige: 0,
     muted: false,
     settings: { bgmVolume: 50, seVolume: 50 },
+    secretKeyboardClicks: 0,
     playCount: 0,
     completedRuns: 0,
     abortCount: 0,
@@ -525,6 +634,7 @@ let awaitingStart = false;
 const el = {
   totalPt: document.getElementById('totalPt'),
   topbar: document.getElementById('topbar'),
+  secretKeyboardIcon: document.getElementById('secretKeyboardIcon'),
   muteBtn: document.getElementById('muteBtn'),
   screens: {
     home: document.getElementById('screen-home'),
@@ -946,6 +1056,7 @@ const ACHIEVEMENTS = [
   { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated },
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
+  { id: 'secret_keyboard_100', icon: '😝', label: 'くだらないギミックのクリックを頑張ったで賞', check: (s) => (s.secretKeyboardClicks || 0) >= 100 },
   { id: 'total_taps_1man', icon: '🥉', label: '総タイプ数1万達成', check: (s) => s.totalCorrect >= 10000 },
   { id: 'total_taps_10man', icon: '🥈', label: '総タイプ数10万達成', check: (s) => s.totalCorrect >= 100000 },
   { id: 'total_taps_100man', icon: '🥇', label: '総タイプ数100万達成', check: (s) => s.totalCorrect >= 1000000 },
@@ -1898,6 +2009,21 @@ el.openChangelogBtn.addEventListener('click', () => {
 });
 el.changelogCloseBtn.addEventListener('click', () => el.changelogPopup.classList.add('hidden'));
 enableBackdropClose(el.changelogPopup);
+
+el.secretKeyboardIcon.addEventListener('click', () => {
+  const clicks = save.secretKeyboardClicks || 0;
+  if (clicks >= 100) return;
+  save.secretKeyboardClicks = clicks + 1;
+  persistSave();
+  if (save.secretKeyboardClicks <= 99) {
+    queueReveal('', SECRET_KEYBOARD_LINES[save.secretKeyboardClicks - 1]);
+  } else {
+    pushAnnouncement('😝', 'くだらないギミックのクリックを頑張ったで賞を解除した……');
+    renderAnnouncements();
+    renderAchievements();
+    queueReveal('勘弁して下さい', 'くだらないギミックのクリックを頑張ったで賞\n実績を解除しました');
+  }
+});
 
 el.openSettingsBtn.addEventListener('click', () => {
   el.exportSaveText.value = exportSaveString();
