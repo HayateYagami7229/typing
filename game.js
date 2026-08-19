@@ -923,6 +923,7 @@ const ACHIEVEMENTS = [
   { id: 'prestige_awaken', icon: '💫', label: '転生10回達成（覚醒）', check: (s) => !!s.prestigeAwakened },
   { id: 'prestige_super_awaken', icon: '🌌', label: '転生30回達成（超覚醒）', check: (s) => (s.prestigeAwakenedTiers || []).includes(30) },
   { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
+  { id: 'disciple_streak_10000', icon: '🔥', label: '弟子が10000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 10000 },
   { id: 'rank_ss_word', icon: '🗡️', label: '単語の間でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:word'], 'SS') },
   { id: 'rank_ss_sentence', icon: '⚔️', label: '文章の回廊でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:sentence'], 'SS') },
   { id: 'rank_ss_long', icon: '🗼', label: '長文の塔でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:long'], 'SS') },
