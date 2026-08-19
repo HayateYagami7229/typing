@@ -2232,3 +2232,14 @@ body {
     padding-top: 0;
   }
 }
+
+.app-version {
+  position: fixed;
+  bottom: 6px;
+  right: 10px;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 40;
+}

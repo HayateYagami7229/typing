@@ -467,6 +467,7 @@ let awaitingStart = false;
 const el = {
   totalPt: document.getElementById('totalPt'),
   topbar: document.getElementById('topbar'),
+  maouCastleArt: document.getElementById('maouCastleArt'),
   muteBtn: document.getElementById('muteBtn'),
   screens: {
     home: document.getElementById('screen-home'),
@@ -1337,7 +1338,7 @@ function checkGodStatueCompletion() {
 }
 
 function checkDiscipleClassUp() {
-  if (save.disciple.classUpped || discipleTotalParams() <= DISCIPLE_CLASS_UP_THRESHOLD) return;
+  if (save.disciple.classUpped || discipleTotalParams() < DISCIPLE_CLASS_UP_THRESHOLD) return;
   save.disciple.classUpped = true;
   pushAnnouncement('⚔️', `${save.disciple.name}は勇者だった！勇者にクラスアップした`);
   persistSave();
@@ -1349,6 +1350,7 @@ function checkDiscipleClassUp() {
 function checkMaouGateReveal() {
   if (save.maouGateRevealed || !save.disciple.classUpped) return;
   save.maouGateRevealed = true;
+  save.maouEmblems = MAOU_EMBLEM_REQUIRED;
   pushAnnouncement('🏰', '勇者が生まれた事で霧が晴れ、魔王城への道は開かれた……');
   persistSave();
   renderAnnouncements();
@@ -1357,7 +1359,6 @@ function checkMaouGateReveal() {
 }
 
 let maouEmblemPopupTimer = null;
-let pendingEmblemDrop = false;
 function showMaouEmblemPopup() {
   el.rareBonusPopup.textContent = `🔱 魔王の紋章を手に入れた！（${Math.min(save.maouEmblems, MAOU_EMBLEM_REQUIRED)}/${MAOU_EMBLEM_REQUIRED}）`;
   el.rareBonusPopup.classList.remove('show');
@@ -2362,7 +2363,6 @@ function renderTitleShop() {
 }
 
 function startSession() {
-  pendingEmblemDrop = false;
   const dungeon = DUNGEONS[currentMode];
   const pool = dungeon.bank[currentLang];
   const buildFn = currentLang === 'jp' ? buildJpTarget : buildEnTarget;
@@ -2619,18 +2619,6 @@ function handleTypedChar(ch) {
       save.ricoShards = (save.ricoShards || 0) + shardGain;
       save.ricoShardsEarned = (save.ricoShardsEarned || 0) + shardGain;
     }
-    if (save.maouGateRevealed && save.maouEmblems < MAOU_EMBLEM_REQUIRED) {
-      const dropChance = MAOU_EMBLEM_BASE_CHANCE
-        + (save.godStatue.gardenRestorations || 0) * GOD_GARDEN_EMBLEM_BONUS_PER
-        + (save.ricoMet ? RICO_MET_EMBLEM_BONUS : 0)
-        + sessionMaouPrayerBonus;
-      if (Math.random() < dropChance) {
-        save.maouEmblems += 1;
-        renderMaouGate();
-        pendingEmblemDrop = true;
-        SFX.rare();
-      }
-    }
     refreshTotalPt();
 
     if (res.comboBonus > 0) {
@@ -2653,6 +2641,19 @@ function handleTypedChar(ch) {
         renderGameExpBar();
         if (levelsGained.length > 0) showLevelUpPopup(save.level);
       }
+      let emblemDropped = false;
+      if (save.maouGateRevealed && save.maouEmblems < MAOU_EMBLEM_REQUIRED) {
+        const dropChance = MAOU_EMBLEM_BASE_CHANCE
+          + (save.godStatue.gardenRestorations || 0) * GOD_GARDEN_EMBLEM_BONUS_PER
+          + (save.ricoMet ? RICO_MET_EMBLEM_BONUS : 0)
+          + sessionMaouPrayerBonus;
+        if (Math.random() < dropChance) {
+          save.maouEmblems += 1;
+          renderMaouGate();
+          emblemDropped = true;
+          SFX.rare();
+        }
+      }
       if (res.rareBonus) {
         save.pt += res.rareBonus.pt;
         save.totalPtEarned += res.rareBonus.pt;
@@ -2663,12 +2664,10 @@ function handleTypedChar(ch) {
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
         save.rareMonstersDefeated += 1;
         refreshTotalPt();
-        showRareBonusPopup(res.rareBonus, pendingEmblemDrop);
-        pendingEmblemDrop = false;
+        showRareBonusPopup(res.rareBonus, emblemDropped);
         SFX.rare();
-      } else if (pendingEmblemDrop) {
+      } else if (emblemDropped) {
         showMaouEmblemPopup();
-        pendingEmblemDrop = false;
       }
       persistSave();
       if (!session.isTimeUp) renderTarget();
@@ -2942,6 +2941,13 @@ el.topbar.addEventListener('click', (e) => {
   secretGrassClicks = Math.min(12, secretGrassClicks + 1);
 });
 
+let secretEmblemClicks = 0;
+if (el.maouCastleArt) {
+  el.maouCastleArt.addEventListener('click', () => {
+    secretEmblemClicks = Math.min(12, secretEmblemClicks + 1);
+  });
+}
+
 document.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (secretGrassClicks >= 12 && e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -2951,6 +2957,18 @@ document.addEventListener('keydown', (e) => {
     pushAnnouncement('🍀', '裏技発動！しあわせ草が大量入荷した');
     persistSave();
     if (screen === 'shop') renderShopList();
+    SFX.rare();
+    return;
+  }
+
+  if (secretEmblemClicks >= 12 && screen === 'maou' && e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    secretEmblemClicks = 0;
+    save.maouEmblems = Math.min(MAOU_EMBLEM_REQUIRED, save.maouEmblems + 100);
+    pushAnnouncement('🔱', '裏技発動！魔王の紋章が100個増えた');
+    persistSave();
+    renderMaouGate();
+    renderMaouCastleScreen();
     SFX.rare();
     return;
   }
