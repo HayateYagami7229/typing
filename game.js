@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.58',
+    items: [
+      'リコと出会った後の効果表示をタイピング画面でも常時わかるように改善しました。',
+    ],
+  },
+  {
     version: 'Beta0.57',
     items: [
       '特定挙動においてセーブデータがロールバックしてしまう不具合を解消しました。',
@@ -2687,7 +2693,12 @@ function startSession() {
     sessionMaouPrayerBonus = RICO_PRAYER_EMBLEM_BONUS;
     pushAnnouncement('🙏', 'リコの祈りの力を感じています（魔王の紋章の出現率が大幅に上昇しています）');
   }
-  el.maouPrayerBadge.classList.toggle('hidden', sessionMaouPrayerBonus <= 0);
+  el.maouPrayerBadge.classList.toggle('hidden', !save.ricoMet);
+  if (save.ricoMet) {
+    el.maouPrayerBadge.textContent = sessionMaouPrayerBonus > 0
+      ? '🙏 リコの祈り＋祈りの加護 効果中（魔王の紋章 出現率 大幅UP）'
+      : '🙏 リコの祈り 効果中（魔王の紋章 出現率UP）';
+  }
 
   session = new TimeAttackSession(pool, buildFn, currentDuration, {
     expFactor: dungeon.expFactor,
