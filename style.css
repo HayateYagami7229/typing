@@ -249,20 +249,37 @@ body {
 }
 
 .dungeon-grid.maou-aura .dungeon-card {
-  border-color: #6d3a8c;
-  background: linear-gradient(165deg, rgba(154, 59, 194, 0.14), var(--panel-gradient));
-  box-shadow: 0 0 20px rgba(154, 59, 194, 0.18);
+  background: linear-gradient(165deg, rgba(194, 59, 90, 0.16), var(--panel-gradient));
+  animation: maouCardPulse 3.4s ease-in-out infinite;
+}
+
+.dungeon-grid.maou-aura .dungeon-card:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.dungeon-grid.maou-aura .dungeon-card:nth-child(3) {
+  animation-delay: 1.2s;
 }
 
 .dungeon-grid.maou-aura .dungeon-card:hover {
-  border-color: #b06bd6;
-  box-shadow: 0 0 24px rgba(154, 59, 194, 0.35);
+  border-color: #d1508f;
+  box-shadow: 0 0 34px rgba(194, 59, 90, 0.5);
 }
 
 .dungeon-grid.maou-aura .dungeon-card.active {
-  background: linear-gradient(165deg, #3a2350, var(--bg-panel-2));
-  border-color: #b06bd6;
-  box-shadow: 0 0 0 2px rgba(154, 59, 194, 0.45), 0 0 30px rgba(154, 59, 194, 0.35);
+  background: linear-gradient(165deg, #4a1a3a, var(--bg-panel-2));
+  box-shadow: 0 0 0 2px rgba(194, 59, 90, 0.5), 0 0 40px rgba(194, 59, 90, 0.4);
+}
+
+@keyframes maouCardPulse {
+  0%, 100% {
+    border-color: #5c1f4a;
+    box-shadow: 0 0 14px rgba(194, 59, 90, 0.22);
+  }
+  50% {
+    border-color: #c2427a;
+    box-shadow: 0 0 32px rgba(194, 59, 90, 0.5);
+  }
 }
 
 .dungeon-icon {
@@ -417,10 +434,21 @@ body {
 
 .typing-stage.maou-aura {
   background:
-    radial-gradient(ellipse 500px 200px at 50% 0%, rgba(154, 59, 194, 0.22), transparent),
+    radial-gradient(ellipse 520px 220px at 50% 0%, rgba(194, 59, 90, 0.22), transparent),
+    radial-gradient(ellipse 400px 300px at 50% 100%, rgba(124, 47, 92, 0.18), transparent),
     var(--panel-gradient);
-  border-color: #6d3a8c;
-  box-shadow: 0 0 40px rgba(154, 59, 194, 0.3), inset 0 0 60px rgba(124, 63, 160, 0.08);
+  animation: maouAuraPulse 3.4s ease-in-out infinite;
+}
+
+@keyframes maouAuraPulse {
+  0%, 100% {
+    border-color: #5c1f4a;
+    box-shadow: 0 0 30px rgba(194, 59, 90, 0.3), inset 0 0 50px rgba(90, 16, 48, 0.14);
+  }
+  50% {
+    border-color: #b0396f;
+    box-shadow: 0 0 65px rgba(194, 59, 90, 0.65), inset 0 0 90px rgba(154, 30, 70, 0.28);
+  }
 }
 
 @keyframes shake {
