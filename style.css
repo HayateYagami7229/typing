@@ -427,6 +427,35 @@ body {
   word-break: break-all;
 }
 
+.typing-stage.long-mode .display-line {
+  font-size: 1.05rem;
+  min-height: 1.3em;
+}
+
+.typing-stage.long-mode .reading-line {
+  font-size: 1.1rem;
+  min-height: 1.4em;
+}
+
+.typing-stage.long-mode .romaji-line {
+  font-size: 1.25rem;
+  min-height: 1.6em;
+}
+
+@media (max-width: 600px) {
+  .typing-stage.long-mode .display-line {
+    font-size: 0.85rem;
+  }
+
+  .typing-stage.long-mode .reading-line {
+    font-size: 0.9rem;
+  }
+
+  .typing-stage.long-mode .romaji-line {
+    font-size: 1rem;
+  }
+}
+
 .chunk {
   transition: color 0.1s ease;
 }

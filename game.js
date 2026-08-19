@@ -11,6 +11,14 @@ const ANNOUNCEMENT_HISTORY_MAX = 500;
 
 const CHANGELOG = [
   {
+    version: 'Beta0.55',
+    items: [
+      '一部文字の修正を実施しました。',
+      '長文の塔における表示の問題を修正しました。',
+      'UIにおける快適性を向上させました。',
+    ],
+  },
+  {
     version: 'Beta0.54',
     items: [
       'タイピング中の獲得pt・獲得EXP表示に桁区切り（カンマ）を追加し、見やすく改善',
@@ -630,6 +638,7 @@ const el = {
   sessionExp: document.getElementById('sessionExp'),
   gameExpBarFill: document.getElementById('gameExpBarFill'),
   gameExpText: document.getElementById('gameExpText'),
+  typingStage: document.getElementById('typingStage'),
   displayLine: document.getElementById('displayLine'),
   readingLine: document.getElementById('readingLine'),
   romajiLine: document.getElementById('romajiLine'),
@@ -1532,6 +1541,11 @@ el.simpleRevealCloseBtn.addEventListener('click', () => {
   revealQueue.shift();
   if (revealQueue.length > 0) setTimeout(showNextReveal, 300);
 });
+el.simpleRevealPopup.addEventListener('click', (e) => {
+  if (e.target !== el.simpleRevealPopup) return;
+  if (el.simpleRevealCloseBtn.textContent !== '閉じる') return;
+  el.simpleRevealCloseBtn.click();
+});
 
 const DISCIPLE_PRICE_HIKE_TIERS = [
   { minValue: 200, multiplier: 100 },
@@ -1853,24 +1867,37 @@ el.discipleStats.addEventListener('click', (e) => {
   upgradeDiscipleStat(btn.dataset.stat, parseInt(btn.dataset.count || '1', 10));
 });
 
+function enableBackdropClose(popup, canCloseFn, onClose) {
+  popup.addEventListener('click', (e) => {
+    if (e.target !== popup) return;
+    if (canCloseFn && !canCloseFn()) return;
+    popup.classList.add('hidden');
+    if (onClose) onClose();
+  });
+}
+
 el.discipleBattleBtn.addEventListener('click', openDisciplePopup);
 el.disciplePopupCloseBtn.addEventListener('click', () => el.disciplePopup.classList.add('hidden'));
+enableBackdropClose(el.disciplePopup);
 el.ricoCompleteCloseBtn.addEventListener('click', () => {
   el.ricoCompletePopup.classList.add('hidden');
   renderShopList();
 });
+enableBackdropClose(el.ricoCompletePopup, null, renderShopList);
 
 el.openAnnouncementHistoryBtn.addEventListener('click', () => {
   renderAnnouncementHistory();
   el.announcementHistoryPopup.classList.remove('hidden');
 });
 el.announcementHistoryCloseBtn.addEventListener('click', () => el.announcementHistoryPopup.classList.add('hidden'));
+enableBackdropClose(el.announcementHistoryPopup);
 
 el.openChangelogBtn.addEventListener('click', () => {
   renderChangelog();
   el.changelogPopup.classList.remove('hidden');
 });
 el.changelogCloseBtn.addEventListener('click', () => el.changelogPopup.classList.add('hidden'));
+enableBackdropClose(el.changelogPopup);
 
 el.openSettingsBtn.addEventListener('click', () => {
   el.exportSaveText.value = exportSaveString();
@@ -1882,6 +1909,7 @@ el.openSettingsBtn.addEventListener('click', () => {
   el.settingsPopup.classList.remove('hidden');
 });
 el.settingsCloseBtn.addEventListener('click', () => el.settingsPopup.classList.add('hidden'));
+enableBackdropClose(el.settingsPopup);
 el.bgmVolumeSlider.addEventListener('input', () => {
   save.settings.bgmVolume = parseInt(el.bgmVolumeSlider.value, 10);
   el.bgmVolumeValue.textContent = save.settings.bgmVolume;
@@ -2491,6 +2519,7 @@ function renderTitleShop() {
 }
 
 function startSession() {
+  el.typingStage.classList.toggle('long-mode', currentMode === 'long');
   const dungeon = DUNGEONS[currentMode];
   const pool = dungeon.bank[currentLang];
   const buildFn = currentLang === 'jp' ? buildJpTarget : buildEnTarget;
@@ -2680,7 +2709,7 @@ function stopTimerLoop() {
 }
 
 function flashIncorrect() {
-  const stage = document.getElementById('typingStage');
+  const stage = el.typingStage;
   stage.classList.remove('shake');
   void stage.offsetWidth;
   stage.classList.add('shake');
