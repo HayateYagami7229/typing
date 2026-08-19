@@ -11,6 +11,12 @@ const ANNOUNCEMENT_HISTORY_MAX = 500;
 
 const CHANGELOG = [
   {
+    version: 'Beta0.52',
+    items: [
+      'レベルアップのお知らせを改善：ダンジョン挑戦中に複数レベル上がった場合、まとめて1件（Lv.X→Lv.Y）で表示するように修正',
+    ],
+  },
+  {
     version: 'Beta0.51',
     items: [
       'お知らせ履歴（💬）を追加：過去のお知らせを一覧で確認できます',
@@ -2801,7 +2807,7 @@ function finishSession() {
   if (save.history.length > 50) save.history.length = 50;
 
   if (levelsGained.length > 0) {
-    pushAnnouncement('🎉', `Lv.${levelsGained[levelsGained.length - 1]} に到達しました`);
+    pushAnnouncement('🎉', `Lv.${levelAtSessionStart} → Lv.${save.level} に到達しました`);
   }
   if (isRankBetterThan(rank, prevBestRank)) {
     pushAnnouncement('🏆', `自己ベストランク ${rank}(${rankTitle(rank)})を達成しました`);
