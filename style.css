@@ -248,6 +248,23 @@ body {
   box-shadow: 0 0 0 2px rgba(124, 140, 255, 0.35), var(--glow-accent);
 }
 
+.dungeon-grid.maou-aura .dungeon-card {
+  border-color: #6d3a8c;
+  background: linear-gradient(165deg, rgba(154, 59, 194, 0.14), var(--panel-gradient));
+  box-shadow: 0 0 20px rgba(154, 59, 194, 0.18);
+}
+
+.dungeon-grid.maou-aura .dungeon-card:hover {
+  border-color: #b06bd6;
+  box-shadow: 0 0 24px rgba(154, 59, 194, 0.35);
+}
+
+.dungeon-grid.maou-aura .dungeon-card.active {
+  background: linear-gradient(165deg, #3a2350, var(--bg-panel-2));
+  border-color: #b06bd6;
+  box-shadow: 0 0 0 2px rgba(154, 59, 194, 0.45), 0 0 30px rgba(154, 59, 194, 0.35);
+}
+
 .dungeon-icon {
   font-size: 1.9rem;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));

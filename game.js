@@ -2160,6 +2160,7 @@ function renderDungeonBadges() {
     const rank = save.bestRankByKey[`${currentLang}:${mode}`];
     badge.textContent = rank ? `Best: ${rank}` : '';
   });
+  el.dungeonGrid.classList.toggle('maou-aura', save.maouGateRevealed && !save.maouDefeated);
 }
 
 function renderAnnouncements() {
