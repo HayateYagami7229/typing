@@ -720,6 +720,7 @@ const el = {
   godBuffOptions: document.getElementById('godBuffOptions'),
   announcementsList: document.getElementById('announcementsList'),
   dungeonGrid: document.getElementById('dungeonGrid'),
+  dungeonSelectHeading: document.getElementById('dungeonSelectHeading'),
   startBtn: document.getElementById('startBtn'),
   openStatsBtn: document.getElementById('openStatsBtn'),
   openHistoryBtn: document.getElementById('openHistoryBtn'),
@@ -2160,7 +2161,11 @@ function renderDungeonBadges() {
     const rank = save.bestRankByKey[`${currentLang}:${mode}`];
     badge.textContent = rank ? `Best: ${rank}` : '';
   });
-  el.dungeonGrid.classList.toggle('maou-aura', save.maouGateRevealed && !save.maouDefeated);
+  const maouAuraActive = save.maouGateRevealed && !save.maouDefeated;
+  el.dungeonGrid.classList.toggle('maou-aura', maouAuraActive);
+  el.dungeonSelectHeading.textContent = maouAuraActive
+    ? 'ダンジョン選択（魔王が現れた事で魔王紋章ドロップ）'
+    : 'ダンジョン選択';
 }
 
 function renderAnnouncements() {
