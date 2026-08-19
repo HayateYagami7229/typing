@@ -295,6 +295,7 @@ function defaultSave() {
     eternalComboHeartMilestone: 0,
     reincarnationNecklaceAnnounced: false,
     batchBattleAnnounced: false,
+    itemPurchaseCounts: {},
     playCount: 0,
     completedRuns: 0,
     abortCount: 0,
@@ -2425,6 +2426,7 @@ el.shopItemList.addEventListener('click', (e) => {
   if (action === 'buy') buyItem(effectiveTab, itemId);
   if (action === 'equip') equipItem(effectiveTab, itemId);
   if (action === 'use-item') buyConsumableItem(itemId);
+  if (action === 'bulk-buy-item') bulkBuyItem(itemId);
 });
 
 const SHOP_CATALOGS = {
@@ -2497,6 +2499,15 @@ function equipItem(tab, itemId) {
   renderShopList();
 }
 
+const BULK_BUY_ITEM_IDS = ['item_fairy_dust', 'item_happy_grass'];
+const BULK_BUY_THRESHOLD = 500;
+
+function trackItemPurchase(itemId) {
+  if (!BULK_BUY_ITEM_IDS.includes(itemId)) return;
+  save.itemPurchaseCounts = save.itemPurchaseCounts || {};
+  save.itemPurchaseCounts[itemId] = (save.itemPurchaseCounts[itemId] || 0) + 1;
+}
+
 function buyConsumableItem(itemId) {
   const item = ITEM_CATALOG.find((i) => i.id === itemId);
   if (!item) return;
@@ -2542,6 +2553,7 @@ function buyConsumableItem(itemId) {
     save.pt -= item.price;
     save.totalPtSpent += item.price;
     save.inventory.consumables[itemId] = owned + 1;
+    trackItemPurchase(itemId);
     SFX.correct();
     persistSave();
     refreshTotalPt();
@@ -2554,6 +2566,7 @@ function buyConsumableItem(itemId) {
   save.pt -= item.price;
   save.totalPtSpent += item.price;
   if (item.hasShopStock) save.happyGrassStock -= 1;
+  trackItemPurchase(itemId);
 
   if (item.effect === 'exp') {
     const levelBefore = save.level;
@@ -2564,6 +2577,56 @@ function buyConsumableItem(itemId) {
     }
   }
 
+  SFX.complete();
+  persistSave();
+  refreshTotalPt();
+  renderPlayerCard();
+  renderAnnouncements();
+  renderShopList();
+}
+
+function bulkBuyItem(itemId) {
+  const item = ITEM_CATALOG.find((i) => i.id === itemId);
+  if (!item) return;
+  if (((save.itemPurchaseCounts && save.itemPurchaseCounts[itemId]) || 0) < BULK_BUY_THRESHOLD) return;
+
+  if (item.stackable) {
+    let bought = 0;
+    while (true) {
+      const owned = save.inventory.consumables[itemId] || 0;
+      if (owned >= item.maxStack) break;
+      if (save.pt < item.price) break;
+      save.pt -= item.price;
+      save.totalPtSpent += item.price;
+      save.inventory.consumables[itemId] = owned + 1;
+      trackItemPurchase(itemId);
+      bought += 1;
+    }
+    if (bought === 0) return;
+    SFX.correct();
+    persistSave();
+    refreshTotalPt();
+    renderShopList();
+    return;
+  }
+
+  const levelBefore = save.level;
+  let used = 0;
+  while (true) {
+    if (item.hasShopStock && save.happyGrassStock <= 0) break;
+    if (save.pt < item.price) break;
+    save.pt -= item.price;
+    save.totalPtSpent += item.price;
+    if (item.hasShopStock) save.happyGrassStock -= 1;
+    trackItemPurchase(itemId);
+    if (item.effect === 'exp') addExp(save, item.value);
+    used += 1;
+  }
+  if (used === 0) return;
+  if (save.level > levelBefore) {
+    pushAnnouncement('🎉', `Lv.${levelBefore} → Lv.${save.level} に到達しました`);
+    showLevelUpPopup(save.level);
+  }
   SFX.complete();
   persistSave();
   refreshTotalPt();
@@ -2598,6 +2661,8 @@ function renderItemShop() {
     if (maxed) btnLabel = '所持済';
     else if (outOfStock) btnLabel = '在庫切れ';
     else if (!canAfford) btnLabel = 'pt不足';
+    const bulkUnlocked = BULK_BUY_ITEM_IDS.includes(item.id)
+      && ((save.itemPurchaseCounts && save.itemPurchaseCounts[item.id]) || 0) >= BULK_BUY_THRESHOLD;
     const row = document.createElement('div');
     row.className = (isHeartVessel || isEternalCombo) ? 'shop-item shop-item-rico' : 'shop-item';
     row.innerHTML = `
@@ -2610,6 +2675,7 @@ function renderItemShop() {
       <div class="shop-item-side">
         <span class="shop-item-price">${oneTimeOwned ? '所持済' : `${item.price.toLocaleString()} pt`}</span>
         <button class="shop-btn" data-action="use-item" data-item-id="${item.id}" ${disabled ? 'disabled' : ''}>${btnLabel}</button>
+        ${bulkUnlocked ? `<button class="shop-btn" data-action="bulk-buy-item" data-item-id="${item.id}" ${disabled ? 'disabled' : ''}>⚡ 一括購入</button>` : ''}
       </div>
     `;
     el.shopItemList.appendChild(row);
