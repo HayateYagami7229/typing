@@ -20,6 +20,8 @@
         <button id="openShopBtn" class="icon-btn" title="ショップ">🛒</button>
         <button id="openStatsBtn" class="icon-btn" title="実績">📊</button>
         <button id="openHistoryBtn" class="icon-btn" title="履歴">📜</button>
+        <button id="openAnnouncementHistoryBtn" class="icon-btn" title="お知らせ履歴">💬</button>
+        <button id="openChangelogBtn" class="icon-btn" title="アップデート履歴">📰</button>
         <button id="openSaveDataBtn" class="icon-btn" title="セーブデータ">💾</button>
       </div>
     </div>
@@ -403,6 +405,23 @@
   </div>
 </div>
 
+<div id="announcementHistoryPopup" class="disciple-popup hidden">
+  <div class="disciple-popup-inner announcement-history-inner">
+    <h2>💬 お知らせ履歴</h2>
+    <p id="announcementHistoryEmpty" class="subtitle hidden">まだお知らせはありません。</p>
+    <div class="announcement-history-list" id="announcementHistoryList"></div>
+    <button id="announcementHistoryCloseBtn" class="choice-btn">閉じる</button>
+  </div>
+</div>
+
+<div id="changelogPopup" class="disciple-popup hidden">
+  <div class="disciple-popup-inner changelog-inner">
+    <h2>📰 アップデート履歴</h2>
+    <div class="changelog-list" id="changelogList"></div>
+    <button id="changelogCloseBtn" class="choice-btn">閉じる</button>
+  </div>
+</div>
+
 <div id="saveDataPopup" class="disciple-popup hidden">
   <div class="disciple-popup-inner save-data-inner">
     <h2>💾 セーブデータ</h2>
@@ -428,7 +447,7 @@
   </div>
 </div>
 
-<div id="appVersion" class="app-version">Beta0.5</div>
+<div id="appVersion" class="app-version">Beta0.51</div>
 
 <script src="data.js"></script>
 <script src="kana.js"></script>

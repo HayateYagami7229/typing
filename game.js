@@ -7,6 +7,26 @@ const DUNGEONS = {
 };
 
 const LANG_LABELS = { jp: '日本語', en: 'English' };
+const ANNOUNCEMENT_HISTORY_MAX = 500;
+
+const CHANGELOG = [
+  {
+    version: 'Beta0.51',
+    items: [
+      'お知らせ履歴（💬）を追加：過去のお知らせを一覧で確認できます',
+      'アップデート履歴（📰）を追加：このウィンドウです',
+    ],
+  },
+  {
+    version: 'Beta0.5',
+    items: [
+      'バグ修正・バランス調整を実施',
+      'タイピング単語数を大幅に増加',
+      'UI表示・演出まわりを改善',
+      '新しい要素を複数追加（詳しくは遊んで確認してみてください）',
+    ],
+  },
+];
 
 const GOD_STATUE_RESTORE_COST = 10000;
 const GOD_STATUE_MAX = 100;
@@ -612,6 +632,15 @@ const el = {
   },
   ricoCompletePopup: document.getElementById('ricoCompletePopup'),
   ricoCompleteCloseBtn: document.getElementById('ricoCompleteCloseBtn'),
+  openAnnouncementHistoryBtn: document.getElementById('openAnnouncementHistoryBtn'),
+  announcementHistoryPopup: document.getElementById('announcementHistoryPopup'),
+  announcementHistoryList: document.getElementById('announcementHistoryList'),
+  announcementHistoryEmpty: document.getElementById('announcementHistoryEmpty'),
+  announcementHistoryCloseBtn: document.getElementById('announcementHistoryCloseBtn'),
+  openChangelogBtn: document.getElementById('openChangelogBtn'),
+  changelogPopup: document.getElementById('changelogPopup'),
+  changelogList: document.getElementById('changelogList'),
+  changelogCloseBtn: document.getElementById('changelogCloseBtn'),
   openSaveDataBtn: document.getElementById('openSaveDataBtn'),
   saveDataPopup: document.getElementById('saveDataPopup'),
   saveDataCloseBtn: document.getElementById('saveDataCloseBtn'),
@@ -1795,6 +1824,18 @@ el.ricoCompleteCloseBtn.addEventListener('click', () => {
   renderShopList();
 });
 
+el.openAnnouncementHistoryBtn.addEventListener('click', () => {
+  renderAnnouncementHistory();
+  el.announcementHistoryPopup.classList.remove('hidden');
+});
+el.announcementHistoryCloseBtn.addEventListener('click', () => el.announcementHistoryPopup.classList.add('hidden'));
+
+el.openChangelogBtn.addEventListener('click', () => {
+  renderChangelog();
+  el.changelogPopup.classList.remove('hidden');
+});
+el.changelogCloseBtn.addEventListener('click', () => el.changelogPopup.classList.add('hidden'));
+
 el.openSaveDataBtn.addEventListener('click', () => {
   el.exportSaveText.value = exportSaveString();
   el.importSaveText.value = '';
@@ -1929,7 +1970,40 @@ function renderAnnouncements() {
 
 function pushAnnouncement(icon, text) {
   save.announcements.unshift({ ts: Date.now(), icon, text });
-  if (save.announcements.length > 30) save.announcements.length = 30;
+  if (save.announcements.length > ANNOUNCEMENT_HISTORY_MAX) save.announcements.length = ANNOUNCEMENT_HISTORY_MAX;
+}
+
+function formatTimestamp(ts) {
+  const date = new Date(ts);
+  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function renderAnnouncementHistory() {
+  el.announcementHistoryList.innerHTML = '';
+  el.announcementHistoryEmpty.classList.toggle('hidden', save.announcements.length > 0);
+  save.announcements.forEach((a) => {
+    const row = document.createElement('div');
+    row.className = 'announcement-history-row';
+    row.innerHTML = `
+      <span class="announcement-history-icon">${a.icon}</span>
+      <span class="announcement-history-body">
+        <span class="announcement-history-text">${a.text}</span>
+        <span class="announcement-history-ts">${formatTimestamp(a.ts)}</span>
+      </span>
+    `;
+    el.announcementHistoryList.appendChild(row);
+  });
+}
+
+function renderChangelog() {
+  el.changelogList.innerHTML = '';
+  CHANGELOG.forEach((entry) => {
+    const card = document.createElement('div');
+    card.className = 'changelog-entry';
+    const items = entry.items.map((i) => `<li>${i}</li>`).join('');
+    card.innerHTML = `<div class="changelog-version">${entry.version}</div><ul class="changelog-items">${items}</ul>`;
+    el.changelogList.appendChild(card);
+  });
 }
 
 el.profileIconBtn.addEventListener('click', () => {
@@ -2915,8 +2989,7 @@ function renderHistory() {
   save.history.forEach((h) => {
     const row = document.createElement('div');
     row.className = 'history-row';
-    const date = new Date(h.ts);
-    const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    const dateStr = formatTimestamp(h.ts);
     row.innerHTML = `
       <span class="history-rank rank-${h.rank}" title="${rankTitle(h.rank)}">${h.rank}</span>
       <span class="history-main">
