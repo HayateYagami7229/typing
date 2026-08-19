@@ -190,8 +190,14 @@ const GOD_GARDEN_MAX_RESTORATIONS = 20;
 const GOD_GARDEN_EMBLEM_BONUS_PER = 0.001;
 const GOD_BLESSING_COST = 100000000;
 const GOD_BLESSING_SHARD_BONUS_PER = 10;
+const GOD_BLESSING_MAX_COUNT = 10;
+const GOD_BLESSING_MAX_SHARD_BONUS = 100;
+const GOD_BLESSING_MAX_CHUNK_BONUS = { word: 0.05, sentence: 0.2, long: 0.3 };
+const RICO_PRAYER_CHARGE_SUPER_THRESHOLD = 10;
+const RICO_PRAYER_CHARGE_CHUNK_BONUS = { word: 0.05, sentence: 0.2, long: 0.3 };
 const MAOU_EMBLEM_BASE_CHANCE = 0.001;
 const MAOU_EMBLEM_REQUIRED = 100;
+const MAOU_EMBLEM_CHUNK_CHANCE = { sentence: 0.1, long: 0.4 };
 const DISCIPLE_CLASS_UP_THRESHOLD = 1000;
 
 const GOD_STATUE_BUFFS = [
@@ -648,6 +654,7 @@ let timerHandle = null;
 let levelAtSessionStart = 1;
 let sessionPtEarned = 0;
 let sessionMaouPrayerBonus = 0;
+let sessionPrayerSuperActive = false;
 let currentShopTab = 'sword';
 let awaitingStart = false;
 
@@ -1221,14 +1228,25 @@ function renderGodGarden() {
   el.godBlessingBtn.classList.toggle('hidden', !save.ricoMet);
   if (save.ricoMet) {
     const blessingCount = save.godStatue.goddessBlessingCount || 0;
-    el.godBlessingText.textContent = `加護×${blessingCount}（リコの欠片ドロップ数+${blessingCount * GOD_BLESSING_SHARD_BONUS_PER}）`;
-    el.godBlessingBtn.textContent = `🙏 女神達の加護を受ける（-${GOD_BLESSING_COST.toLocaleString()}pt）`;
-    el.godBlessingBtn.disabled = save.pt < GOD_BLESSING_COST;
+    const blessingMaxed = isGoddessBlessingMaxed();
+    el.godBlessingText.textContent = blessingMaxed
+      ? '女神達の超加護（リコの欠片ドロップ数+100 ダンジョンによって魔王の紋章が大幅ドロップ率UP）'
+      : `加護×${blessingCount}（リコの欠片ドロップ数+${blessingCount * GOD_BLESSING_SHARD_BONUS_PER}）`;
+    el.godBlessingText.classList.toggle('stat-glow-yellow', blessingMaxed);
+    el.godBlessingBtn.textContent = blessingMaxed
+      ? '🙏 女神達の聖なる加護は完成した'
+      : `🙏 女神達の加護を受ける（-${GOD_BLESSING_COST.toLocaleString()}pt）`;
+    el.godBlessingBtn.disabled = blessingMaxed || save.pt < GOD_BLESSING_COST;
   }
+}
+
+function isGoddessBlessingMaxed() {
+  return (save.godStatue.goddessBlessingCount || 0) >= GOD_BLESSING_MAX_COUNT;
 }
 
 function receiveGoddessBlessing() {
   if (!save.ricoMet) return;
+  if (isGoddessBlessingMaxed()) return;
   if (save.pt < GOD_BLESSING_COST) return;
   save.pt -= GOD_BLESSING_COST;
   save.totalPtSpent += GOD_BLESSING_COST;
@@ -1299,6 +1317,9 @@ function craftMaouSeal() {
 const MAOU_STAT_MIN = 300;
 const MAOU_STAT_MAX = 500;
 const MAOU_WAVE_MULTIPLIER = 2;
+const MAOU_BATTLE_TURN_CAP = 30;
+const MAOU_BATTLE_PREVIEW_TURNS = 3;
+const MAOU_BATTLE_SKIP_MARGIN = 5;
 
 let maouBattleQueue = null;
 let maouBattleDisc = null;
@@ -1310,7 +1331,7 @@ function computeMaouBattleRounds(disc, maou) {
   const maouFirst = o.spd >= p.spd;
   const rounds = [];
   let round = 0;
-  while (p.hp > 0 && o.hp > 0 && round < 200) {
+  while (p.hp > 0 && o.hp > 0 && round < MAOU_BATTLE_TURN_CAP) {
     round += 1;
     const order = maouFirst ? ['maou', 'disciple'] : ['disciple', 'maou'];
     const events = [];
@@ -1339,7 +1360,8 @@ function computeMaouBattleRounds(disc, maou) {
     rounds.push({ events, discHp: Math.max(0, p.hp), maouHp: Math.max(0, o.hp) });
   }
   const win = o.hp <= 0 && p.hp > 0;
-  return { rounds, win };
+  const timeout = !win && p.hp > 0 && o.hp > 0;
+  return { rounds, win, timeout };
 }
 
 function rollMaouStat(target, min, max, duration) {
@@ -1443,6 +1465,8 @@ async function beginMaouRoulette() {
   await new Promise((r) => setTimeout(r, 800));
   if (save.ricoMet) {
     appendMaouBattleLog('「なんだ！？　魔力が封じられている…！？」');
+    await new Promise((r) => setTimeout(r, 600));
+    appendMaouBattleLog('「リコの祈りにより魔王の魔力は封じられた！」');
   } else {
     appendMaouBattleLog('禍々しい波動が魔王を包み込んだ……！');
     await new Promise((r) => setTimeout(r, 700));
@@ -1480,8 +1504,19 @@ async function beginMaouRoulette() {
   el.maouHpFill.style.width = '100%';
   el.maouHpText.textContent = `${maou.hp.toLocaleString()} / ${maou.hp.toLocaleString()}`;
 
-  const { rounds, win } = computeMaouBattleRounds(maouBattleDisc, maou);
-  maouBattleQueue = { rounds, index: 0, discMaxHp: maouBattleDisc.hp, maouMaxHp: maou.hp, win };
+  const { rounds, win, timeout } = computeMaouBattleRounds(maouBattleDisc, maou);
+  let skipTargetIndex = null;
+  const skipCandidate = rounds.length - MAOU_BATTLE_SKIP_MARGIN;
+  if (skipCandidate > MAOU_BATTLE_PREVIEW_TURNS) skipTargetIndex = skipCandidate;
+  maouBattleQueue = {
+    rounds,
+    index: 0,
+    discMaxHp: maouBattleDisc.hp,
+    maouMaxHp: maou.hp,
+    win,
+    timeout,
+    skipTargetIndex,
+  };
   appendMaouBattleLog('「次のターンへ」を押して戦況を見守ろう。');
   maouBattlePhase = 'battling';
   el.maouNextTurnBtn.textContent = '▶ 次のターンへ';
@@ -1490,8 +1525,33 @@ async function beginMaouRoulette() {
 
 function advanceMaouTurn() {
   if (!maouBattleQueue || maouBattleQueue.index >= maouBattleQueue.rounds.length) return;
+
+  if (
+    maouBattleQueue.index === MAOU_BATTLE_PREVIEW_TURNS &&
+    maouBattleQueue.skipTargetIndex &&
+    maouBattleQueue.skipTargetIndex > maouBattleQueue.index &&
+    maouBattleQueue.skipTargetIndex < maouBattleQueue.rounds.length
+  ) {
+    const skipToIndex = maouBattleQueue.skipTargetIndex;
+    const skipRound = maouBattleQueue.rounds[skipToIndex - 1];
+    maouBattleQueue.index = skipToIndex;
+    maouBattleQueue.skipTargetIndex = null;
+    el.maouBattleLog.innerHTML = '';
+    appendMaouBattleLog('死闘は続く…！');
+    const skipDiscPct = Math.max(0, Math.round((skipRound.discHp / maouBattleQueue.discMaxHp) * 100));
+    const skipMaouPct = Math.max(0, Math.round((skipRound.maouHp / maouBattleQueue.maouMaxHp) * 100));
+    el.discipleHpFill.style.width = `${skipDiscPct}%`;
+    el.discipleHpText.textContent = `${skipRound.discHp.toLocaleString()} / ${maouBattleQueue.discMaxHp.toLocaleString()}`;
+    el.maouHpFill.style.width = `${skipMaouPct}%`;
+    el.maouHpText.textContent = `${skipRound.maouHp.toLocaleString()} / ${maouBattleQueue.maouMaxHp.toLocaleString()}`;
+    return;
+  }
+
+  const turnNumber = maouBattleQueue.index + 1;
   const round = maouBattleQueue.rounds[maouBattleQueue.index];
   maouBattleQueue.index += 1;
+  el.maouBattleLog.innerHTML = '';
+  appendMaouBattleLog(`${turnNumber}ターン目`);
   round.events.forEach((ev) => {
     if (ev.actor === 'disciple') {
       appendMaouBattleLog(`${save.disciple.name}の攻撃！ 魔王に${ev.dmg.toLocaleString()}のダメージ`);
@@ -1509,12 +1569,24 @@ function advanceMaouTurn() {
   if (maouBattleQueue.index >= maouBattleQueue.rounds.length) {
     el.maouNextTurnBtn.classList.add('hidden');
     const win = maouBattleQueue.win;
+    const timeout = maouBattleQueue.timeout;
     maouBattleQueue = null;
     if (win) {
       setTimeout(() => {
         queueReveal('……勝利', '長き戦いの果て、魔王を打ち倒した……！\n（この先の物語は後日実装予定）');
         setTimeout(resetMaouToEntrance, 400);
       }, 500);
+    } else if (timeout) {
+      triggerMaouDefeatFlash();
+      save.maouEmblems = 0;
+      persistSave();
+      setTimeout(() => {
+        queueReveal(
+          '……撤退',
+          '戦いが長引きすぎたのか、世界が歪む。\n「これ以上ここに居ると闇に呑まれてしまう…！」\n悔しいが、これ以上はここに居られない。\n撤退することにした。',
+        );
+        setTimeout(resetMaouToEntrance, 400);
+      }, 600);
     } else {
       triggerMaouDefeatFlash();
       save.maouEmblems = 0;
@@ -2188,7 +2260,9 @@ function renderEquipmentSummary() {
     const canPray = save.ricoShards >= RICO_PRAYER_COST && (save.maouPrayerCharges || 0) < RICO_PRAYER_MAX_CHARGES;
     const prayerRow = document.createElement('div');
     prayerRow.className = 'equip-row rico-prayer-row';
-    prayerRow.innerHTML = `<span class="equip-label">🙏 リコの位牌</span><span class="equip-right"><span class="equip-value">祈りの加護 ${save.maouPrayerCharges || 0}</span><button class="equip-strengthen-btn" data-action="pray" ${canPray ? '' : 'disabled'}>祈る（${RICO_PRAYER_COST.toLocaleString()}）</button></span>`;
+    const prayerSuper = (save.maouPrayerCharges || 0) >= RICO_PRAYER_CHARGE_SUPER_THRESHOLD;
+    const prayerLabel = prayerSuper ? '超・祈りの加護' : '祈りの加護';
+    prayerRow.innerHTML = `<span class="equip-label">🙏 リコの位牌</span><span class="equip-right"><span class="equip-value${prayerSuper ? ' stat-glow-yellow' : ''}">${prayerLabel} ${save.maouPrayerCharges || 0}</span><button class="equip-strengthen-btn" data-action="pray" ${canPray ? '' : 'disabled'}>祈る（${RICO_PRAYER_COST.toLocaleString()}）</button></span>`;
     el.equipmentSummary.appendChild(prayerRow);
   }
 
@@ -2867,6 +2941,7 @@ function startSession() {
   }
   el.fairyDustBadge.classList.toggle('hidden', !fairyDustActive);
 
+  sessionPrayerSuperActive = (save.maouPrayerCharges || 0) >= RICO_PRAYER_CHARGE_SUPER_THRESHOLD;
   sessionMaouPrayerBonus = 0;
   if ((save.maouPrayerCharges || 0) > 0) {
     save.maouPrayerCharges -= 1;
@@ -3135,7 +3210,8 @@ function handleTypedChar(ch) {
     if (save.ricoUnlocked) {
       const shardGain = 1
         + (save.godStatue.gardenRestorations || 0)
-        + GOD_BLESSING_SHARD_BONUS_PER * (save.godStatue.goddessBlessingCount || 0);
+        + GOD_BLESSING_SHARD_BONUS_PER * (save.godStatue.goddessBlessingCount || 0)
+        + (isGoddessBlessingMaxed() ? GOD_BLESSING_MAX_SHARD_BONUS : 0);
       save.ricoShards = (save.ricoShards || 0) + shardGain;
       save.ricoShardsEarned = (save.ricoShardsEarned || 0) + shardGain;
     }
@@ -3193,6 +3269,21 @@ function handleTypedChar(ch) {
       if (!session.isTimeUp) renderTarget();
       updateHud();
       return;
+    } else if (res.result === 'complete-chunk') {
+      let chunkDropChance = MAOU_EMBLEM_CHUNK_CHANCE[currentMode] || 0;
+      if (isGoddessBlessingMaxed()) chunkDropChance += GOD_BLESSING_MAX_CHUNK_BONUS[currentMode] || 0;
+      if (sessionPrayerSuperActive) {
+        chunkDropChance += RICO_PRAYER_CHARGE_CHUNK_BONUS[currentMode] || 0;
+      }
+      if (chunkDropChance > 0 && save.maouGateRevealed && save.maouEmblems < MAOU_EMBLEM_REQUIRED) {
+        if (Math.random() < chunkDropChance) {
+          save.maouEmblems += 1;
+          renderMaouGate();
+          SFX.rare();
+          persistSave();
+          showMaouEmblemPopup();
+        }
+      }
     }
   }
 

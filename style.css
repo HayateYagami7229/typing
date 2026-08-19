@@ -451,6 +451,20 @@ body {
   }
 }
 
+.stat-glow-yellow {
+  color: #ffe066;
+  animation: goddessBlessingGlow 2.4s ease-in-out infinite;
+}
+
+@keyframes goddessBlessingGlow {
+  0%, 100% {
+    text-shadow: 0 0 12px rgba(255, 214, 40, 0.6), 0 0 22px rgba(255, 200, 0, 0.35);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(255, 224, 102, 0.95), 0 0 40px rgba(255, 200, 0, 0.7);
+  }
+}
+
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-8px); }
