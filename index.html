@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="maouDefeatFlash" class="maou-defeat-flash"></div>
 <div id="app">
   <header class="topbar" id="topbar">
     <div class="topbar-left">
@@ -142,6 +143,11 @@
         </div>
         <button id="godGardenBtn" class="god-statue-btn">🌸 女神の園を復興する（-10,000,000pt）</button>
         <button id="godGardenHintBtn" class="god-statue-btn hidden">❔ もう一度話を聞く</button>
+
+        <div class="player-card-row sub god-blessing-row hidden" id="godBlessingRow">
+          <span id="godBlessingText">加護×0（リコの欠片ドロップ数+0）</span>
+        </div>
+        <button id="godBlessingBtn" class="god-statue-btn hidden">🙏 女神達の加護を受ける（-50,000,000pt）</button>
       </div>
 
       <div class="god-statue-panel maou-gate-panel hidden" id="maouGatePanel">
@@ -150,7 +156,10 @@
         </div>
         <div class="player-card-row sub">
           <span id="maouGateText">魔王の紋章 0 / 100</span>
+          <span id="maouSealCountText" class="maou-seal-count hidden"></span>
         </div>
+        <button id="openMaouBtn" class="god-statue-btn">🏰 魔王城へ向かう</button>
+        <button id="maouCraftSealBtn" class="god-statue-btn maou-craft-seal-btn hidden">🔒 封紋章を作る（魔王の紋章100個消費）</button>
       </div>
     </div>
   </section>
@@ -272,6 +281,85 @@
       <div class="shop-item-list" id="shopItemList"></div>
       <div class="btn-row">
         <button id="shopBackBtn" class="choice-btn">ホームへ</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-maou" class="screen">
+    <div class="home-inner">
+      <h1 class="title maou-title">魔王討伐</h1>
+
+      <div id="maouEntrancePanel">
+        <div class="maou-castle-art">
+          <svg viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="maouSky" cx="50%" cy="35%" r="65%">
+                <stop offset="0%" stop-color="#5a1030"/>
+                <stop offset="55%" stop-color="#2a0a20"/>
+                <stop offset="100%" stop-color="#0c0510"/>
+              </radialGradient>
+              <linearGradient id="maouSilhouette" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#2a1830"/>
+                <stop offset="100%" stop-color="#0a0610"/>
+              </linearGradient>
+            </defs>
+            <rect width="300" height="220" fill="url(#maouSky)"/>
+            <circle cx="150" cy="70" r="34" fill="#c23b3b" opacity="0.55"/>
+            <circle cx="150" cy="70" r="34" fill="none" stroke="#ff6b6b" stroke-width="1" opacity="0.4"/>
+            <path d="M0 200 L20 150 L40 175 L60 130 L80 165 L105 100 L125 150 L150 60 L175 150 L195 100 L220 165 L240 130 L260 175 L280 150 L300 200 Z" fill="url(#maouSilhouette)"/>
+            <rect x="140" y="30" width="20" height="35" fill="url(#maouSilhouette)"/>
+            <path d="M140 30 L150 10 L160 30 Z" fill="url(#maouSilhouette)"/>
+            <rect x="95" y="80" width="16" height="30" fill="url(#maouSilhouette)"/>
+            <path d="M95 80 L103 64 L111 80 Z" fill="url(#maouSilhouette)"/>
+            <rect x="190" y="80" width="16" height="30" fill="url(#maouSilhouette)"/>
+            <path d="M190 80 L198 64 L206 80 Z" fill="url(#maouSilhouette)"/>
+            <rect x="0" y="200" width="300" height="20" fill="#050308"/>
+            <circle cx="150" cy="45" r="2" fill="#ff6b6b"/>
+            <circle cx="103" cy="95" r="1.6" fill="#ff8a8a"/>
+            <circle cx="198" cy="95" r="1.6" fill="#ff8a8a"/>
+            <circle cx="150" cy="90" r="1.4" fill="#ffb3b3"/>
+          </svg>
+        </div>
+        <p class="player-card-row sub maou-castle-progress">
+          <span id="maouCastleText">魔王の紋章 0 / 100</span>
+        </p>
+        <button id="maouAttackBtn" class="start-btn maou-attack-btn" disabled>⚔️ 討伐に向かう</button>
+      </div>
+
+      <div id="maouBattlePanel" class="maou-battle-panel hidden">
+        <div class="maou-battle-stage">
+          <div class="maou-battle-side maou-side">
+            <div class="maou-battle-icon">👹</div>
+            <div class="maou-battle-name">魔王</div>
+            <div class="maou-battle-hpbar"><div class="maou-battle-hpfill" id="maouHpFill"></div></div>
+            <div class="maou-battle-hp-text" id="maouHpText">- / -</div>
+            <div class="maou-battle-stats-grid">
+              <div class="maou-battle-stat"><span class="maou-battle-stat-label">HP</span><span class="maou-battle-stat-value" id="maouRollHp">-</span></div>
+              <div class="maou-battle-stat"><span class="maou-battle-stat-label">STR</span><span class="maou-battle-stat-value" id="maouRollStr">-</span></div>
+              <div class="maou-battle-stat"><span class="maou-battle-stat-label">DEX</span><span class="maou-battle-stat-value" id="maouRollDex">-</span></div>
+              <div class="maou-battle-stat"><span class="maou-battle-stat-label">SPD</span><span class="maou-battle-stat-value" id="maouRollSpd">-</span></div>
+            </div>
+          </div>
+          <div class="maou-battle-vs">VS</div>
+          <div class="maou-battle-side disciple-side">
+            <div class="maou-battle-icon" id="maouDiscipleIcon">🧑</div>
+            <div class="maou-battle-name" id="maouDiscipleName">弟子</div>
+            <div class="maou-battle-hpbar"><div class="maou-battle-hpfill disciple" id="discipleHpFill"></div></div>
+            <div class="maou-battle-hp-text" id="discipleHpText">- / -</div>
+            <div class="maou-battle-stats-grid">
+              <div class="maou-battle-stat"><span class="maou-battle-stat-label">HP</span><span class="maou-battle-stat-value" id="discRollHp">-</span></div>
+              <div class="maou-battle-stat"><span class="maou-battle-stat-label">STR</span><span class="maou-battle-stat-value" id="discRollStr">-</span></div>
+              <div class="maou-battle-stat"><span class="maou-battle-stat-label">DEX</span><span class="maou-battle-stat-value" id="discRollDex">-</span></div>
+              <div class="maou-battle-stat"><span class="maou-battle-stat-label">SPD</span><span class="maou-battle-stat-value" id="discRollSpd">-</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="maou-battle-log" id="maouBattleLog"></div>
+        <button id="maouNextTurnBtn" class="start-btn maou-attack-btn hidden">▶ 次のターンへ</button>
+      </div>
+
+      <div class="btn-row maou-back-row" id="maouBackRow">
+        <button id="maouBackBtn" class="choice-btn">ホームへ</button>
       </div>
     </div>
   </section>

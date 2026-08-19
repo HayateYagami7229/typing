@@ -20,6 +20,8 @@ const HAPPY_GRASS_MAX_STOCK = 99;
 const GOD_GARDEN_RESTORE_COST = 10000000;
 const GOD_GARDEN_MAX_RESTORATIONS = 20;
 const GOD_GARDEN_EMBLEM_BONUS_PER = 0.001;
+const GOD_BLESSING_COST = 50000000;
+const GOD_BLESSING_SHARD_BONUS_PER = 10;
 const MAOU_EMBLEM_BASE_CHANCE = 0.001;
 const MAOU_EMBLEM_REQUIRED = 100;
 const DISCIPLE_CLASS_UP_THRESHOLD = 1000;
@@ -59,11 +61,13 @@ const RICO_STRENGTHEN_BASE_COST = { sword: 20, shield: 20, armor: 20, ring: 20 }
 const RICO_MAX_VALUE = { sword: 2.00, shield: 2.00, armor: 18, ring: 0.20 };
 const RICO_STRENGTHEN_GROWTH = { sword: 1.03003, shield: 1.03003, armor: 1.03753, ring: 1.38464 };
 const COMPLETION_TABS = ['sword', 'shield', 'armor', 'ring', 'title', 'icon'];
-const RICO_MEET_SHARD_REQUIREMENT = 1000000;
 const RICO_MET_EMBLEM_BONUS = 0.005;
-const RICO_PRAYER_COST = 100000;
+const RICO_PRAYER_COST = 50000;
 const RICO_PRAYER_EMBLEM_BONUS = 0.05;
 const RICO_PRAYER_MAX_CHARGES = 99;
+const MAOU_SEAL_UNLOCK_PRAYER_COUNT = 10;
+const MAOU_SEAL_CRAFT_COST = 100;
+const MAOU_SEAL_REDUCTION_PER = 10;
 
 function defaultSave() {
   return {
@@ -73,7 +77,7 @@ function defaultSave() {
     profile: { name: 'Typer', icon: '🗡️', cardDesign: 'default', iconFrame: 'none' },
     equipment: { swordId: null, shieldId: null, armorId: 'armor_cloth', ringId: null, titleFrontId: null, titleBackId: null, titleConnectiveId: 'conn_no', bgmId: 'bgm_default' },
     inventory: { swords: [], shields: [], armors: ['armor_cloth'], rings: [], titleFronts: [], titleBacks: [], icons: [], consumables: {}, bgm: ['bgm_default'] },
-    godStatue: { restoration: 0, sent: 0, completed: false, gardenRestorations: 0 },
+    godStatue: { restoration: 0, sent: 0, completed: false, gardenRestorations: 0, goddessBlessingCount: 0 },
     godStatueBuffs: { expBoostStacks: 0, heartCostReduction: 0, rareBonusStacks: 0 },
     disciple: {
       name: '弟子',
@@ -98,7 +102,10 @@ function defaultSave() {
     },
     maouEmblems: 0,
     maouGateRevealed: false,
+    maouSealUnlocked: false,
+    maouSealCount: 0,
     ricoShardsEarned: 0,
+    ricoTabletFound: false,
     ricoMet: false,
     maouPrayerCharges: 0,
     maouPrayerCount: 0,
@@ -148,6 +155,7 @@ function normalizeSave(raw) {
       ? raw.prestigeAwakenedTiers
       : PRESTIGE_AWAKENING_TIERS.filter((t) => (raw.prestige || 0) >= t.at).map((t) => t.at),
     godGardenHintShown: !!(raw.godGardenHintShown || (raw.godStatue && raw.godStatue.gardenRestorations >= GOD_GARDEN_MAX_RESTORATIONS)),
+    ricoTabletFound: !!(raw.ricoTabletFound || raw.ricoMet),
     profile: { ...base.profile, ...(raw.profile || {}) },
     equipment: { ...base.equipment, ...(raw.equipment || {}), bgmId: (raw.equipment && raw.equipment.bgmId) || 'bgm_default' },
     godStatue: { ...base.godStatue, ...(raw.godStatue || {}) },
@@ -467,6 +475,7 @@ const el = {
     stats: document.getElementById('screen-stats'),
     history: document.getElementById('screen-history'),
     shop: document.getElementById('screen-shop'),
+    maou: document.getElementById('screen-maou'),
   },
   playerCard: document.getElementById('playerCard'),
   profileIconBtn: document.getElementById('profileIconBtn'),
@@ -491,9 +500,38 @@ const el = {
   godGardenPanel: document.getElementById('godGardenPanel'),
   godGardenText: document.getElementById('godGardenText'),
   godGardenBtn: document.getElementById('godGardenBtn'),
+  godBlessingRow: document.getElementById('godBlessingRow'),
+  godBlessingText: document.getElementById('godBlessingText'),
+  godBlessingBtn: document.getElementById('godBlessingBtn'),
   godGardenHintBtn: document.getElementById('godGardenHintBtn'),
   maouGatePanel: document.getElementById('maouGatePanel'),
   maouGateText: document.getElementById('maouGateText'),
+  openMaouBtn: document.getElementById('openMaouBtn'),
+  maouCastleText: document.getElementById('maouCastleText'),
+  maouSealCountText: document.getElementById('maouSealCountText'),
+  maouCraftSealBtn: document.getElementById('maouCraftSealBtn'),
+  maouAttackBtn: document.getElementById('maouAttackBtn'),
+  maouBackBtn: document.getElementById('maouBackBtn'),
+  maouBackRow: document.getElementById('maouBackRow'),
+  maouEntrancePanel: document.getElementById('maouEntrancePanel'),
+  maouBattlePanel: document.getElementById('maouBattlePanel'),
+  maouRollHp: document.getElementById('maouRollHp'),
+  maouRollStr: document.getElementById('maouRollStr'),
+  maouRollDex: document.getElementById('maouRollDex'),
+  maouRollSpd: document.getElementById('maouRollSpd'),
+  maouHpFill: document.getElementById('maouHpFill'),
+  maouHpText: document.getElementById('maouHpText'),
+  discRollHp: document.getElementById('discRollHp'),
+  discRollStr: document.getElementById('discRollStr'),
+  discRollDex: document.getElementById('discRollDex'),
+  discRollSpd: document.getElementById('discRollSpd'),
+  discipleHpFill: document.getElementById('discipleHpFill'),
+  discipleHpText: document.getElementById('discipleHpText'),
+  maouDiscipleIcon: document.getElementById('maouDiscipleIcon'),
+  maouDiscipleName: document.getElementById('maouDiscipleName'),
+  maouBattleLog: document.getElementById('maouBattleLog'),
+  maouNextTurnBtn: document.getElementById('maouNextTurnBtn'),
+  maouDefeatFlash: document.getElementById('maouDefeatFlash'),
   simpleRevealPopup: document.getElementById('simpleRevealPopup'),
   simpleRevealTitle: document.getElementById('simpleRevealTitle'),
   simpleRevealDesc: document.getElementById('simpleRevealDesc'),
@@ -658,34 +696,75 @@ function strengthenRicoItem(slot) {
   SFX.correct();
   persistSave();
   renderPlayerCard();
-  checkRicoMeeting();
+  checkRicoTabletDiscovery();
 }
 
 function isAllRicoMaxed() {
   return ['sword', 'shield', 'armor', 'ring'].every((slot) => isRicoMaxed(slot));
 }
 
-function checkRicoMeeting() {
-  if (save.ricoMet) return;
-  if (!isAllRicoMaxed() || (save.ricoShardsEarned || 0) < RICO_MEET_SHARD_REQUIREMENT) return;
-  save.ricoMet = true;
-  pushAnnouncement('✨', 'リコに出会った……');
+function checkRicoTabletDiscovery() {
+  if (save.ricoTabletFound) return;
+  if (!isAllRicoMaxed()) return;
+  save.ricoTabletFound = true;
+  pushAnnouncement('🪦', 'リコの位牌を見つけた……');
   persistSave();
   renderAnnouncements();
   renderPlayerCard();
-  queueReveal('リコ', 'ずっと影から支えてくれていたのは、かつて名を馳せた鍛冶の魂だった。リコの力が魔王に楔を打ち込む——これでようやく、届く場所まで魔王は弱くなるはずだ。以後、魔王の紋章の出現率がわずかに上昇する。');
+  queueReveal('リコの導き', '装備品が光り出した。\n指し示した場所は草原が広がっていて、\nそこには一つの位牌が置いてある。');
 }
 
 function prayAtRicoTablet() {
-  if (!save.ricoMet) return;
+  if (!save.ricoTabletFound) return;
   if (save.ricoShards < RICO_PRAYER_COST) return;
   if ((save.maouPrayerCharges || 0) >= RICO_PRAYER_MAX_CHARGES) return;
   save.ricoShards -= RICO_PRAYER_COST;
   save.maouPrayerCharges = (save.maouPrayerCharges || 0) + 1;
   save.maouPrayerCount = (save.maouPrayerCount || 0) + 1;
   SFX.correct();
+
+  const prayerCount = save.maouPrayerCount;
+  const justMetRico = prayerCount === 1 && !save.ricoMet;
+  if (justMetRico) save.ricoMet = true;
+
+  const justUnlockedSeal = !save.maouSealUnlocked && prayerCount >= MAOU_SEAL_UNLOCK_PRAYER_COUNT;
+  if (justUnlockedSeal) {
+    save.maouSealUnlocked = true;
+    pushAnnouncement('🔒', 'リコが封紋章の作り方を教えてくれた……');
+  }
+
   persistSave();
   renderPlayerCard();
+  renderMaouGate();
+  renderGodGarden();
+
+  if (justMetRico) {
+    pushAnnouncement('✨', 'リコが現れた……');
+    renderAnnouncements();
+    queueReveal(
+      'リコ',
+      '私には果たせなかった……\nでもアナタ達ならきっと。\n私にはこんなことしか出来ないけど……\n彼女が両手を組み祈りをはじめると、光が突如現れ、\nその光は魔王城に伸びていった',
+    );
+    queueReveal(
+      'リコ',
+      'ほんのわずかだけど……\n魔王城の扉を開く為の紋章が\n見つかりやすいように祈っておいた……\n諦めないで。',
+    );
+    queueReveal(
+      '女神達の感謝',
+      '女神達は魔王討伐のためにアナタに力を授けようとしている。\nそれ相応の代償は必要だが……',
+    );
+  } else if (justUnlockedSeal) {
+    renderAnnouncements();
+    queueReveal(
+      'リコの囁き',
+      'あなたに魔王の力を封じる封紋章の作り方を教えてあげる…\n諦めないで…\n（封紋章を生成すると魔王のパラメーターを減少させることが出来ます。\n効果は重複し、複数所持するほど減少値は高くなります）',
+    );
+  } else if (prayerCount >= 2 && prayerCount <= 9) {
+    queueReveal(
+      'リコの位牌',
+      'リコの祈りの加護によって\n次回冒険時、紋章の出現率が5％アップした。\nリコは何かを喋りたそうにしているが、\n目を合わせると逸らされてしまった。',
+    );
+  }
 }
 
 function isCollectionComplete(tab) {
@@ -792,6 +871,7 @@ const ACHIEVEMENTS = [
   { id: 'maou_gate_seen', icon: '🏰', label: '魔王城への道が見えてきた', check: (s) => !!s.maouGateRevealed },
   { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated },
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
+  { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
   { id: 'total_taps_1man', icon: '🥉', label: '総タイプ数1万達成', check: (s) => s.totalCorrect >= 10000 },
   { id: 'total_taps_10man', icon: '🥈', label: '総タイプ数10万達成', check: (s) => s.totalCorrect >= 100000 },
   { id: 'total_taps_100man', icon: '🥇', label: '総タイプ数100万達成', check: (s) => s.totalCorrect >= 1000000 },
@@ -918,6 +998,25 @@ function renderGodGarden() {
   el.godGardenBtn.textContent = maxed ? '🌸 女神の園は完全に復興した' : `🌸 女神の園を復興する（-${GOD_GARDEN_RESTORE_COST.toLocaleString()}pt）`;
   el.godGardenBtn.disabled = maxed || save.pt < GOD_GARDEN_RESTORE_COST;
   el.godGardenHintBtn.classList.toggle('hidden', !save.godGardenHintShown);
+
+  el.godBlessingRow.classList.toggle('hidden', !save.ricoMet);
+  el.godBlessingBtn.classList.toggle('hidden', !save.ricoMet);
+  if (save.ricoMet) {
+    const blessingCount = save.godStatue.goddessBlessingCount || 0;
+    el.godBlessingText.textContent = `加護×${blessingCount}（リコの欠片ドロップ数+${blessingCount * GOD_BLESSING_SHARD_BONUS_PER}）`;
+    el.godBlessingBtn.disabled = save.pt < GOD_BLESSING_COST;
+  }
+}
+
+function receiveGoddessBlessing() {
+  if (!save.ricoMet) return;
+  if (save.pt < GOD_BLESSING_COST) return;
+  save.pt -= GOD_BLESSING_COST;
+  save.totalPtSpent += GOD_BLESSING_COST;
+  save.godStatue.goddessBlessingCount = (save.godStatue.goddessBlessingCount || 0) + 1;
+  persistSave();
+  refreshTotalPt();
+  renderGodGarden();
 }
 
 function showGodGardenHint() {
@@ -953,18 +1052,276 @@ function renderMaouGate() {
   el.maouGatePanel.classList.toggle('hidden', !save.maouGateRevealed);
   if (!save.maouGateRevealed) return;
   el.maouGateText.textContent = `魔王の紋章 ${Math.min(save.maouEmblems, MAOU_EMBLEM_REQUIRED).toLocaleString()} / ${MAOU_EMBLEM_REQUIRED}`;
+
+  el.maouSealCountText.classList.toggle('hidden', !save.maouSealUnlocked);
+  el.maouCraftSealBtn.classList.toggle('hidden', !save.maouSealUnlocked);
+  if (save.maouSealUnlocked) {
+    el.maouSealCountText.textContent = `｜🔒封紋章 ${(save.maouSealCount || 0).toLocaleString()}個`;
+    el.maouCraftSealBtn.disabled = save.maouEmblems < MAOU_SEAL_CRAFT_COST;
+  }
+}
+
+function renderMaouCastleScreen() {
+  const ready = save.maouEmblems >= MAOU_EMBLEM_REQUIRED;
+  el.maouCastleText.textContent = `魔王の紋章 ${Math.min(save.maouEmblems, MAOU_EMBLEM_REQUIRED).toLocaleString()} / ${MAOU_EMBLEM_REQUIRED}`;
+  el.maouAttackBtn.disabled = !ready;
+}
+
+function craftMaouSeal() {
+  if (!save.maouSealUnlocked) return;
+  if (save.maouEmblems < MAOU_SEAL_CRAFT_COST) return;
+  save.maouEmblems -= MAOU_SEAL_CRAFT_COST;
+  save.maouSealCount = (save.maouSealCount || 0) + 1;
+  persistSave();
+  renderMaouGate();
+  renderMaouCastleScreen();
+}
+
+const MAOU_STAT_MIN = 300;
+const MAOU_STAT_MAX = 500;
+const MAOU_WAVE_MULTIPLIER = 2;
+
+let maouBattleQueue = null;
+let maouBattleDisc = null;
+let maouBattlePhase = 'intro';
+
+function computeMaouBattleRounds(disc, maou) {
+  const p = { ...disc };
+  const o = { ...maou };
+  const maouFirst = o.spd >= p.spd;
+  const rounds = [];
+  let round = 0;
+  while (p.hp > 0 && o.hp > 0 && round < 200) {
+    round += 1;
+    const order = maouFirst ? ['maou', 'disciple'] : ['disciple', 'maou'];
+    const events = [];
+    for (const who of order) {
+      if (p.hp <= 0 || o.hp <= 0) break;
+      if (who === 'disciple') {
+        const hits = Math.max(1, Math.floor(p.spd / Math.max(1, o.spd)));
+        const dmg = Math.max(1, p.str - o.dex);
+        let dealt = 0;
+        for (let i = 0; i < hits && o.hp > 0; i++) {
+          o.hp -= dmg;
+          dealt += dmg;
+        }
+        events.push({ actor: 'disciple', dmg: dealt });
+      } else {
+        const hits = Math.max(1, Math.floor(o.spd / Math.max(1, p.spd)));
+        const dmg = Math.max(1, o.str - p.dex);
+        let dealt = 0;
+        for (let i = 0; i < hits && p.hp > 0; i++) {
+          p.hp -= dmg;
+          dealt += dmg;
+        }
+        events.push({ actor: 'maou', dmg: dealt });
+      }
+    }
+    rounds.push({ events, discHp: Math.max(0, p.hp), maouHp: Math.max(0, o.hp) });
+  }
+  const win = o.hp <= 0 && p.hp > 0;
+  return { rounds, win };
+}
+
+function rollMaouStat(target, min, max, duration) {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const step = () => {
+      const elapsed = performance.now() - start;
+      const value = min + Math.floor(Math.random() * (max - min + 1));
+      if (elapsed >= duration) {
+        target.textContent = value.toLocaleString();
+        resolve(value);
+        return;
+      }
+      target.textContent = value.toLocaleString();
+      setTimeout(step, 60);
+    };
+    step();
+  });
+}
+
+function pulseMaouStat(target, value) {
+  target.textContent = value.toLocaleString();
+  target.classList.remove('stat-pulse');
+  void target.offsetWidth;
+  target.classList.add('stat-pulse');
+}
+
+function pulseMaouStatWeak(target, value) {
+  target.textContent = value.toLocaleString();
+  target.classList.remove('stat-pulse-weak');
+  void target.offsetWidth;
+  target.classList.add('stat-pulse-weak');
+}
+
+function appendMaouBattleLog(text) {
+  const line = document.createElement('div');
+  line.className = 'maou-battle-log-line';
+  line.textContent = text;
+  el.maouBattleLog.appendChild(line);
+  el.maouBattleLog.scrollTop = el.maouBattleLog.scrollHeight;
+}
+
+function triggerMaouDefeatFlash() {
+  el.maouDefeatFlash.classList.remove('flashing');
+  void el.maouDefeatFlash.offsetWidth;
+  el.maouDefeatFlash.classList.add('flashing');
+}
+
+function resetMaouToEntrance() {
+  el.maouBattlePanel.classList.add('hidden');
+  el.maouEntrancePanel.classList.remove('hidden');
+  el.maouBackRow.classList.remove('hidden');
+  renderMaouGate();
+  renderMaouCastleScreen();
+}
+
+function startMaouBattle() {
+  if (save.maouEmblems < MAOU_EMBLEM_REQUIRED) return;
+  el.maouEntrancePanel.classList.add('hidden');
+  el.maouBattlePanel.classList.remove('hidden');
+  el.maouBackRow.classList.add('hidden');
+  el.maouNextTurnBtn.classList.add('hidden');
+  el.maouBattleLog.innerHTML = '';
+  [el.maouRollHp, el.maouRollStr, el.maouRollDex, el.maouRollSpd].forEach((t) => (t.textContent = '-'));
+
+  maouBattleDisc = {
+    hp: save.disciple.hp,
+    str: save.disciple.str,
+    dex: save.disciple.dex,
+    spd: save.disciple.spd,
+  };
+  el.discRollHp.textContent = maouBattleDisc.hp.toLocaleString();
+  el.discRollStr.textContent = maouBattleDisc.str.toLocaleString();
+  el.discRollDex.textContent = maouBattleDisc.dex.toLocaleString();
+  el.discRollSpd.textContent = maouBattleDisc.spd.toLocaleString();
+  el.discipleHpFill.style.width = '100%';
+  el.discipleHpText.textContent = `${maouBattleDisc.hp.toLocaleString()} / ${maouBattleDisc.hp.toLocaleString()}`;
+  el.maouDiscipleIcon.textContent = save.disciple.icon;
+  el.maouDiscipleName.textContent = save.disciple.name;
+  el.maouHpFill.style.width = '100%';
+  el.maouHpText.textContent = '- / -';
+
+  appendMaouBattleLog('魔王が姿を現した……！');
+  maouBattlePhase = 'intro';
+  el.maouNextTurnBtn.textContent = '▶ 次へ';
+  el.maouNextTurnBtn.classList.remove('hidden');
+}
+
+async function beginMaouRoulette() {
+  maouBattlePhase = 'rolling';
+  el.maouNextTurnBtn.classList.add('hidden');
+
+  const [hp, str, dex, spd] = await Promise.all([
+    rollMaouStat(el.maouRollHp, MAOU_STAT_MIN, MAOU_STAT_MAX, 1200),
+    rollMaouStat(el.maouRollStr, MAOU_STAT_MIN, MAOU_STAT_MAX, 1200),
+    rollMaouStat(el.maouRollDex, MAOU_STAT_MIN, MAOU_STAT_MAX, 1200),
+    rollMaouStat(el.maouRollSpd, MAOU_STAT_MIN, MAOU_STAT_MAX, 1200),
+  ]);
+  let maou = { hp, str, dex, spd };
+
+  await new Promise((r) => setTimeout(r, 800));
+  if (save.ricoMet) {
+    appendMaouBattleLog('「なんだ！？　魔力が封じられている…！？」');
+  } else {
+    appendMaouBattleLog('禍々しい波動が魔王を包み込んだ……！');
+    await new Promise((r) => setTimeout(r, 700));
+    maou = {
+      hp: maou.hp * MAOU_WAVE_MULTIPLIER,
+      str: maou.str * MAOU_WAVE_MULTIPLIER,
+      dex: maou.dex * MAOU_WAVE_MULTIPLIER,
+      spd: maou.spd * MAOU_WAVE_MULTIPLIER,
+    };
+    pulseMaouStat(el.maouRollHp, maou.hp);
+    pulseMaouStat(el.maouRollStr, maou.str);
+    pulseMaouStat(el.maouRollDex, maou.dex);
+    pulseMaouStat(el.maouRollSpd, maou.spd);
+    await new Promise((r) => setTimeout(r, 600));
+  }
+
+  if ((save.maouSealCount || 0) > 0) {
+    await new Promise((r) => setTimeout(r, 500));
+    const reduction = MAOU_SEAL_REDUCTION_PER * save.maouSealCount;
+    appendMaouBattleLog(`封紋章の力が魔王を蝕んでいく……！（各パラメーター-${reduction.toLocaleString()}）`);
+    await new Promise((r) => setTimeout(r, 600));
+    maou = {
+      hp: Math.max(1, maou.hp - reduction),
+      str: Math.max(1, maou.str - reduction),
+      dex: Math.max(1, maou.dex - reduction),
+      spd: Math.max(1, maou.spd - reduction),
+    };
+    pulseMaouStatWeak(el.maouRollHp, maou.hp);
+    pulseMaouStatWeak(el.maouRollStr, maou.str);
+    pulseMaouStatWeak(el.maouRollDex, maou.dex);
+    pulseMaouStatWeak(el.maouRollSpd, maou.spd);
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  el.maouHpFill.style.width = '100%';
+  el.maouHpText.textContent = `${maou.hp.toLocaleString()} / ${maou.hp.toLocaleString()}`;
+
+  const { rounds, win } = computeMaouBattleRounds(maouBattleDisc, maou);
+  maouBattleQueue = { rounds, index: 0, discMaxHp: maouBattleDisc.hp, maouMaxHp: maou.hp, win };
+  appendMaouBattleLog('「次のターンへ」を押して戦況を見守ろう。');
+  maouBattlePhase = 'battling';
+  el.maouNextTurnBtn.textContent = '▶ 次のターンへ';
+  el.maouNextTurnBtn.classList.remove('hidden');
+}
+
+function advanceMaouTurn() {
+  if (!maouBattleQueue || maouBattleQueue.index >= maouBattleQueue.rounds.length) return;
+  const round = maouBattleQueue.rounds[maouBattleQueue.index];
+  maouBattleQueue.index += 1;
+  round.events.forEach((ev) => {
+    if (ev.actor === 'disciple') {
+      appendMaouBattleLog(`${save.disciple.name}の攻撃！ 魔王に${ev.dmg.toLocaleString()}のダメージ`);
+    } else {
+      appendMaouBattleLog(`魔王の攻撃！ ${save.disciple.name}は${ev.dmg.toLocaleString()}のダメージを受けた`);
+    }
+  });
+  const discPct = Math.max(0, Math.round((round.discHp / maouBattleQueue.discMaxHp) * 100));
+  const maouPct = Math.max(0, Math.round((round.maouHp / maouBattleQueue.maouMaxHp) * 100));
+  el.discipleHpFill.style.width = `${discPct}%`;
+  el.discipleHpText.textContent = `${round.discHp.toLocaleString()} / ${maouBattleQueue.discMaxHp.toLocaleString()}`;
+  el.maouHpFill.style.width = `${maouPct}%`;
+  el.maouHpText.textContent = `${round.maouHp.toLocaleString()} / ${maouBattleQueue.maouMaxHp.toLocaleString()}`;
+
+  if (maouBattleQueue.index >= maouBattleQueue.rounds.length) {
+    el.maouNextTurnBtn.classList.add('hidden');
+    const win = maouBattleQueue.win;
+    maouBattleQueue = null;
+    if (win) {
+      setTimeout(() => {
+        queueReveal('……勝利', '長き戦いの果て、魔王を打ち倒した……！\n（この先の物語は後日実装予定）');
+        setTimeout(resetMaouToEntrance, 400);
+      }, 500);
+    } else {
+      triggerMaouDefeatFlash();
+      save.maouEmblems = 0;
+      persistSave();
+      setTimeout(() => {
+        queueReveal(
+          '……敗走',
+          `${save.disciple.name}は命からがら、その場から逃げ出した。\n逃げ出した際に魔王の城の扉を開く為に必要な魔王の紋章を落としてしまった。`,
+        );
+        setTimeout(resetMaouToEntrance, 400);
+      }, 600);
+    }
+  }
 }
 
 let revealQueue = [];
 function queueReveal(title, desc) {
   revealQueue.push({ title, desc });
-  if (revealQueue.length === 1) showNextReveal();
+  if (revealQueue.length === 1) setTimeout(showNextReveal, 0);
 }
 function showNextReveal() {
   if (revealQueue.length === 0) return;
   const { title, desc } = revealQueue[0];
   el.simpleRevealTitle.textContent = title;
   el.simpleRevealDesc.textContent = desc;
+  el.simpleRevealCloseBtn.textContent = revealQueue.length > 1 ? '次へ' : '閉じる';
   el.simpleRevealPopup.classList.remove('hidden');
 }
 
@@ -990,14 +1347,13 @@ function checkDiscipleClassUp() {
 }
 
 function checkMaouGateReveal() {
-  if (save.maouGateRevealed || !save.godStatue.completed || !save.disciple.classUpped) return;
+  if (save.maouGateRevealed || !save.disciple.classUpped) return;
   save.maouGateRevealed = true;
-  save.maouEmblems = MAOU_EMBLEM_REQUIRED;
-  pushAnnouncement('🏰', '魔王城への道が見えてきた……');
+  pushAnnouncement('🏰', '勇者が生まれた事で霧が晴れ、魔王城への道は開かれた……');
   persistSave();
   renderAnnouncements();
   renderMaouGate();
-  queueReveal('魔王城への道', '気づけば魔王の紋章は既に揃っていた。魔王城へ向かえるかもしれない……');
+  queueReveal('魔王城への道', '勇者が生まれた事で霧が晴れ、魔王城への道は開かれた……');
 }
 
 let maouEmblemPopupTimer = null;
@@ -1102,6 +1458,7 @@ el.godStatueBtn.addEventListener('click', () => {
   else restoreGodStatue();
 });
 el.godGardenBtn.addEventListener('click', restoreGodGarden);
+el.godBlessingBtn.addEventListener('click', receiveGoddessBlessing);
 el.simpleRevealCloseBtn.addEventListener('click', () => {
   el.simpleRevealPopup.classList.add('hidden');
   revealQueue.shift();
@@ -1482,7 +1839,7 @@ function renderEquipmentSummary() {
     el.equipmentSummary.appendChild(shardRow);
   }
 
-  if (save.ricoMet) {
+  if (save.ricoTabletFound) {
     const canPray = save.ricoShards >= RICO_PRAYER_COST && (save.maouPrayerCharges || 0) < RICO_PRAYER_MAX_CHARGES;
     const prayerRow = document.createElement('div');
     prayerRow.className = 'equip-row rico-prayer-row';
@@ -1642,6 +1999,23 @@ el.openShopBtn.addEventListener('click', () => {
   setScreen('shop');
 });
 el.shopBackBtn.addEventListener('click', goHome);
+el.openMaouBtn.addEventListener('click', () => {
+  resetMaouToEntrance();
+  setScreen('maou');
+});
+el.maouBackBtn.addEventListener('click', goHome);
+el.maouAttackBtn.addEventListener('click', () => {
+  if (save.maouEmblems < MAOU_EMBLEM_REQUIRED) return;
+  startMaouBattle();
+});
+el.maouCraftSealBtn.addEventListener('click', craftMaouSeal);
+el.maouNextTurnBtn.addEventListener('click', () => {
+  if (maouBattlePhase === 'intro') {
+    beginMaouRoulette();
+  } else if (maouBattlePhase === 'battling') {
+    advanceMaouTurn();
+  }
+});
 el.shopTabs.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-tab]');
   if (!btn) return;
@@ -2233,10 +2607,11 @@ function handleTypedChar(ch) {
     save.totalCorrect++;
     save.totalKeystrokes++;
     if (save.ricoUnlocked) {
-      const shardGain = 1 + (save.godStatue.gardenRestorations || 0);
+      const shardGain = 1
+        + (save.godStatue.gardenRestorations || 0)
+        + GOD_BLESSING_SHARD_BONUS_PER * (save.godStatue.goddessBlessingCount || 0);
       save.ricoShards = (save.ricoShards || 0) + shardGain;
       save.ricoShardsEarned = (save.ricoShardsEarned || 0) + shardGain;
-      checkRicoMeeting();
     }
     if (save.maouGateRevealed && save.maouEmblems < MAOU_EMBLEM_REQUIRED) {
       const dropChance = MAOU_EMBLEM_BASE_CHANCE
@@ -2556,6 +2931,7 @@ el.topbar.addEventListener('click', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
   if (secretGrassClicks >= 12 && e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     secretGrassClicks = 0;
