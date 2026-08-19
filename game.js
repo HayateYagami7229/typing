@@ -11,6 +11,12 @@ const ANNOUNCEMENT_HISTORY_MAX = 500;
 
 const CHANGELOG = [
   {
+    version: 'Beta0.54',
+    items: [
+      'タイピング中の獲得pt・獲得EXP表示に桁区切り（カンマ）を追加し、見やすく改善',
+    ],
+  },
+  {
     version: 'Beta0.53',
     items: [
       '設定の機能を追加しました。',
@@ -54,7 +60,7 @@ const HAPPY_GRASS_MAX_STOCK = 99;
 const GOD_GARDEN_RESTORE_COST = 10000000;
 const GOD_GARDEN_MAX_RESTORATIONS = 20;
 const GOD_GARDEN_EMBLEM_BONUS_PER = 0.001;
-const GOD_BLESSING_COST = 50000000;
+const GOD_BLESSING_COST = 100000000;
 const GOD_BLESSING_SHARD_BONUS_PER = 10;
 const MAOU_EMBLEM_BASE_CHANCE = 0.001;
 const MAOU_EMBLEM_REQUIRED = 100;
@@ -915,6 +921,7 @@ function isRicoFullyOwned(s) {
 const ACHIEVEMENTS = [
   { id: 'prestige_once', icon: '🌟', label: '転生を達成', check: (s) => s.prestige >= 1 },
   { id: 'prestige_awaken', icon: '💫', label: '転生10回達成（覚醒）', check: (s) => !!s.prestigeAwakened },
+  { id: 'prestige_super_awaken', icon: '🌌', label: '転生30回達成（超覚醒）', check: (s) => (s.prestigeAwakenedTiers || []).includes(30) },
   { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
   { id: 'rank_ss_word', icon: '🗡️', label: '単語の間でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:word'], 'SS') },
   { id: 'rank_ss_sentence', icon: '⚔️', label: '文章の回廊でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:sentence'], 'SS') },
@@ -1061,6 +1068,7 @@ function renderGodGarden() {
   if (save.ricoMet) {
     const blessingCount = save.godStatue.goddessBlessingCount || 0;
     el.godBlessingText.textContent = `加護×${blessingCount}（リコの欠片ドロップ数+${blessingCount * GOD_BLESSING_SHARD_BONUS_PER}）`;
+    el.godBlessingBtn.textContent = `🙏 女神達の加護を受ける（-${GOD_BLESSING_COST.toLocaleString()}pt）`;
     el.godBlessingBtn.disabled = save.pt < GOD_BLESSING_COST;
   }
 }
@@ -2644,8 +2652,8 @@ function updateHud() {
   el.comboCount.textContent = session.combo;
   el.accuracyDisplay.textContent = `${session.accuracy}%`;
   el.kpmDisplay.textContent = session.kpm;
-  el.sessionPt.textContent = Math.floor(sessionPtEarned + session.wordclearPtGained);
-  el.sessionExp.textContent = session.expGained;
+  el.sessionPt.textContent = Math.floor(sessionPtEarned + session.wordclearPtGained).toLocaleString();
+  el.sessionExp.textContent = session.expGained.toLocaleString();
   renderHeartHud();
 
   const progress = session.combo % session.comboStep;
