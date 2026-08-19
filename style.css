@@ -1551,25 +1551,20 @@ body {
   white-space: nowrap;
 }
 
-.eternal-combo-gauge {
-  height: 14px;
+.eternal-combo-marks {
   display: flex;
   align-items: center;
-  justify-content: space-evenly;
-  background: var(--bg-panel-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  overflow: hidden;
+  justify-content: space-between;
+  width: 100%;
   margin-top: 4px;
-  padding: 0 4px;
 }
 
 .eternal-combo-mark {
   font-family: var(--font-mono);
   font-weight: 900;
-  font-size: 0.72rem;
+  font-size: 1.15rem;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.2);
   transition: color 0.15s ease, text-shadow 0.15s ease;
 }
 
