@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.59',
+    items: [
+      '特定の条件を満たすと永続コンボシステムを開放するアイテムがショップに並ぶようになりました。',
+    ],
+  },
+  {
     version: 'Beta0.58',
     items: [
       'リコと出会った後の効果表示をタイピング画面でも常時わかるように改善しました。',
@@ -288,6 +294,12 @@ function defaultSave() {
     muted: false,
     settings: { bgmVolume: 50, seVolume: 50 },
     secretKeyboardClicks: 0,
+    eternalComboUnlocked: false,
+    eternalCombo: 0,
+    eternalComboMisses: 0,
+    eternalComboMax: 0,
+    eternalComboHeartMilestone: 0,
+    reincarnationNecklaceAnnounced: false,
     playCount: 0,
     completedRuns: 0,
     abortCount: 0,
@@ -753,6 +765,9 @@ const el = {
   readyOverlay: document.getElementById('readyOverlay'),
   rareMonsterBadge: document.getElementById('rareMonsterBadge'),
   fairyDustBadge: document.getElementById('fairyDustBadge'),
+  eternalComboHud: document.getElementById('eternalComboHud'),
+  eternalComboCount: document.getElementById('eternalComboCount'),
+  eternalComboMarks: document.getElementById('eternalComboMarks'),
   maouPrayerBadge: document.getElementById('maouPrayerBadge'),
   rareBonusPopup: document.getElementById('rareBonusPopup'),
   levelUpBanner: document.getElementById('levelUpBanner'),
@@ -1071,6 +1086,12 @@ const ACHIEVEMENTS = [
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
   { id: 'secret_keyboard_100', icon: '😝', label: 'くだらないギミックのクリックを頑張ったで賞', hoverText: 'いいからタイピングしなよ', check: (s) => (s.secretKeyboardClicks || 0) >= 100 },
+  { id: 'eternal_combo_100', icon: '🔄', label: '永続コンボ100達成（輪廻の始まり）', check: (s) => (s.eternalComboMax || 0) >= 100 },
+  { id: 'eternal_combo_500', icon: '🔁', label: '永続コンボ500達成（輪廻は続く）', check: (s) => (s.eternalComboMax || 0) >= 500 },
+  { id: 'eternal_combo_1000', icon: '🟣', label: '永続コンボ1000達成（輪廻魔眼）', check: (s) => (s.eternalComboMax || 0) >= 1000 },
+  { id: 'eternal_combo_3000', icon: '🔴', label: '永続コンボ3000達成（輪廻邪眼）', check: (s) => (s.eternalComboMax || 0) >= 3000 },
+  { id: 'eternal_combo_5000', icon: '⚪', label: '永続コンボ5000達成（輪廻聖眼）', check: (s) => (s.eternalComboMax || 0) >= 5000 },
+  { id: 'eternal_combo_10000', icon: '🟡', label: '永続コンボ10000達成（輪廻神眼）', check: (s) => (s.eternalComboMax || 0) >= 10000 },
   { id: 'total_taps_1man', icon: '🥉', label: '総タイプ数1万達成', check: (s) => s.totalCorrect >= 10000 },
   { id: 'total_taps_10man', icon: '🥈', label: '総タイプ数10万達成', check: (s) => s.totalCorrect >= 100000 },
   { id: 'total_taps_100man', icon: '🥇', label: '総タイプ数100万達成', check: (s) => s.totalCorrect >= 1000000 },
@@ -2297,6 +2318,19 @@ el.renameBtn.addEventListener('click', () => {
   }
 });
 
+function checkReincarnationNecklaceReveal() {
+  if (save.reincarnationNecklaceAnnounced || save.eternalComboUnlocked) return;
+  if (save.prestige < 1) return;
+  save.reincarnationNecklaceAnnounced = true;
+  pushAnnouncement('🔄', 'ショップに新商品が入荷しました');
+  persistSave();
+  renderAnnouncements();
+  queueReveal(
+    '新商品入荷',
+    'ショップに「輪廻のネックレス」が入荷しました。\n永続コンボシステムを開放するアイテムです。',
+  );
+}
+
 el.prestigeBtn.addEventListener('click', () => {
   if (!canPrestige(save)) return;
   const ok = window.confirm('転生すると Lv.1 に戻ります。pt・実績・履歴は引き継がれます。よろしいですか？');
@@ -2315,6 +2349,7 @@ el.prestigeBtn.addEventListener('click', () => {
       `眠っていた力が目覚めたようだ。\n※pt倍率に+${tier.ptBonus}されました\n※以後の経験値テーブルが${tier.expMultiplier}倍になりました`,
     );
   });
+  checkReincarnationNecklaceReveal();
 });
 
 el.dungeonGrid.addEventListener('click', (e) => {
@@ -2478,6 +2513,23 @@ function buyConsumableItem(itemId) {
     return;
   }
 
+  if (item.effect === 'unlock_eternal_combo') {
+    if (save.eternalComboUnlocked) return;
+    if (save.pt < item.price) return;
+    save.pt -= item.price;
+    save.totalPtSpent += item.price;
+    save.eternalComboUnlocked = true;
+    pushAnnouncement('🔄', `「${item.name}」を手に入れました！永続コンボシステムが解放されました`);
+    SFX.complete();
+    persistSave();
+    refreshTotalPt();
+    renderPlayerCard();
+    renderAnnouncements();
+    renderShopList();
+    renderEternalCombo();
+    return;
+  }
+
   if (item.stackable) {
     const owned = save.inventory.consumables[itemId] || 0;
     if (owned >= item.maxStack) return;
@@ -2519,6 +2571,7 @@ function itemEffectLabel(item) {
   if (item.effect === 'exp') return `即座にEXP+${item.value}`;
   if (item.effect === 'rare_chance_next_game') return `次のゲームでレア出現率+${Math.round(item.value * 100)}%`;
   if (item.effect === 'heart_cap_up') return `弟子のハート上限が${item.value}になる（永続）`;
+  if (item.effect === 'unlock_eternal_combo') return '永続コンボシステムを開放する';
   return '';
 }
 
@@ -2526,11 +2579,13 @@ function renderItemShop() {
   el.shopItemList.innerHTML = '';
   ITEM_CATALOG.forEach((item) => {
     const isHeartVessel = item.effect === 'heart_cap_up';
-    const heartVesselOwned = isHeartVessel && save.disciple.heartVesselOwned;
-    if (item.requiresDiscipleStreak && !heartVesselOwned && discipleMaxStreak() <= item.requiresDiscipleStreak) return;
+    const isEternalCombo = item.effect === 'unlock_eternal_combo';
+    const oneTimeOwned = (isHeartVessel && save.disciple.heartVesselOwned) || (isEternalCombo && save.eternalComboUnlocked);
+    if (item.requiresDiscipleStreak && !oneTimeOwned && discipleMaxStreak() <= item.requiresDiscipleStreak) return;
+    if (item.requiresPrestige && !oneTimeOwned && save.prestige < item.requiresPrestige) return;
 
-    const owned = isHeartVessel ? (heartVesselOwned ? 1 : 0) : (item.stackable ? (save.inventory.consumables[item.id] || 0) : 0);
-    const maxed = heartVesselOwned || (item.stackable && owned >= item.maxStack);
+    const owned = oneTimeOwned ? 1 : (item.stackable ? (save.inventory.consumables[item.id] || 0) : 0);
+    const maxed = oneTimeOwned || (item.stackable && owned >= item.maxStack);
     const outOfStock = item.hasShopStock && save.happyGrassStock <= 0;
     const canAfford = save.pt >= item.price;
     const disabled = maxed || outOfStock || !canAfford;
@@ -2539,7 +2594,7 @@ function renderItemShop() {
     else if (outOfStock) btnLabel = '在庫切れ';
     else if (!canAfford) btnLabel = 'pt不足';
     const row = document.createElement('div');
-    row.className = isHeartVessel ? 'shop-item shop-item-rico' : 'shop-item';
+    row.className = (isHeartVessel || isEternalCombo) ? 'shop-item shop-item-rico' : 'shop-item';
     row.innerHTML = `
       <div class="shop-item-main">
         <span class="shop-item-name">${item.name}</span>
@@ -2548,7 +2603,7 @@ function renderItemShop() {
         ${item.hasShopStock ? `<span class="shop-item-owned">在庫: ${save.happyGrassStock}/${HAPPY_GRASS_MAX_STOCK}</span>` : ''}
       </div>
       <div class="shop-item-side">
-        <span class="shop-item-price">${heartVesselOwned ? '所持済' : `${item.price.toLocaleString()} pt`}</span>
+        <span class="shop-item-price">${oneTimeOwned ? '所持済' : `${item.price.toLocaleString()} pt`}</span>
         <button class="shop-btn" data-action="use-item" data-item-id="${item.id}" ${disabled ? 'disabled' : ''}>${btnLabel}</button>
       </div>
     `;
@@ -2716,6 +2771,7 @@ function renderTitleShop() {
 function startSession() {
   el.typingStage.classList.toggle('long-mode', currentMode === 'long');
   el.typingStage.classList.toggle('maou-aura', save.maouGateRevealed && !save.maouDefeated);
+  renderEternalCombo();
   const dungeon = DUNGEONS[currentMode];
   const pool = dungeon.bank[currentLang];
   const buildFn = currentLang === 'jp' ? buildJpTarget : buildEnTarget;
@@ -2893,6 +2949,16 @@ function updateHud() {
   el.comboGaugeText.textContent = `${progress}/${session.comboStep}`;
 }
 
+function renderEternalCombo() {
+  el.eternalComboHud.classList.toggle('hidden', !save.eternalComboUnlocked);
+  if (!save.eternalComboUnlocked) return;
+  el.eternalComboCount.textContent = save.eternalCombo.toLocaleString();
+  const marks = el.eternalComboMarks.querySelectorAll('.eternal-combo-mark');
+  marks.forEach((mark, i) => {
+    mark.classList.toggle('lit', i < save.eternalComboMisses);
+  });
+}
+
 function startTimerLoop() {
   stopTimerLoop();
   timerHandle = setInterval(() => {
@@ -2963,6 +3029,16 @@ function handleTypedChar(ch) {
     save.totalKeystrokes++;
     SFX.incorrect();
     flashIncorrect();
+    if (save.eternalComboUnlocked) {
+      save.eternalComboMisses += 1;
+      if (save.eternalComboMisses >= 5) {
+        save.eternalCombo = 0;
+        save.eternalComboMisses = 0;
+        save.eternalComboHeartMilestone = 0;
+        pushAnnouncement('💔', '永続コンボが途切れてしまいました');
+      }
+      renderEternalCombo();
+    }
   } else {
     const gain = fullPtMultiplier().total;
     save.pt += gain;
@@ -2970,6 +3046,17 @@ function handleTypedChar(ch) {
     sessionPtEarned += gain;
     save.totalCorrect++;
     save.totalKeystrokes++;
+    if (save.eternalComboUnlocked) {
+      save.eternalCombo += 1;
+      if (save.eternalCombo > save.eternalComboMax) save.eternalComboMax = save.eternalCombo;
+      const milestoneCount = Math.floor(save.eternalCombo / 250);
+      if (milestoneCount > (save.eternalComboHeartMilestone || 0)) {
+        save.eternalComboHeartMilestone = milestoneCount;
+        save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + 10);
+        pushAnnouncement('🔄', `永続コンボが${save.eternalCombo}に到達し、弟子のハート+10を獲得しました`);
+      }
+      renderEternalCombo();
+    }
     if (save.ricoUnlocked) {
       const shardGain = 1
         + (save.godStatue.gardenRestorations || 0)
@@ -3221,6 +3308,7 @@ function renderStats() {
     ['最高ランク', save.bestRank ? `${save.bestRank}(${rankTitle(save.bestRank)})` : '-'],
     ['平均ランク', avgRank === '-' ? '-' : `${avgRank}(${rankTitle(avgRank)})`],
     ['最大コンボ', save.bestCombo],
+    ['最大永続コンボ', (save.eternalComboMax || 0).toLocaleString()],
     ['弟子強化回数', save.disciple.strengthenCount.toLocaleString()],
     ['弟子に使ったpt合計', Math.floor(save.disciple.ptSpent).toLocaleString()],
     ['弟子の勝利回数', save.disciple.battleWins.toLocaleString()],

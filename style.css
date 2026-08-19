@@ -1543,6 +1543,41 @@ body {
   margin-bottom: 14px;
 }
 
+.eternal-combo-item {
+  border-color: #9a5bc2;
+}
+
+.eternal-combo-item .hud-label {
+  white-space: nowrap;
+}
+
+.eternal-combo-gauge {
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+.eternal-combo-mark {
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.15);
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+
+.eternal-combo-mark.lit {
+  color: #ff4d4d;
+  text-shadow: 0 0 6px rgba(255, 77, 77, 0.8);
+}
+
 .game-exp-bar {
   flex: 1;
   margin-top: 0;

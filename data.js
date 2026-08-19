@@ -468,6 +468,7 @@ const ITEM_CATALOG = [
   { id: 'item_happy_grass', name: 'しあわせ草', price: 10000, effect: 'exp', value: 100, stackable: false, hasShopStock: true },
   { id: 'item_fairy_dust', name: '妖精の粉', price: 5000, effect: 'rare_chance_next_game', value: 0.10, stackable: true, maxStack: 99 },
   { id: 'item_heart_vessel', name: 'ハートの器', price: 100000, effect: 'heart_cap_up', value: 999, stackable: false, requiresDiscipleStreak: 1000 },
+  { id: 'item_reincarnation_necklace', name: '輪廻のネックレス', price: 50000, effect: 'unlock_eternal_combo', stackable: false, requiresPrestige: 1 },
 ];
 
 const ICON_CATALOG = {
