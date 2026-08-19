@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.57',
+    items: [
+      '特定挙動においてセーブデータがロールバックしてしまう不具合を解消しました。',
+    ],
+  },
+  {
     version: 'Beta0.56',
     items: [
       'くだらないギミックとそれに伴う実績を実装しました',
@@ -3311,6 +3317,15 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('beforeunload', persistSave);
+window.addEventListener('storage', (e) => {
+  if (e.key !== SAVE_KEY || e.newValue === null) return;
+  save = loadSave();
+  refreshTotalPt();
+  renderPlayerCard();
+  renderDungeonBadges();
+  renderAnnouncements();
+  renderDisciple();
+});
 
 refreshTotalPt();
 refreshMuteBtn();
