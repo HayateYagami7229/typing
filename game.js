@@ -1303,7 +1303,8 @@ function renderPlayerCard() {
   const mult = fullPtMultiplier();
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
   const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
-  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}）`;
+  const ricoPart = mult.ricoBonus > 0 ? ` リコの加護ボーナス+${mult.ricoBonus.toLocaleString()}` : '';
+  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}${ricoPart}）`;
   el.prestigeBtn.classList.toggle('hidden', !canPrestige(save));
 
   el.playerCard.className = `player-card design-${save.profile.cardDesign}`;
@@ -1996,6 +1997,8 @@ function advanceMaouTurn() {
         queueReveal(
           '……撤退',
           '戦いが長引きすぎたのか、世界が歪む。\n「これ以上ここに居ると闇に呑まれてしまう…！」\n悔しいが、これ以上はここに居られない。\n撤退することにした。',
+          undefined,
+          true,
         );
         setTimeout(resetMaouToEntrance, 400);
       }, 600);
@@ -2007,6 +2010,8 @@ function advanceMaouTurn() {
         queueReveal(
           '……敗走',
           `${save.disciple.name}は命からがら、その場から逃げ出した。\n逃げ出した際に魔王の城の扉を開く為に必要な魔王の紋章を落としてしまった。`,
+          undefined,
+          true,
         );
         setTimeout(resetMaouToEntrance, 400);
       }, 600);
@@ -2016,8 +2021,8 @@ function advanceMaouTurn() {
 
 let revealQueue = [];
 let revealQueueEmptyCallback = null;
-function queueReveal(title, desc, onEmptyCallback) {
-  revealQueue.push({ title, desc });
+function queueReveal(title, desc, onEmptyCallback, noBackdropClose) {
+  revealQueue.push({ title, desc, noBackdropClose: !!onEmptyCallback || !!noBackdropClose });
   if (onEmptyCallback) revealQueueEmptyCallback = onEmptyCallback;
   if (revealQueue.length === 1) setTimeout(showNextReveal, 0);
 }
@@ -2182,6 +2187,7 @@ el.simpleRevealCloseBtn.addEventListener('click', () => {
 el.simpleRevealPopup.addEventListener('click', (e) => {
   if (e.target !== el.simpleRevealPopup) return;
   if (el.simpleRevealCloseBtn.textContent !== '閉じる') return;
+  if (revealQueue[0] && revealQueue[0].noBackdropClose) return;
   el.simpleRevealCloseBtn.click();
 });
 
