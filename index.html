@@ -22,12 +22,12 @@
         <button id="openHistoryBtn" class="icon-btn" title="履歴">📜</button>
         <button id="openAnnouncementHistoryBtn" class="icon-btn" title="お知らせ履歴">💬</button>
         <button id="openChangelogBtn" class="icon-btn" title="アップデート履歴">📰</button>
-        <button id="openSaveDataBtn" class="icon-btn" title="セーブデータ">💾</button>
       </div>
     </div>
     <div class="topbar-right">
       <div class="pt-display">💠 <span id="totalPt">0</span> pt</div>
       <button id="muteBtn" class="icon-btn" title="ミュート切替">🔊</button>
+      <button id="openSettingsBtn" class="icon-btn" title="設定">⚙️</button>
     </div>
   </header>
 
@@ -422,32 +422,52 @@
   </div>
 </div>
 
-<div id="saveDataPopup" class="disciple-popup hidden">
+<div id="settingsPopup" class="disciple-popup hidden">
   <div class="disciple-popup-inner save-data-inner">
-    <h2>💾 セーブデータ</h2>
-    <p class="subtitle">他の端末で遊ぶ時はここで書き出し・読み込みができます</p>
+    <h2>⚙️ 設定</h2>
 
-    <div class="save-data-section">
-      <h3>エクスポート（書き出し）</h3>
-      <button id="exportSaveBtn" class="choice-btn">ファイルとして保存</button>
-      <textarea id="exportSaveText" class="save-data-textarea" readonly></textarea>
-      <p class="save-data-hint">ファイル保存ができない場合は、上のテキストを全選択してコピーし保管してください</p>
+    <div class="save-data-section settings-section">
+      <h3>🎵 BGM音量</h3>
+      <div class="settings-slider-row">
+        <input type="range" id="bgmVolumeSlider" min="0" max="200" step="10" value="50">
+        <span class="settings-slider-value" id="bgmVolumeValue">50</span>
+      </div>
+    </div>
+
+    <div class="save-data-section settings-section">
+      <h3>🔊 SE音量</h3>
+      <div class="settings-slider-row">
+        <input type="range" id="seVolumeSlider" min="0" max="200" step="10" value="50">
+        <span class="settings-slider-value" id="seVolumeValue">50</span>
+      </div>
     </div>
 
     <div class="save-data-section">
-      <h3>インポート（読み込み）</h3>
-      <input type="file" id="importSaveFile" accept="application/json" class="hidden">
-      <button id="importSaveFileBtn" class="choice-btn">ファイルから読み込む</button>
-      <textarea id="importSaveText" class="save-data-textarea" placeholder="エクスポートしたテキストをここに貼り付け"></textarea>
-      <button id="importSaveTextBtn" class="choice-btn">テキストから読み込む</button>
-      <p class="save-data-hint save-data-warn">読み込むと現在のセーブデータは上書きされます</p>
+      <h3>💾 セーブデータ</h3>
+      <p class="subtitle">他の端末で遊ぶ時はここで書き出し・読み込みができます</p>
+
+      <div class="save-data-subsection">
+        <h4>エクスポート（書き出し）</h4>
+        <button id="exportSaveBtn" class="choice-btn">ファイルとして保存</button>
+        <textarea id="exportSaveText" class="save-data-textarea" readonly></textarea>
+        <p class="save-data-hint">ファイル保存ができない場合は、上のテキストを全選択してコピーし保管してください</p>
+      </div>
+
+      <div class="save-data-subsection">
+        <h4>インポート（読み込み）</h4>
+        <input type="file" id="importSaveFile" accept="application/json" class="hidden">
+        <button id="importSaveFileBtn" class="choice-btn">ファイルから読み込む</button>
+        <textarea id="importSaveText" class="save-data-textarea" placeholder="エクスポートしたテキストをここに貼り付け"></textarea>
+        <button id="importSaveTextBtn" class="choice-btn">テキストから読み込む</button>
+        <p class="save-data-hint save-data-warn">読み込むと現在のセーブデータは上書きされます</p>
+      </div>
     </div>
 
-    <button id="saveDataCloseBtn" class="choice-btn">閉じる</button>
+    <button id="settingsCloseBtn" class="choice-btn">閉じる</button>
   </div>
 </div>
 
-<div id="appVersion" class="app-version">Beta0.52</div>
+<div id="appVersion" class="app-version">Beta0.53</div>
 
 <script src="data.js"></script>
 <script src="kana.js"></script>

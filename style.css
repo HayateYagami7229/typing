@@ -1204,9 +1204,47 @@ body {
   color: var(--bad);
 }
 
-#saveDataPopup .disciple-popup-inner > .choice-btn {
+#settingsPopup .disciple-popup-inner > .choice-btn {
   margin-top: 18px;
   width: 100%;
+}
+
+.settings-section {
+  padding-bottom: 4px;
+}
+
+.settings-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.settings-slider-value {
+  min-width: 3ch;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.save-data-subsection {
+  margin-top: 14px;
+}
+
+.save-data-subsection:first-child {
+  margin-top: 0;
+}
+
+.save-data-subsection h4 {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 8px;
 }
 
 .disciple-opponents {

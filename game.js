@@ -11,6 +11,14 @@ const ANNOUNCEMENT_HISTORY_MAX = 500;
 
 const CHANGELOG = [
   {
+    version: 'Beta0.53',
+    items: [
+      '設定の機能を追加しました。',
+      'セーブデータの機能は設定に移動しました。',
+      'キー長押しに関する不具合を修正',
+    ],
+  },
+  {
     version: 'Beta0.52',
     items: [
       'レベルアップのお知らせを改善：ダンジョン挑戦中に複数レベル上がった場合、まとめて1件（Lv.X→Lv.Y）で表示するように修正',
@@ -144,6 +152,7 @@ function defaultSave() {
     exp: 0,
     prestige: 0,
     muted: false,
+    settings: { bgmVolume: 50, seVolume: 50 },
     playCount: 0,
     completedRuns: 0,
     abortCount: 0,
@@ -210,6 +219,7 @@ function normalizeSave(raw) {
     history: raw.history || [],
     announcements: raw.announcements || [],
     ricoLevels: { ...base.ricoLevels, ...(raw.ricoLevels || {}) },
+    settings: { ...base.settings, ...(raw.settings || {}) },
   };
 }
 
@@ -334,6 +344,10 @@ const SFX = {
     }
     return this.noiseBuffer;
   },
+  volumeMul() {
+    const v = save.settings && typeof save.settings.seVolume === 'number' ? save.settings.seVolume : 50;
+    return v / 50;
+  },
   tone(freq, dur, type = 'sine', gain = 0.05) {
     if (save.muted) return;
     const ctx = this.ensure();
@@ -343,8 +357,8 @@ const SFX = {
     osc.frequency.value = freq;
     osc.connect(g).connect(ctx.destination);
     const now = ctx.currentTime;
-    g.gain.setValueAtTime(gain, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    g.gain.setValueAtTime(Math.max(0.0001, gain * this.volumeMul()), now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
     osc.start(now);
     osc.stop(now + dur);
   },
@@ -360,8 +374,8 @@ const SFX = {
     const g = ctx.createGain();
     src.connect(filter).connect(g).connect(ctx.destination);
     const now = ctx.currentTime;
-    g.gain.setValueAtTime(gain, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    g.gain.setValueAtTime(Math.max(0.0001, gain * this.volumeMul()), now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
     src.start(now);
     src.stop(now + dur);
   },
@@ -378,8 +392,8 @@ const SFX = {
     const now = ctx.currentTime;
     osc.frequency.setValueAtTime(180, now);
     osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
-    g.gain.setValueAtTime(0.06, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    g.gain.setValueAtTime(Math.max(0.0001, 0.06 * this.volumeMul()), now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
     osc.connect(g).connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.2);
@@ -418,13 +432,17 @@ const BGM = {
     sentence: { notes: [440, 523, 587, 523, 440, 392, 349, 392], step: 260 },
     long: { notes: [220, 262, 220, 196, 220, 262, 294, 262], step: 320 },
   },
+  volumeMul() {
+    const v = save.settings && typeof save.settings.bgmVolume === 'number' ? save.settings.bgmVolume : 50;
+    return v / 50;
+  },
   ensureGain() {
     const ctx = SFX.ensure();
     if (!this.gainNode) {
       this.gainNode = ctx.createGain();
-      this.gainNode.gain.value = 0.03;
       this.gainNode.connect(ctx.destination);
     }
+    this.gainNode.gain.value = 0.03 * this.volumeMul();
     return this.gainNode;
   },
   playNote(freq, dur) {
@@ -453,7 +471,7 @@ const BGM = {
         audio.dataset.trackId = track.id;
       }
       audio.loop = true;
-      audio.volume = 0.35;
+      audio.volume = Math.min(1, 0.35 * this.volumeMul());
       audio.currentTime = 0;
       audio.play().catch(() => {});
       return;
@@ -646,9 +664,13 @@ const el = {
   changelogPopup: document.getElementById('changelogPopup'),
   changelogList: document.getElementById('changelogList'),
   changelogCloseBtn: document.getElementById('changelogCloseBtn'),
-  openSaveDataBtn: document.getElementById('openSaveDataBtn'),
-  saveDataPopup: document.getElementById('saveDataPopup'),
-  saveDataCloseBtn: document.getElementById('saveDataCloseBtn'),
+  openSettingsBtn: document.getElementById('openSettingsBtn'),
+  settingsPopup: document.getElementById('settingsPopup'),
+  settingsCloseBtn: document.getElementById('settingsCloseBtn'),
+  bgmVolumeSlider: document.getElementById('bgmVolumeSlider'),
+  bgmVolumeValue: document.getElementById('bgmVolumeValue'),
+  seVolumeSlider: document.getElementById('seVolumeSlider'),
+  seVolumeValue: document.getElementById('seVolumeValue'),
   exportSaveBtn: document.getElementById('exportSaveBtn'),
   exportSaveText: document.getElementById('exportSaveText'),
   importSaveFile: document.getElementById('importSaveFile'),
@@ -1841,12 +1863,30 @@ el.openChangelogBtn.addEventListener('click', () => {
 });
 el.changelogCloseBtn.addEventListener('click', () => el.changelogPopup.classList.add('hidden'));
 
-el.openSaveDataBtn.addEventListener('click', () => {
+el.openSettingsBtn.addEventListener('click', () => {
   el.exportSaveText.value = exportSaveString();
   el.importSaveText.value = '';
-  el.saveDataPopup.classList.remove('hidden');
+  el.bgmVolumeSlider.value = save.settings.bgmVolume;
+  el.bgmVolumeValue.textContent = save.settings.bgmVolume;
+  el.seVolumeSlider.value = save.settings.seVolume;
+  el.seVolumeValue.textContent = save.settings.seVolume;
+  el.settingsPopup.classList.remove('hidden');
 });
-el.saveDataCloseBtn.addEventListener('click', () => el.saveDataPopup.classList.add('hidden'));
+el.settingsCloseBtn.addEventListener('click', () => el.settingsPopup.classList.add('hidden'));
+el.bgmVolumeSlider.addEventListener('input', () => {
+  save.settings.bgmVolume = parseInt(el.bgmVolumeSlider.value, 10);
+  el.bgmVolumeValue.textContent = save.settings.bgmVolume;
+  persistSave();
+  if (el.customBgmAudio && !el.customBgmAudio.paused) {
+    el.customBgmAudio.volume = Math.min(1, 0.35 * (save.settings.bgmVolume / 50));
+  }
+});
+el.seVolumeSlider.addEventListener('input', () => {
+  save.settings.seVolume = parseInt(el.seVolumeSlider.value, 10);
+  el.seVolumeValue.textContent = save.settings.seVolume;
+  persistSave();
+  SFX.correct();
+});
 el.exportSaveBtn.addEventListener('click', downloadSaveFile);
 el.importSaveFileBtn.addEventListener('click', () => el.importSaveFile.click());
 el.importSaveFile.addEventListener('change', () => {
@@ -3020,7 +3060,6 @@ el.topbar.addEventListener('click', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.repeat) return;
   if (secretGrassClicks >= 12 && e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     secretGrassClicks = 0;
@@ -3080,6 +3119,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (screen !== 'game') return;
+  if (e.repeat) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Escape') {
     abortSession();
