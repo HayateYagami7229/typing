@@ -1454,12 +1454,14 @@ body {
   color: #e2c2ff;
   background: var(--bg-panel);
   border: 1px solid #c26bff;
-  border-radius: 999px;
+  border-radius: 18px;
   padding: 6px 18px;
   text-shadow: 0 0 16px rgba(194, 107, 255, 0.8);
   opacity: 0;
   pointer-events: none;
-  white-space: nowrap;
+  white-space: pre-line;
+  text-align: center;
+  max-width: 92vw;
   z-index: 60;
 }
 

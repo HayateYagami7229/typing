@@ -1357,12 +1357,14 @@ function checkMaouGateReveal() {
 }
 
 let maouEmblemPopupTimer = null;
+let pendingEmblemDrop = false;
 function showMaouEmblemPopup() {
   el.rareBonusPopup.textContent = `🔱 魔王の紋章を手に入れた！（${Math.min(save.maouEmblems, MAOU_EMBLEM_REQUIRED)}/${MAOU_EMBLEM_REQUIRED}）`;
   el.rareBonusPopup.classList.remove('show');
   void el.rareBonusPopup.offsetWidth;
   el.rareBonusPopup.classList.add('show');
   clearTimeout(maouEmblemPopupTimer);
+  clearTimeout(rareBonusTimer);
   maouEmblemPopupTimer = setTimeout(() => el.rareBonusPopup.classList.remove('show'), 1800);
 }
 
@@ -2360,6 +2362,7 @@ function renderTitleShop() {
 }
 
 function startSession() {
+  pendingEmblemDrop = false;
   const dungeon = DUNGEONS[currentMode];
   const pool = dungeon.bank[currentLang];
   const buildFn = currentLang === 'jp' ? buildJpTarget : buildEnTarget;
@@ -2576,12 +2579,15 @@ function showComboBonus(seconds) {
 }
 
 let rareBonusTimer = null;
-function showRareBonusPopup(rareBonus) {
-  el.rareBonusPopup.textContent = `🐲 レアボーナス！ +${rareBonus.pt}pt +${rareBonus.exp}EXP 💗+${rareBonus.heart}`;
+function showRareBonusPopup(rareBonus, includeEmblemLine) {
+  const rareLine = `🐲 レアボーナス！ +${rareBonus.pt}pt +${rareBonus.exp}EXP 💗+${rareBonus.heart}`;
+  const emblemLine = `🔱 魔王の紋章を手に入れた！（${Math.min(save.maouEmblems, MAOU_EMBLEM_REQUIRED)}/${MAOU_EMBLEM_REQUIRED}）`;
+  el.rareBonusPopup.textContent = includeEmblemLine ? `${rareLine}\n${emblemLine}` : rareLine;
   el.rareBonusPopup.classList.remove('show');
   void el.rareBonusPopup.offsetWidth;
   el.rareBonusPopup.classList.add('show');
   clearTimeout(rareBonusTimer);
+  clearTimeout(maouEmblemPopupTimer);
   rareBonusTimer = setTimeout(() => el.rareBonusPopup.classList.remove('show'), 1800);
 }
 
@@ -2621,7 +2627,7 @@ function handleTypedChar(ch) {
       if (Math.random() < dropChance) {
         save.maouEmblems += 1;
         renderMaouGate();
-        showMaouEmblemPopup();
+        pendingEmblemDrop = true;
         SFX.rare();
       }
     }
@@ -2657,8 +2663,12 @@ function handleTypedChar(ch) {
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
         save.rareMonstersDefeated += 1;
         refreshTotalPt();
-        showRareBonusPopup(res.rareBonus);
+        showRareBonusPopup(res.rareBonus, pendingEmblemDrop);
+        pendingEmblemDrop = false;
         SFX.rare();
+      } else if (pendingEmblemDrop) {
+        showMaouEmblemPopup();
+        pendingEmblemDrop = false;
       }
       persistSave();
       if (!session.isTimeUp) renderTarget();
@@ -2718,7 +2728,9 @@ function finishSession() {
   });
   if (save.history.length > 50) save.history.length = 50;
 
-  levelsGained.forEach((lvl) => pushAnnouncement('🎉', `Lv.${lvl} に到達しました`));
+  if (levelsGained.length > 0) {
+    pushAnnouncement('🎉', `Lv.${levelsGained[levelsGained.length - 1]} に到達しました`);
+  }
   if (isRankBetterThan(rank, prevBestRank)) {
     pushAnnouncement('🏆', `自己ベストランク ${rank}(${rankTitle(rank)})を達成しました`);
   }
