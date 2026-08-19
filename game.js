@@ -113,6 +113,13 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.6',
+    items: [
+      'ロゴを実装しました。',
+      'メインシナリオに関する内容をアップデートしました。',
+    ],
+  },
+  {
     version: 'Beta0.59',
     items: [
       '永続コンボが有効になっている状態で永続コンボをクリックすると、コンボ、ミスカウントがリセットされるようになりました。',
@@ -198,12 +205,12 @@ const GOD_BLESSING_COST = 100000000;
 const GOD_BLESSING_SHARD_BONUS_PER = 10;
 const GOD_BLESSING_MAX_COUNT = 10;
 const GOD_BLESSING_MAX_SHARD_BONUS = 100;
-const GOD_BLESSING_MAX_CHUNK_BONUS = { word: 0.05, sentence: 0.2, long: 0.3 };
+const GOD_BLESSING_MAX_WORD_BONUS = { word: 0.05, sentence: 0.2, long: 0.3 };
 const RICO_PRAYER_CHARGE_SUPER_THRESHOLD = 10;
-const RICO_PRAYER_CHARGE_CHUNK_BONUS = { word: 0.05, sentence: 0.2, long: 0.3 };
+const RICO_PRAYER_CHARGE_WORD_BONUS = { word: 0.05, sentence: 0.2, long: 0.3 };
 const MAOU_EMBLEM_BASE_CHANCE = 0.001;
 const MAOU_EMBLEM_REQUIRED = 100;
-const MAOU_EMBLEM_CHUNK_CHANCE = { sentence: 0.1, long: 0.4 };
+const MAOU_EMBLEM_WORD_CHANCE = { sentence: 0.1, long: 0.4 };
 const DISCIPLE_CLASS_UP_THRESHOLD = 1000;
 
 const GOD_STATUE_BUFFS = [
@@ -290,6 +297,7 @@ function defaultSave() {
     maouPrayerCharges: 0,
     maouPrayerCount: 0,
     maouDefeated: false,
+    emptyPrayerClicks: 0,
     godGardenHintShown: false,
     prestigeAwakened: false,
     prestigeAwakenedTiers: [],
@@ -298,7 +306,7 @@ function defaultSave() {
     exp: 0,
     prestige: 0,
     muted: false,
-    settings: { bgmVolume: 50, seVolume: 50 },
+    settings: { bgmVolume: 50, seVolume: 50, typingFrame: 'none' },
     secretKeyboardClicks: 0,
     eternalComboUnlocked: false,
     eternalCombo: 0,
@@ -572,6 +580,18 @@ const SFX = {
       setTimeout(() => this.tone(f, 0.15, 'sawtooth', 0.05), i * 80);
     });
   },
+  playFile(path, gain = 1) {
+    if (save.muted) return;
+    const audio = new Audio(encodeURI(path));
+    audio.volume = Math.max(0, Math.min(1, gain * this.volumeMul()));
+    audio.play().catch(() => {});
+  },
+  maouDefeatSlash() {
+    this.playFile('SE/刀で斬る2.mp3');
+  },
+  maouVictorySlash() {
+    this.playFile('SE/大剣で斬る.mp3');
+  },
 };
 
 function getEquippedBgmTrack() {
@@ -668,6 +688,8 @@ const el = {
   totalPt: document.getElementById('totalPt'),
   topbar: document.getElementById('topbar'),
   secretKeyboardIcon: document.getElementById('secretKeyboardIcon'),
+  topLogo: document.getElementById('topLogo'),
+  homeLogo: document.getElementById('homeLogo'),
   muteBtn: document.getElementById('muteBtn'),
   screens: {
     home: document.getElementById('screen-home'),
@@ -733,6 +755,12 @@ const el = {
   maouBattleLog: document.getElementById('maouBattleLog'),
   maouNextTurnBtn: document.getElementById('maouNextTurnBtn'),
   maouDefeatFlash: document.getElementById('maouDefeatFlash'),
+  maouVictoryFlash: document.getElementById('maouVictoryFlash'),
+  maouSideBox: document.getElementById('maouSideBox'),
+  maouStoryScene: document.getElementById('maouStoryScene'),
+  maouStoryImageWrap: document.getElementById('maouStoryImageWrap'),
+  maouStoryText: document.getElementById('maouStoryText'),
+  storyBgmAudio: document.getElementById('storyBgmAudio'),
   simpleRevealPopup: document.getElementById('simpleRevealPopup'),
   simpleRevealTitle: document.getElementById('simpleRevealTitle'),
   simpleRevealDesc: document.getElementById('simpleRevealDesc'),
@@ -834,6 +862,11 @@ const el = {
   bgmVolumeValue: document.getElementById('bgmVolumeValue'),
   seVolumeSlider: document.getElementById('seVolumeSlider'),
   seVolumeValue: document.getElementById('seVolumeValue'),
+  frameSettingSection: document.getElementById('frameSettingSection'),
+  typingFrameSelect: document.getElementById('typingFrameSelect'),
+  phase2AnnouncePopup: document.getElementById('phase2AnnouncePopup'),
+  phase2AnnounceBody: document.getElementById('phase2AnnounceBody'),
+  phase2AnnounceCloseBtn: document.getElementById('phase2AnnounceCloseBtn'),
   exportSaveBtn: document.getElementById('exportSaveBtn'),
   exportSaveText: document.getElementById('exportSaveText'),
   importSaveFile: document.getElementById('importSaveFile'),
@@ -855,6 +888,105 @@ function goHome() {
   renderDungeonBadges();
   renderAnnouncements();
   renderDisciple();
+}
+
+const trimmedImageCache = {};
+function loadAutoTrimmedImage(path, targetImgEl) {
+  if (trimmedImageCache[path]) {
+    targetImgEl.src = trimmedImageCache[path];
+    return;
+  }
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    let minX = canvas.width;
+    let minY = canvas.height;
+    let maxX = -1;
+    let maxY = -1;
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const coreThreshold = 30;
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const alpha = data[(y * canvas.width + x) * 4 + 3];
+        if (alpha > coreThreshold) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < minX || maxY < minY) {
+      trimmedImageCache[path] = path;
+      targetImgEl.src = path;
+      return;
+    }
+    const feather = 50;
+    const cropX = Math.max(0, minX - feather);
+    const cropY = Math.max(0, minY - feather);
+    const cropRight = Math.min(canvas.width, maxX + 1 + feather);
+    const cropBottom = Math.min(canvas.height, maxY + 1 + feather);
+    const trimW = cropRight - cropX;
+    const trimH = cropBottom - cropY;
+
+    const trimCanvas = document.createElement('canvas');
+    trimCanvas.width = trimW;
+    trimCanvas.height = trimH;
+    const trimCtx = trimCanvas.getContext('2d');
+    trimCtx.drawImage(canvas, cropX, cropY, trimW, trimH, 0, 0, trimW, trimH);
+
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = trimW;
+    maskCanvas.height = trimH;
+    const maskCtx = maskCanvas.getContext('2d');
+    maskCtx.filter = `blur(${feather}px)`;
+    maskCtx.fillStyle = '#fff';
+    maskCtx.fillRect(feather, feather, Math.max(1, trimW - feather * 2), Math.max(1, trimH - feather * 2));
+
+    trimCtx.globalCompositeOperation = 'destination-in';
+    trimCtx.drawImage(maskCanvas, 0, 0);
+    trimCtx.globalCompositeOperation = 'source-over';
+
+    const dataUrl = trimCanvas.toDataURL('image/png');
+    trimmedImageCache[path] = dataUrl;
+    targetImgEl.src = dataUrl;
+  };
+  img.onerror = () => {
+    targetImgEl.src = path;
+  };
+  img.src = encodeURI(path);
+}
+
+function updateLogos() {
+  const src = save.maouDefeated ? 'logo/phase2m.png' : 'logo/phase1m.png';
+  loadAutoTrimmedImage(src, el.topLogo);
+  loadAutoTrimmedImage(src, el.homeLogo);
+}
+
+function isMaouAuraFrameActive() {
+  if (save.maouGateRevealed && !save.maouDefeated) return true;
+  return save.maouDefeated && save.settings.typingFrame === 'maouAura';
+}
+
+function showPhase2Announcement() {
+  const name = save.disciple.name;
+  const sections = [
+    'ここまでプレイして頂き、本当に。本当にありがとうございました。\n創造主様は無事、ENDLESS TYPE-LOOP Phase1をクリアされました。\n未来は変わり、Phase2へと進みます。\n以下の変更点が発生致します。',
+    '・魔王を討伐されました。\n持っていた魔王の紋章、封紋章は砂のように溶け、全て無くなりました。\nまたダンジョンに纏っていた邪気が払われたようです。\n<span class="phase2-announce-note">（フレーム強調によりタイピングに集中出来る方もいらっしゃると思いますので\n設定にフレームが追加され、いつでも変更出来るようになりました）</span>',
+    `・リコは鎖から解き放たれました\n草原にはもう誰も居ません。\nリコの欠片も砕け散り、形は原形を留めませんでした。\nただ、リコがかつて使っていた装備は。\n眩く光を放っています。\n<span class="phase2-announce-note">（装備を全て揃える事でリコボーナスとしてタイプ倍率に+10000が付与されます）</span>`,
+    '・女神達が見えなくなりました\n創造主様に建設して頂いた女神像、そして女神の園が見当たりません。\nただし、今までの恩恵は受け取れているようです。',
+    `・${name}は無事に戻って来ました\n二人に分かれた${name}の内の一人は創造主様の元にお戻りになられました。\nこれからもかわいがってあげて下さいませ。`,
+    '・商人が何やら不思議な卵を入荷したようです。\nショップには新しい商品が様々に入荷しております。\n是非ともご確認下さい。',
+    '・トップ画面に変化が起こりました\nわかりやすい変化です。創造主様の築き上げた未来が動いた証拠です。',
+  ];
+  el.phase2AnnounceBody.innerHTML = sections
+    .map((text, i) => `<div class="phase2-announce-section${i === 0 ? ' phase2-announce-intro' : ''}">${text}</div>`)
+    .join('');
+  el.phase2AnnouncePopup.classList.remove('hidden');
 }
 
 function refreshTotalPt() {
@@ -934,8 +1066,27 @@ function checkRicoTabletDiscovery() {
   queueReveal('リコの導き', '装備品が光り出した。\n指し示した場所は草原が広がっていて、\nそこには一つの位牌が置いてある。');
 }
 
+function prayAtEmptyRicoTablet() {
+  if (!save.ricoTabletFound) return;
+  save.emptyPrayerClicks = (save.emptyPrayerClicks || 0) + 1;
+  SFX.correct();
+  persistSave();
+  if (save.emptyPrayerClicks === 100) {
+    pushAnnouncement('👀', '「リコはちょっと嫌がってるかもしれません…」実績を解放しました。');
+    renderAnnouncements();
+    renderAchievements();
+    queueReveal('', '「リコはちょっと嫌がってるかもしれません…」実績を解放しました。');
+  } else {
+    queueReveal('', 'そこには誰もいない。\nとても暖かい風が頬を撫でた。');
+  }
+}
+
 function prayAtRicoTablet() {
   if (!save.ricoTabletFound) return;
+  if (save.maouDefeated) {
+    prayAtEmptyRicoTablet();
+    return;
+  }
   if (save.ricoShards < RICO_PRAYER_COST) return;
   if ((save.maouPrayerCharges || 0) >= RICO_PRAYER_MAX_CHARGES) return;
   save.ricoShards -= RICO_PRAYER_COST;
@@ -1059,8 +1210,9 @@ function fullPtMultiplier() {
   const swordBonus = sword && sword.statType === 'keystroke' ? sword.value : 0;
   const base = 1 + levelBonus + prestigeBonus;
   const awakeningBonus = prestigeAwakeningPtBonus(save);
-  const total = base * (1 + swordBonus) + awakeningBonus;
-  return { levelBonus, prestigeBonus, swordBonus, awakeningBonus, total };
+  const ricoBonus = save.maouDefeated && isRicoFullyOwned(save) ? 10000 : 0;
+  const total = base * (1 + swordBonus) + awakeningBonus + ricoBonus;
+  return { levelBonus, prestigeBonus, swordBonus, awakeningBonus, ricoBonus, total };
 }
 
 function rankAtLeast(rank, threshold) {
@@ -1110,6 +1262,7 @@ const ACHIEVEMENTS = [
   { id: 'typing_time_1h', icon: '⏱️', label: '総タイピング時間1時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 3600000 },
   { id: 'typing_time_10h', icon: '⏰', label: '総タイピング時間10時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 36000000 },
   { id: 'typing_time_100h', icon: '🕰️', label: '総タイピング時間100時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 360000000 },
+  { id: 'empty_prayer_100', icon: '👀', label: '見てるからもう祈らないでください', check: (s) => (s.emptyPrayerClicks || 0) >= 100 },
 ];
 
 function discipleMaxStreakOf(s) {
@@ -1199,6 +1352,11 @@ function godStatueSvg(stage) {
 }
 
 function renderGodStatue() {
+  if (save.maouDefeated) {
+    el.godStatuePanel.classList.add('hidden');
+    el.godGardenPanel.classList.add('hidden');
+    return;
+  }
   el.godStatuePanel.classList.toggle('hidden', save.godStatue.completed);
   el.godGardenPanel.classList.toggle('hidden', !save.godStatue.completed);
   if (save.godStatue.completed) {
@@ -1292,8 +1450,8 @@ function restoreGodGarden() {
 }
 
 function renderMaouGate() {
-  el.maouGatePanel.classList.toggle('hidden', !save.maouGateRevealed);
-  if (!save.maouGateRevealed) return;
+  el.maouGatePanel.classList.toggle('hidden', !save.maouGateRevealed || save.maouDefeated);
+  if (!save.maouGateRevealed || save.maouDefeated) return;
   el.maouGateText.textContent = `魔王の紋章 ${Math.min(save.maouEmblems, MAOU_EMBLEM_REQUIRED).toLocaleString()} / ${MAOU_EMBLEM_REQUIRED}`;
 
   el.maouSealCountText.classList.toggle('hidden', !save.maouSealUnlocked);
@@ -1330,6 +1488,15 @@ const MAOU_BATTLE_SKIP_MARGIN = 5;
 let maouBattleQueue = null;
 let maouBattleDisc = null;
 let maouBattlePhase = 'intro';
+let maouBattleClickResolve = null;
+
+function waitForMaouBattleClick(phase) {
+  return new Promise((resolve) => {
+    maouBattlePhase = phase;
+    maouBattleClickResolve = resolve;
+    el.maouNextTurnBtn.classList.remove('hidden');
+  });
+}
 
 function computeMaouBattleRounds(disc, maou) {
   const p = { ...disc };
@@ -1411,9 +1578,230 @@ function appendMaouBattleLog(text) {
 }
 
 function triggerMaouDefeatFlash() {
+  SFX.maouDefeatSlash();
   el.maouDefeatFlash.classList.remove('flashing');
   void el.maouDefeatFlash.offsetWidth;
   el.maouDefeatFlash.classList.add('flashing');
+}
+
+function triggerMaouVictoryFlash() {
+  SFX.maouVictorySlash();
+  el.maouVictoryFlash.classList.remove('flashing');
+  void el.maouVictoryFlash.offsetWidth;
+  el.maouVictoryFlash.classList.add('flashing');
+}
+
+function getMaouStoryScenes() {
+  const name = save.disciple.name;
+  return [
+    {
+      image: 'img/1.jpg',
+      pages: [
+        '魔王城から邪気が払われた時。\n草原に、暖かい風が吹き抜けた。',
+        '「やったのね……遂に……。\n　一族の想いを……本当にありがとう……」',
+        '少しずつ彼女は光ながら、姿が薄くなっていく。\n風が運ぶように。彼女の姿は見えなくなっていった。',
+      ],
+    },
+    {
+      image: 'img/2.jpg',
+      pages: [
+        '女神の園は喜びに包まれていた。\nラグナロクの戦いが終わり、そして魔王は倒された。',
+        '女神達は大きな声を出して喜んでいた。\n「これで邪魔する者は居なくなった」と。',
+      ],
+    },
+    {
+      image: 'img/3.jpg',
+      pages: [
+        `${name}は眩く光る\n「本当にありがとうございました……」`,
+        '「自分が勇者として運命を背負っていたこと。\n　その責任を果たさせてくれたこと……」',
+        '「これから勇者として果たさなければならないことが\n　あります。だけど……」',
+      ],
+    },
+    {
+      image: 'img/4.jpg',
+      pages: [
+        '「これからも側で一緒に戦わせて下さい…」\n　光瞬くと姿は一人から二人に。',
+        `そして、一人の${name}は。\n私達に背を向け歩き出す。運命と向き合う為に。`,
+      ],
+    },
+    {
+      image: 'img/ED.jpg',
+      fadeIn: true,
+      largeImage: true,
+      holdMs: 7000,
+      stopBgmAfter: true,
+    },
+    {
+      image: 'img/5.jpg',
+      seThenFade: 'SE/コンピューター音.mp3',
+    },
+  ];
+}
+
+function typewriterText(target, text, charDelay, onDone) {
+  target.textContent = '';
+  let i = 0;
+  function step() {
+    if (i >= text.length) {
+      if (onDone) onDone();
+      return;
+    }
+    target.textContent += text[i];
+    i += 1;
+    setTimeout(step, charDelay);
+  }
+  step();
+}
+
+function startStoryBgm() {
+  if (save.muted) return;
+  const audio = el.storyBgmAudio;
+  audio.src = encodeURI('StoryBGM/EDBGM.mp3');
+  audio.loop = true;
+  audio.volume = Math.min(1, 0.35 * BGM.volumeMul());
+  audio.currentTime = 0;
+  audio.onended = () => {
+    if (audio.paused && audio.src) {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }
+  };
+  audio.play().catch(() => {});
+}
+
+function stopStoryBgm() {
+  el.storyBgmAudio.onended = null;
+  el.storyBgmAudio.pause();
+}
+
+function playSeThenFadeOut(path, onDone) {
+  const fadeMs = 4000;
+  const startFade = (audio) => {
+    if (audio) {
+      const steps = 40;
+      const stepMs = fadeMs / steps;
+      const baseVolume = audio.volume;
+      let i = 0;
+      const timer = setInterval(() => {
+        i += 1;
+        audio.volume = Math.max(0, baseVolume * (1 - i / steps));
+        if (i >= steps) {
+          clearInterval(timer);
+          audio.pause();
+        }
+      }, stepMs);
+    }
+    void el.maouStoryImageWrap.offsetWidth;
+    el.maouStoryImageWrap.classList.add('maou-story-content-fadeout');
+    setTimeout(onDone, fadeMs);
+  };
+
+  if (save.muted) {
+    startFade(null);
+    return;
+  }
+
+  const audio = new Audio(encodeURI(path));
+  audio.volume = Math.max(0, Math.min(1, SFX.volumeMul()));
+  audio.addEventListener('error', () => startFade(null), { once: true });
+  audio.addEventListener('ended', () => startFade(audio), { once: true });
+  audio.play().catch(() => startFade(audio));
+}
+
+function playMaouStoryScene(scenes, onAllDone) {
+  el.topbar.classList.add('hidden');
+  el.maouStoryScene.classList.remove('hidden');
+  startStoryBgm();
+  let index = 0;
+
+  function finish() {
+    el.maouStoryScene.classList.add('hidden');
+    el.maouStoryImageWrap.classList.remove('maou-story-fade-pending', 'maou-story-fade-in', 'maou-story-content-fadeout');
+    el.topbar.classList.remove('hidden');
+    if (onAllDone) onAllDone();
+  }
+
+  function playPages(pages, i, onPagesDone) {
+    if (i >= pages.length) {
+      onPagesDone();
+      return;
+    }
+    el.maouStoryText.textContent = '';
+    typewriterText(el.maouStoryText, pages[i], 160, () => {
+      setTimeout(() => playPages(pages, i + 1, onPagesDone), 1800);
+    });
+  }
+
+  function playNext() {
+    if (index >= scenes.length) {
+      finish();
+      return;
+    }
+    const scene = scenes[index];
+    index += 1;
+    el.maouStoryText.textContent = '';
+
+    const afterReveal = () => {
+      if (scene.seThenFade) {
+        playSeThenFadeOut(scene.seThenFade, finish);
+        return;
+      }
+      if (scene.playSe) SFX.playFile(scene.playSe);
+      const holdMs = scene.holdMs != null ? scene.holdMs : 1800;
+      setTimeout(() => {
+        if (scene.stopBgmAfter) stopStoryBgm();
+        if (scene.fadeOutAtEnd) {
+          void el.maouStoryScene.offsetWidth;
+          el.maouStoryScene.classList.add('maou-story-fadeout');
+          setTimeout(finish, 4000);
+        } else {
+          playNext();
+        }
+      }, holdMs);
+    };
+
+    const showImage = () => {
+      el.maouStoryImageWrap.classList.toggle('maou-story-image-large', !!scene.largeImage);
+      el.maouStoryImageWrap.innerHTML = scene.image ? `<img src="${encodeURI(scene.image)}" alt="">` : '';
+    };
+
+    const revealPagesThenContinue = () => {
+      if (scene.pages && scene.pages.length) {
+        playPages(scene.pages, 0, afterReveal);
+      } else {
+        afterReveal();
+      }
+    };
+
+    if (scene.fadeIn) {
+      el.maouStoryImageWrap.classList.remove('maou-story-fade-in');
+      el.maouStoryImageWrap.classList.add('maou-story-fade-pending');
+      showImage();
+      void el.maouStoryImageWrap.offsetWidth;
+      el.maouStoryImageWrap.classList.remove('maou-story-fade-pending');
+      el.maouStoryImageWrap.classList.add('maou-story-fade-in');
+      setTimeout(revealPagesThenContinue, 3000);
+    } else {
+      el.maouStoryImageWrap.classList.remove('maou-story-fade-pending', 'maou-story-fade-in');
+      showImage();
+      revealPagesThenContinue();
+    }
+  }
+  playNext();
+}
+
+function playMaouVanishSequence() {
+  el.maouSideBox.classList.add('maou-victory-flicker');
+  setTimeout(() => {
+    el.maouSideBox.classList.remove('maou-victory-flicker');
+    void el.maouSideBox.offsetWidth;
+    el.maouSideBox.classList.add('maou-victory-vanishing');
+    setTimeout(() => {
+      maouBattlePhase = 'post-victory';
+      el.maouNextTurnBtn.textContent = '▶ 次へ';
+      el.maouNextTurnBtn.classList.remove('hidden');
+    }, 2500 + 1000);
+  }, 2000);
 }
 
 function resetMaouToEntrance() {
@@ -1428,6 +1816,7 @@ function startMaouBattle() {
   if (save.maouEmblems < MAOU_EMBLEM_REQUIRED) return;
   el.maouEntrancePanel.classList.add('hidden');
   el.maouBattlePanel.classList.remove('hidden');
+  el.maouSideBox.classList.remove('maou-victory-flicker', 'maou-victory-vanishing');
   el.maouBackRow.classList.add('hidden');
   el.maouNextTurnBtn.classList.add('hidden');
   el.maouBattleLog.innerHTML = '';
@@ -1489,11 +1878,13 @@ async function beginMaouRoulette() {
     await new Promise((r) => setTimeout(r, 600));
   }
 
+  el.maouNextTurnBtn.textContent = '▶ 次へ';
+  await waitForMaouBattleClick('intro-wait-1');
+
   if ((save.maouSealCount || 0) > 0) {
-    await new Promise((r) => setTimeout(r, 500));
+    appendMaouBattleLog('持っていた封紋章が光り出す！');
+    await new Promise((r) => setTimeout(r, 700));
     const reduction = MAOU_SEAL_REDUCTION_PER * save.maouSealCount;
-    appendMaouBattleLog(`封紋章の力が魔王を蝕んでいく……！（各パラメーター-${reduction.toLocaleString()}）`);
-    await new Promise((r) => setTimeout(r, 600));
     maou = {
       hp: Math.max(1, maou.hp - reduction),
       str: Math.max(1, maou.str - reduction),
@@ -1504,8 +1895,19 @@ async function beginMaouRoulette() {
     pulseMaouStatWeak(el.maouRollStr, maou.str);
     pulseMaouStatWeak(el.maouRollDex, maou.dex);
     pulseMaouStatWeak(el.maouRollSpd, maou.spd);
+    await new Promise((r) => setTimeout(r, 600));
+    appendMaouBattleLog('魔王に変化があったようだ。');
     await new Promise((r) => setTimeout(r, 500));
+    appendMaouBattleLog('「なんだこれは……！？」');
+
+    el.maouNextTurnBtn.textContent = '▶ 次へ';
+    await waitForMaouBattleClick('intro-wait-2');
   }
+
+  appendMaouBattleLog(`あとは${save.disciple.name}に任せるだけだ。`);
+  appendMaouBattleLog('「戦闘開始」を押して戦況を見守ろう。');
+  el.maouNextTurnBtn.textContent = '▶ 戦闘開始';
+  await waitForMaouBattleClick('intro-wait-3');
 
   el.maouHpFill.style.width = '100%';
   el.maouHpText.textContent = `${maou.hp.toLocaleString()} / ${maou.hp.toLocaleString()}`;
@@ -1523,7 +1925,6 @@ async function beginMaouRoulette() {
     timeout,
     skipTargetIndex,
   };
-  appendMaouBattleLog('「次のターンへ」を押して戦況を見守ろう。');
   maouBattlePhase = 'battling';
   el.maouNextTurnBtn.textContent = '▶ 次のターンへ';
   el.maouNextTurnBtn.classList.remove('hidden');
@@ -1578,9 +1979,14 @@ function advanceMaouTurn() {
     const timeout = maouBattleQueue.timeout;
     maouBattleQueue = null;
     if (win) {
+      triggerMaouVictoryFlash();
       setTimeout(() => {
-        queueReveal('……勝利', '長き戦いの果て、魔王を打ち倒した……！\n（この先の物語は後日実装予定）');
-        setTimeout(resetMaouToEntrance, 400);
+        queueReveal('', '「馬鹿な……何故……何故だ……！\nあのバカ共の力にやられるなんて…！\nそんな事があってはならん……！」');
+        queueReveal(
+          '',
+          '「リュウエン……お前は何を知っている！？\nこれもお前の計算のうちなのか！？\nクソ……クソぉぉぉぉぉぉぉぉぉぉぉぉぉ！！」',
+          playMaouVanishSequence,
+        );
       }, 500);
     } else if (timeout) {
       triggerMaouDefeatFlash();
@@ -1609,8 +2015,10 @@ function advanceMaouTurn() {
 }
 
 let revealQueue = [];
-function queueReveal(title, desc) {
+let revealQueueEmptyCallback = null;
+function queueReveal(title, desc, onEmptyCallback) {
   revealQueue.push({ title, desc });
+  if (onEmptyCallback) revealQueueEmptyCallback = onEmptyCallback;
   if (revealQueue.length === 1) setTimeout(showNextReveal, 0);
 }
 function showNextReveal() {
@@ -1759,9 +2167,17 @@ el.godStatueBtn.addEventListener('click', () => {
 el.godGardenBtn.addEventListener('click', restoreGodGarden);
 el.godBlessingBtn.addEventListener('click', receiveGoddessBlessing);
 el.simpleRevealCloseBtn.addEventListener('click', () => {
-  el.simpleRevealPopup.classList.add('hidden');
   revealQueue.shift();
-  if (revealQueue.length > 0) setTimeout(showNextReveal, 300);
+  if (revealQueue.length > 0) {
+    showNextReveal();
+  } else {
+    el.simpleRevealPopup.classList.add('hidden');
+    if (revealQueueEmptyCallback) {
+      const callback = revealQueueEmptyCallback;
+      revealQueueEmptyCallback = null;
+      setTimeout(callback, 300);
+    }
+  }
 });
 el.simpleRevealPopup.addEventListener('click', (e) => {
   if (e.target !== el.simpleRevealPopup) return;
@@ -2196,6 +2612,8 @@ el.secretKeyboardIcon.addEventListener('click', () => {
   }
 });
 
+el.topLogo.addEventListener('click', handleLogoClick);
+
 el.openSettingsBtn.addEventListener('click', () => {
   el.exportSaveText.value = exportSaveString();
   el.importSaveText.value = '';
@@ -2203,9 +2621,16 @@ el.openSettingsBtn.addEventListener('click', () => {
   el.bgmVolumeValue.textContent = save.settings.bgmVolume;
   el.seVolumeSlider.value = save.settings.seVolume;
   el.seVolumeValue.textContent = save.settings.seVolume;
+  el.frameSettingSection.classList.toggle('hidden', !save.maouDefeated);
+  el.typingFrameSelect.value = save.settings.typingFrame;
   el.settingsPopup.classList.remove('hidden');
 });
 el.settingsCloseBtn.addEventListener('click', () => el.settingsPopup.classList.add('hidden'));
+el.phase2AnnounceCloseBtn.addEventListener('click', () => {
+  el.phase2AnnouncePopup.classList.add('hidden');
+  el.topbar.classList.remove('hidden');
+  goHome();
+});
 enableBackdropClose(el.settingsPopup);
 el.bgmVolumeSlider.addEventListener('input', () => {
   save.settings.bgmVolume = parseInt(el.bgmVolumeSlider.value, 10);
@@ -2220,6 +2645,12 @@ el.seVolumeSlider.addEventListener('input', () => {
   el.seVolumeValue.textContent = save.settings.seVolume;
   persistSave();
   SFX.correct();
+});
+el.typingFrameSelect.addEventListener('change', () => {
+  save.settings.typingFrame = el.typingFrameSelect.value;
+  persistSave();
+  el.typingStage.classList.toggle('maou-aura', isMaouAuraFrameActive());
+  renderDungeonBadges();
 });
 el.exportSaveBtn.addEventListener('click', downloadSaveFile);
 el.importSaveFileBtn.addEventListener('click', () => el.importSaveFile.click());
@@ -2255,7 +2686,7 @@ function renderEquipmentSummary() {
   ];
   el.equipmentSummary.innerHTML = '';
 
-  if (save.ricoUnlocked) {
+  if (save.ricoUnlocked && !save.maouDefeated) {
     const shardRow = document.createElement('div');
     shardRow.className = 'equip-row rico-shard-row';
     shardRow.innerHTML = `<span class="equip-label">✨ リコの欠片</span><span class="equip-value">${Math.floor(save.ricoShards).toLocaleString()}</span>`;
@@ -2263,12 +2694,16 @@ function renderEquipmentSummary() {
   }
 
   if (save.ricoTabletFound) {
-    const canPray = save.ricoShards >= RICO_PRAYER_COST && (save.maouPrayerCharges || 0) < RICO_PRAYER_MAX_CHARGES;
     const prayerRow = document.createElement('div');
     prayerRow.className = 'equip-row rico-prayer-row';
-    const prayerSuper = (save.maouPrayerCharges || 0) >= RICO_PRAYER_CHARGE_SUPER_THRESHOLD;
-    const prayerLabel = prayerSuper ? '超・祈りの加護' : '祈りの加護';
-    prayerRow.innerHTML = `<span class="equip-label">🙏 リコの位牌</span><span class="equip-right"><span class="equip-value${prayerSuper ? ' stat-glow-yellow' : ''}">${prayerLabel} ${save.maouPrayerCharges || 0}</span><button class="equip-strengthen-btn" data-action="pray" ${canPray ? '' : 'disabled'}>祈る（${RICO_PRAYER_COST.toLocaleString()}）</button></span>`;
+    if (save.maouDefeated) {
+      prayerRow.innerHTML = `<span class="equip-label">🙏 リコの位牌</span><span class="equip-right"><button class="equip-strengthen-btn" data-action="pray">祈る</button></span>`;
+    } else {
+      const canPray = save.ricoShards >= RICO_PRAYER_COST && (save.maouPrayerCharges || 0) < RICO_PRAYER_MAX_CHARGES;
+      const prayerSuper = (save.maouPrayerCharges || 0) >= RICO_PRAYER_CHARGE_SUPER_THRESHOLD;
+      const prayerLabel = prayerSuper ? '超・祈りの加護' : '祈りの加護';
+      prayerRow.innerHTML = `<span class="equip-label">🙏 リコの位牌</span><span class="equip-right"><span class="equip-value${prayerSuper ? ' stat-glow-yellow' : ''}">${prayerLabel} ${save.maouPrayerCharges || 0}</span><button class="equip-strengthen-btn" data-action="pray" ${canPray ? '' : 'disabled'}>祈る（${RICO_PRAYER_COST.toLocaleString()}）</button></span>`;
+    }
     el.equipmentSummary.appendChild(prayerRow);
   }
 
@@ -2333,9 +2768,9 @@ function renderDungeonBadges() {
     const rank = save.bestRankByKey[`${currentLang}:${mode}`];
     badge.textContent = rank ? `Best: ${rank}` : '';
   });
-  const maouAuraActive = save.maouGateRevealed && !save.maouDefeated;
-  el.dungeonGrid.classList.toggle('maou-aura', maouAuraActive);
-  el.dungeonSelectHeading.textContent = maouAuraActive
+  const maouAuraStoryActive = save.maouGateRevealed && !save.maouDefeated;
+  el.dungeonGrid.classList.toggle('maou-aura', isMaouAuraFrameActive());
+  el.dungeonSelectHeading.textContent = maouAuraStoryActive
     ? 'ダンジョン選択（魔王が現れた事で魔王紋章ドロップ）'
     : 'ダンジョン選択';
 }
@@ -2490,8 +2925,29 @@ el.maouCraftSealBtn.addEventListener('click', craftMaouSeal);
 el.maouNextTurnBtn.addEventListener('click', () => {
   if (maouBattlePhase === 'intro') {
     beginMaouRoulette();
+  } else if (maouBattleClickResolve) {
+    const resolve = maouBattleClickResolve;
+    maouBattleClickResolve = null;
+    el.maouNextTurnBtn.classList.add('hidden');
+    resolve();
   } else if (maouBattlePhase === 'battling') {
     advanceMaouTurn();
+  } else if (maouBattlePhase === 'post-victory') {
+    el.maouNextTurnBtn.classList.add('hidden');
+    playMaouStoryScene(getMaouStoryScenes(), () => {
+      el.maouSideBox.classList.remove('maou-victory-flicker', 'maou-victory-vanishing');
+      save.maouDefeated = true;
+      pushAnnouncement('💀', '魔王を討伐しました');
+      pushAnnouncement('🍃', 'リコはあの場所を去りました');
+      pushAnnouncement('🌌', 'ENDLESS TYPE-LOOP Phase2に突入しました');
+      renderAnnouncements();
+      persistSave();
+      updateLogos();
+      resetMaouToEntrance();
+      setScreen('blank');
+      el.topbar.classList.add('hidden');
+      setTimeout(showPhase2Announcement, 1500);
+    });
   }
 });
 el.shopTabs.addEventListener('click', (e) => {
@@ -2924,7 +3380,7 @@ function renderTitleShop() {
 
 function startSession() {
   el.typingStage.classList.toggle('long-mode', currentMode === 'long');
-  el.typingStage.classList.toggle('maou-aura', save.maouGateRevealed && !save.maouDefeated);
+  el.typingStage.classList.toggle('maou-aura', isMaouAuraFrameActive());
   renderEternalCombo();
   const dungeon = DUNGEONS[currentMode];
   const pool = dungeon.bank[currentLang];
@@ -2948,15 +3404,15 @@ function startSession() {
   }
   el.fairyDustBadge.classList.toggle('hidden', !fairyDustActive);
 
-  sessionPrayerSuperActive = (save.maouPrayerCharges || 0) >= RICO_PRAYER_CHARGE_SUPER_THRESHOLD;
+  sessionPrayerSuperActive = !save.maouDefeated && (save.maouPrayerCharges || 0) >= RICO_PRAYER_CHARGE_SUPER_THRESHOLD;
   sessionMaouPrayerBonus = 0;
-  if ((save.maouPrayerCharges || 0) > 0) {
+  if (!save.maouDefeated && (save.maouPrayerCharges || 0) > 0) {
     save.maouPrayerCharges -= 1;
     sessionMaouPrayerBonus = RICO_PRAYER_EMBLEM_BONUS;
     pushAnnouncement('🙏', 'リコの祈りの力を感じています（魔王の紋章の出現率が大幅に上昇しています）');
   }
-  el.maouPrayerBadge.classList.toggle('hidden', !save.ricoMet);
-  if (save.ricoMet) {
+  el.maouPrayerBadge.classList.toggle('hidden', save.maouDefeated || !save.ricoMet);
+  if (!save.maouDefeated && save.ricoMet) {
     el.maouPrayerBadge.textContent = sessionMaouPrayerBonus > 0
       ? '🙏 リコの祈り＋祈りの加護 効果中（魔王の紋章 出現率 大幅UP）'
       : '🙏 リコの祈り 効果中（魔王の紋章 出現率UP）';
@@ -3259,15 +3715,17 @@ function handleTypedChar(ch) {
       }
       let emblemDropped = false;
       if (save.maouGateRevealed && save.maouEmblems < MAOU_EMBLEM_REQUIRED) {
-        const dropChance = MAOU_EMBLEM_BASE_CHANCE
+        let dropChance = MAOU_EMBLEM_BASE_CHANCE
           + (save.godStatue.gardenRestorations || 0) * GOD_GARDEN_EMBLEM_BONUS_PER
           + (save.ricoMet ? RICO_MET_EMBLEM_BONUS : 0)
-          + sessionMaouPrayerBonus;
+          + sessionMaouPrayerBonus
+          + (MAOU_EMBLEM_WORD_CHANCE[currentMode] || 0);
+        if (isGoddessBlessingMaxed()) dropChance += GOD_BLESSING_MAX_WORD_BONUS[currentMode] || 0;
+        if (sessionPrayerSuperActive) dropChance += RICO_PRAYER_CHARGE_WORD_BONUS[currentMode] || 0;
         if (Math.random() < dropChance) {
           save.maouEmblems += 1;
           renderMaouGate();
           emblemDropped = true;
-          SFX.rare();
         }
       }
       if (res.rareBonus) {
@@ -3284,26 +3742,12 @@ function handleTypedChar(ch) {
         SFX.rare();
       } else if (emblemDropped) {
         showMaouEmblemPopup();
+        SFX.rare();
       }
       persistSave();
       if (!session.isTimeUp) renderTarget();
       updateHud();
       return;
-    } else if (res.result === 'complete-chunk') {
-      let chunkDropChance = MAOU_EMBLEM_CHUNK_CHANCE[currentMode] || 0;
-      if (isGoddessBlessingMaxed()) chunkDropChance += GOD_BLESSING_MAX_CHUNK_BONUS[currentMode] || 0;
-      if (sessionPrayerSuperActive) {
-        chunkDropChance += RICO_PRAYER_CHARGE_CHUNK_BONUS[currentMode] || 0;
-      }
-      if (chunkDropChance > 0 && save.maouGateRevealed && save.maouEmblems < MAOU_EMBLEM_REQUIRED) {
-        if (Math.random() < chunkDropChance) {
-          save.maouEmblems += 1;
-          renderMaouGate();
-          SFX.rare();
-          persistSave();
-          showMaouEmblemPopup();
-        }
-      }
     }
   }
 
@@ -3383,14 +3827,22 @@ function finishSession() {
   setScreen('result');
 }
 
-function abortSession() {
+function abortSession(options = {}) {
   stopTimerLoop();
   BGM.stop();
-  save.abortCount++;
+  if (!options.silent) save.abortCount++;
   save.totalTypingTimeMs = (save.totalTypingTimeMs || 0) + session.elapsedMs;
   persistSave();
   session = null;
   goHome();
+}
+
+function handleLogoClick() {
+  if (screen === 'game' && session) {
+    abortSession({ silent: true });
+  } else {
+    goHome();
+  }
 }
 
 function renderResult({ rank, levelsGained, levelBefore }) {
@@ -3674,4 +4126,5 @@ renderPlayerCard();
 renderDungeonBadges();
 renderAnnouncements();
 renderDisciple();
+updateLogos();
 setScreen('home');
