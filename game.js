@@ -1056,7 +1056,7 @@ const ACHIEVEMENTS = [
   { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated },
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
-  { id: 'secret_keyboard_100', icon: '😝', label: 'くだらないギミックのクリックを頑張ったで賞', check: (s) => (s.secretKeyboardClicks || 0) >= 100 },
+  { id: 'secret_keyboard_100', icon: '😝', label: 'くだらないギミックのクリックを頑張ったで賞', hoverText: 'いいからタイピングしなよ', check: (s) => (s.secretKeyboardClicks || 0) >= 100 },
   { id: 'total_taps_1man', icon: '🥉', label: '総タイプ数1万達成', check: (s) => s.totalCorrect >= 10000 },
   { id: 'total_taps_10man', icon: '🥈', label: '総タイプ数10万達成', check: (s) => s.totalCorrect >= 100000 },
   { id: 'total_taps_100man', icon: '🥇', label: '総タイプ数100万達成', check: (s) => s.totalCorrect >= 1000000 },
@@ -1081,7 +1081,7 @@ function renderAchievements() {
     if (!a.check(save)) return;
     const span = document.createElement('span');
     span.className = a.red ? 'achievement-icon achievement-icon-red' : 'achievement-icon';
-    span.title = a.label;
+    span.title = a.hoverText || a.label;
     span.textContent = a.icon;
     el.achievementIcons.appendChild(span);
   });
