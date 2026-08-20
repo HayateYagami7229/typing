@@ -38,6 +38,7 @@ gtag('config', 'G-7W2B8HZERF');
     </div>
     <div class="topbar-right">
       <div class="pt-display">💠 <span id="totalPt">0</span> pt</div>
+      <button id="shareProfileBtn" class="icon-btn" title="プロフィールカードをXでシェア">📤</button>
       <button id="openHelpBtn" class="icon-btn" title="遊び方">？</button>
       <button id="muteBtn" class="icon-btn" title="ミュート切替">🔊</button>
       <button id="openSettingsBtn" class="icon-btn" title="設定">⚙️</button>
@@ -460,6 +461,19 @@ gtag('config', 'G-7W2B8HZERF');
     <h2>📰 アップデート履歴</h2>
     <div class="changelog-list" id="changelogList"></div>
     <button id="changelogCloseBtn" class="choice-btn">閉じる</button>
+  </div>
+</div>
+
+<div id="profileCardPopup" class="disciple-popup hidden">
+  <div class="disciple-popup-inner profile-card-inner">
+    <h2>📤 プロフィールカード</h2>
+    <p class="subtitle">「Xで投稿する」で画像付きのまま投稿できます。画像単体の保存も可能です</p>
+    <img id="profileCardImg" class="profile-card-image" alt="プロフィールカード">
+    <div class="profile-card-actions">
+      <button id="profileCardSaveBtn" class="choice-btn">💾 画像を保存</button>
+      <button id="profileCardPostBtn" class="choice-btn">🐦 Xで投稿する</button>
+    </div>
+    <button id="profileCardCloseBtn" class="choice-btn">閉じる</button>
   </div>
 </div>
 

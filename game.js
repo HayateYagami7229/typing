@@ -113,6 +113,13 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.66',
+    items: [
+      '右上にプロフィールカードをXでシェアできるボタン（📤）を追加しました。<br>'
+      + '現在のレベル・転生回数・総タイプ数などをまとめた画像を生成し、Xの投稿画面に自動で本文を入力した状態で開けます。',
+    ],
+  },
+  {
     version: 'Beta0.65',
     items: [
       'Beta版を公開いたしました！<br>'
@@ -969,6 +976,12 @@ const el = {
   announcementHistoryEmpty: document.getElementById('announcementHistoryEmpty'),
   announcementHistoryCloseBtn: document.getElementById('announcementHistoryCloseBtn'),
   openChangelogBtn: document.getElementById('openChangelogBtn'),
+  shareProfileBtn: document.getElementById('shareProfileBtn'),
+  profileCardPopup: document.getElementById('profileCardPopup'),
+  profileCardImg: document.getElementById('profileCardImg'),
+  profileCardSaveBtn: document.getElementById('profileCardSaveBtn'),
+  profileCardPostBtn: document.getElementById('profileCardPostBtn'),
+  profileCardCloseBtn: document.getElementById('profileCardCloseBtn'),
   openHelpBtn: document.getElementById('openHelpBtn'),
   helpPopup: document.getElementById('helpPopup'),
   helpPopupBody: document.getElementById('helpPopupBody'),
@@ -2741,6 +2754,14 @@ el.openChangelogBtn.addEventListener('click', () => {
 el.changelogCloseBtn.addEventListener('click', () => el.changelogPopup.classList.add('hidden'));
 enableBackdropClose(el.changelogPopup);
 
+el.shareProfileBtn.addEventListener('click', () => {
+  openProfileCardPopup();
+});
+el.profileCardSaveBtn.addEventListener('click', () => saveProfileCardImage());
+el.profileCardPostBtn.addEventListener('click', () => postProfileCardToX());
+el.profileCardCloseBtn.addEventListener('click', () => el.profileCardPopup.classList.add('hidden'));
+enableBackdropClose(el.profileCardPopup);
+
 el.openHelpBtn.addEventListener('click', () => {
   save.helpManualOpens = (save.helpManualOpens || 0) + 1;
   persistSave();
@@ -4116,6 +4137,180 @@ function formatDuration(ms) {
   if (hours > 0) return `${hours.toLocaleString()}時間${minutes}分${seconds}秒`;
   if (minutes > 0) return `${minutes}分${seconds}秒`;
   return `${seconds}秒`;
+}
+
+function formatDurationHMS(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+const PROFILE_CARD_WIDTH = 1200;
+const PROFILE_CARD_HEIGHT = 675;
+
+function loadImageAsync(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function getProfileStatsLines() {
+  return [
+    { icon: '⭐', label: 'レベル', value: `Lv.${save.level}（転生${save.prestige}回）` },
+    { icon: '📝', label: '入力したワード数', value: `${(save.totalWordsCompleted || 0).toLocaleString()}` },
+    { icon: '⌨️', label: '総タイプ数', value: `${(save.totalCorrect || 0).toLocaleString()}` },
+    { icon: '⏱️', label: '総タイプ時間', value: formatDurationHMS(save.totalTypingTimeMs || 0) },
+    { icon: '👹', label: 'レアモンスター討伐数', value: `${(save.rareMonstersDefeated || 0).toLocaleString()}` },
+  ];
+}
+
+async function generateProfileCardBlob() {
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (e) { /* ignore */ }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = PROFILE_CARD_WIDTH;
+  canvas.height = PROFILE_CARD_HEIGHT;
+  const ctx = canvas.getContext('2d');
+
+  const bgGrad = ctx.createLinearGradient(0, 0, PROFILE_CARD_WIDTH, PROFILE_CARD_HEIGHT);
+  bgGrad.addColorStop(0, '#171a28');
+  bgGrad.addColorStop(1, '#0c0e17');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, PROFILE_CARD_WIDTH, PROFILE_CARD_HEIGHT);
+
+  ctx.strokeStyle = 'rgba(124, 140, 255, 0.55)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(18, 18, PROFILE_CARD_WIDTH - 36, PROFILE_CARD_HEIGHT - 36);
+
+  ctx.textBaseline = 'alphabetic';
+
+  const logoPath = save.maouDefeated ? 'logo/phase2m.png' : 'logo/phase1m.png';
+  const logoSrc = trimmedImageCache[logoPath] || logoPath;
+  let logoImg = null;
+  try { logoImg = await loadImageAsync(logoSrc); } catch (e) { logoImg = null; }
+
+  if (logoImg && logoImg.naturalWidth > 0) {
+    const logoHeight = 74;
+    const logoWidth = logoImg.naturalWidth * (logoHeight / logoImg.naturalHeight);
+    ctx.drawImage(logoImg, 60, 26, logoWidth, logoHeight);
+  } else {
+    ctx.fillStyle = '#7c8cff';
+    ctx.font = '700 46px "M PLUS Rounded 1c", sans-serif';
+    ctx.fillText('ENDLESS TYPE-LOOP', 60, 92);
+  }
+
+  ctx.fillStyle = '#8a8fb8';
+  ctx.font = '500 20px "M PLUS Rounded 1c", sans-serif';
+  ctx.fillText('無限に打てる蓄積型タイピングゲーム', 60, 124);
+
+  ctx.font = '64px "M PLUS Rounded 1c", sans-serif';
+  ctx.fillStyle = '#eef0ff';
+  ctx.fillText(save.profile.icon || '🗡️', 60, 210);
+
+  ctx.font = '700 44px "M PLUS Rounded 1c", sans-serif';
+  ctx.fillStyle = '#eef0ff';
+  ctx.fillText(save.profile.name || 'Typer', 140, 205);
+
+  const rows = getProfileStatsLines();
+
+  const rowStartY = 300;
+  const rowHeight = 68;
+  rows.forEach(({ icon, label, value }, i) => {
+    const y = rowStartY + i * rowHeight;
+
+    ctx.font = '34px "M PLUS Rounded 1c", sans-serif';
+    ctx.fillStyle = '#eef0ff';
+    ctx.fillText(icon, 60, y);
+
+    ctx.font = '500 24px "M PLUS Rounded 1c", sans-serif';
+    ctx.fillStyle = '#8a8fb8';
+    ctx.fillText(label, 110, y - 4);
+
+    ctx.font = '700 30px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#7c8cff';
+    ctx.textAlign = 'right';
+    ctx.fillText(value, PROFILE_CARD_WIDTH - 60, y);
+    ctx.textAlign = 'left';
+  });
+
+  ctx.font = '500 20px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#8a8fb8';
+  ctx.textAlign = 'right';
+  ctx.fillText('endless-type-loop.online', PROFILE_CARD_WIDTH - 60, PROFILE_CARD_HEIGHT - 40);
+  ctx.textAlign = 'left';
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
+let profileCardBlob = null;
+let profileCardObjectUrl = null;
+
+function buildProfileShareText(shareUrl) {
+  const stats = getProfileStatsLines();
+  const statsText = [
+    `プレイヤーネーム：${save.profile.name || 'Typer'}`,
+    `現在のレベル：${stats[0].value}`,
+    `入力したワード数：${stats[1].value}`,
+    `総タイプ数：${stats[2].value}`,
+    `総タイプ時間：${stats[3].value}`,
+    `レアモンスター討伐数：${stats[4].value}`,
+  ].join('\n');
+  return `無限に打てる蓄積型タイピングゲーム\n「ENDLESS TYPE-LOOP」\n\n${statsText}\n\n${shareUrl}\n#ENDLESSTYPELOOP`;
+}
+
+async function openProfileCardPopup() {
+  const blob = await generateProfileCardBlob();
+  if (!blob) return;
+  profileCardBlob = blob;
+  if (profileCardObjectUrl) URL.revokeObjectURL(profileCardObjectUrl);
+  profileCardObjectUrl = URL.createObjectURL(blob);
+  el.profileCardImg.src = profileCardObjectUrl;
+  el.profileCardPopup.classList.remove('hidden');
+}
+
+function saveProfileCardImage() {
+  if (!profileCardObjectUrl) return;
+  const a = document.createElement('a');
+  a.href = profileCardObjectUrl;
+  a.download = 'endless-type-loop-profile.png';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+async function postProfileCardToX() {
+  // Open the tab synchronously (within the click gesture) so popup blockers
+  // don't kick in once the upload's await resolves.
+  const popupWin = window.open('', '_blank');
+
+  let shareUrl = 'https://endless-type-loop.online';
+  if (profileCardBlob) {
+    try {
+      const res = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'content-type': 'image/png' },
+        body: profileCardBlob,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.shareUrl) shareUrl = json.shareUrl;
+      }
+    } catch (e) {
+      // network/offline: fall back to the plain homepage URL, no image card
+    }
+  }
+
+  const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildProfileShareText(shareUrl))}`;
+  if (popupWin) popupWin.location.href = intentUrl;
+  else window.open(intentUrl, '_blank', 'noopener');
 }
 
 function renderStats() {
