@@ -113,6 +113,23 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.64',
+    items: [
+      '【コアアップデートのお知らせ】<br>'
+      + '文末が最後「ん」で終わる場合において、N派とNN派に分かれると想定しております。<br>'
+      + 'お題の最後が「ん」である条件を満たし尚且つ最初のN入力から「0.25秒」の間、<br>'
+      + 'ミス判定において「Nキーのみ」シールドが発動されるように設定しました。<br>'
+      + '※即ち、N入力でもNN入力でも問題無く進行が可能です。<br>'
+      + '※ゲームの性質上、キー入力数の多い方法で入力をした方がpt獲得ができる為、<br>'
+      + '　シールド発動中においてのNはコンボの蓄積、ptの獲得は「無し」とさせて頂きます。<br><br>'
+      + '0.25秒経った後は最後の「N」の入力は「次のお題への入力」とみなされ、お題と異なる場合は<br>'
+      + 'ミス判定になるよう設定しています。<br>'
+      + 'タイピング体験における重要なアップデートであるため、本サービスの「暫定公式ルール」としてお知らせに記し、<br>'
+      + '皆様のご意見を基に反映いたします。',
+      '長音（ー）を含む単語について、ハイフン入力だけでなく直前の母音を繰り返す入力方法（例：パーティー→paatii）にも対応しました。',
+    ],
+  },
+  {
     version: 'Beta0.63',
     items: [
       'とある規則に則った出題文が発生した際に一部入力方法のプレイヤーを配慮すべく出題ロジックを変更しました。',
@@ -702,6 +719,8 @@ let timerHandle = null;
 let levelAtSessionStart = 1;
 let sessionPtEarned = 0;
 let awaitingGraceNSwallow = false;
+let graceNSwallowDeadline = 0;
+const GRACE_N_SWALLOW_WINDOW_MS = 250;
 let sessionMaouPrayerBonus = 0;
 let sessionPrayerSuperActive = false;
 let currentShopTab = 'sword';
@@ -3722,7 +3741,7 @@ function showRareBonusPopup(rareBonus, includeEmblemLine) {
 function handleTypedChar(ch) {
   if (awaitingGraceNSwallow) {
     awaitingGraceNSwallow = false;
-    if (ch === 'n') {
+    if (ch === 'n' && Date.now() <= graceNSwallowDeadline) {
       const nextOptions = session.current && session.current.matcher.currentRemainingOptions();
       const nextCouldBeN = nextOptions && nextOptions.some((o) => o.toLowerCase().startsWith('n'));
       if (!nextCouldBeN) return;
@@ -3739,6 +3758,7 @@ function handleTypedChar(ch) {
     && target.matcher.log[target.matcher.log.length - 1] === 'n'
   ) {
     awaitingGraceNSwallow = true;
+    graceNSwallowDeadline = Date.now() + GRACE_N_SWALLOW_WINDOW_MS;
   }
 
   if (res.result === 'incorrect') {

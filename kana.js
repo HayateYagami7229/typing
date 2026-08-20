@@ -93,7 +93,17 @@ function tokenizeKana(raw) {
       continue;
     }
     if (t.type === 'chouon') {
-      merged.push({ kana: t.kana, options: ['-'] });
+      const prev = merged[merged.length - 1];
+      const options = ['-'];
+      if (prev && prev.options) {
+        const vowels = new Set();
+        prev.options.forEach((o) => {
+          const last = o.slice(-1).toLowerCase();
+          if ('aiueo'.includes(last)) vowels.add(last);
+        });
+        vowels.forEach((v) => options.push(v));
+      }
+      merged.push({ kana: t.kana, options });
       continue;
     }
     merged.push({ kana: t.kana, options: t.options });
