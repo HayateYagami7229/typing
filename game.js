@@ -517,6 +517,7 @@ function updateFunnelUserProperties() {
     ? RANK_ORDER[Math.round(save.rankIndexSum / save.completedRuns)]
     : null;
   gtag('set', 'user_properties', {
+    player_name: save.profile.name,
     max_level: save.maxLevelReached,
     prestige_count: save.prestige,
     max_win_streak: discipleMaxStreak(),
