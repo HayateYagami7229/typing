@@ -1,0 +1,12 @@
+{
+  "name": "endlesstypeloop",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-08-20",
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS"
+  },
+  "r2_buckets": [
+    { "binding": "PROFILE_IMAGES", "bucket_name": "endless-type-loop-shares" }
+  ]
+}

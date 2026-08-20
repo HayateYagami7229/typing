@@ -1212,6 +1212,28 @@ body {
   text-align: center;
 }
 
+.profile-card-inner {
+  max-width: 640px;
+  text-align: center;
+}
+
+.profile-card-image {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin: 14px 0;
+}
+
+.profile-card-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.profile-card-actions .choice-btn {
+  flex: 1;
+}
+
 .phase2-announce-inner {
   max-width: 640px;
   text-align: left;
