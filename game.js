@@ -113,6 +113,16 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.65',
+    items: [
+      'Beta版を公開いたしました！<br>'
+      + 'Beta版となりますのでトラブル・文字入力相違などが発生する場合が御座います。<br>'
+      + 'トラブルがあった際にはX（旧Twitter）のメンションかDMまで御連絡いただけましたら幸いです。<br>'
+      + 'https://x.com/HayateYagami_X<br>'
+      + '是非とも、終わりのないタイピングをお楽しみ下さい。',
+    ],
+  },
+  {
     version: 'Beta0.64',
     items: [
       '【コアアップデートのお知らせ】<br>'
