@@ -317,6 +317,7 @@ function defaultSave() {
     settings: { bgmVolume: 50, seVolume: 50, typingFrame: 'none' },
     secretKeyboardClicks: 0,
     eternalComboUnlocked: false,
+    mechanicalEggOwned: false,
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -3133,6 +3134,19 @@ function buyConsumableItem(itemId) {
     return;
   }
 
+  if (item.effect === 'easter_egg_dev_contact') {
+    if (save.mechanicalEggOwned) return;
+    if (save.pt < item.price) return;
+    save.pt -= item.price;
+    save.totalPtSpent += item.price;
+    save.mechanicalEggOwned = true;
+    SFX.complete();
+    persistSave();
+    refreshTotalPt();
+    renderShopList();
+    return;
+  }
+
   if (item.stackable) {
     const owned = save.inventory.consumables[itemId] || 0;
     if (owned >= item.maxStack) return;
@@ -3227,6 +3241,7 @@ function itemEffectLabel(item) {
   if (item.effect === 'rare_chance_next_game') return `次のゲームでレア出現率+${Math.round(item.value * 100)}%`;
   if (item.effect === 'heart_cap_up') return `弟子のハート上限が${item.value}になる（永続）`;
   if (item.effect === 'unlock_eternal_combo') return '永続コンボシステムを開放する';
+  if (item.effect === 'easter_egg_dev_contact') return 'この画面を開けた方は開発者へご連絡下さい';
   return '';
 }
 
@@ -3235,7 +3250,10 @@ function renderItemShop() {
   ITEM_CATALOG.forEach((item) => {
     const isHeartVessel = item.effect === 'heart_cap_up';
     const isEternalCombo = item.effect === 'unlock_eternal_combo';
-    const oneTimeOwned = (isHeartVessel && save.disciple.heartVesselOwned) || (isEternalCombo && save.eternalComboUnlocked);
+    const isMechanicalEgg = item.effect === 'easter_egg_dev_contact';
+    const oneTimeOwned = (isHeartVessel && save.disciple.heartVesselOwned)
+      || (isEternalCombo && save.eternalComboUnlocked)
+      || (isMechanicalEgg && save.mechanicalEggOwned);
     if (item.requiresDiscipleStreak && !oneTimeOwned && discipleMaxStreak() <= item.requiresDiscipleStreak) return;
     if (item.requiresPrestige && !oneTimeOwned && save.prestige < item.requiresPrestige) return;
 
