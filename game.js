@@ -333,6 +333,8 @@ function defaultSave() {
     maouPrayerCharges: 0,
     maouPrayerCount: 0,
     maouDefeated: false,
+    maouLossCount: 0,
+    funnelBlocksSent: [],
     emptyPrayerClicks: 0,
     helpPopupSeen: false,
     helpManualOpens: 0,
@@ -459,7 +461,12 @@ function decodeSaveData(encoded) {
 
 function loadSave() {
   const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return defaultSave();
+  if (!raw) {
+    const fresh = defaultSave();
+    fresh.funnelBlocksSent = ['1-1'];
+    if (typeof gtag === 'function') gtag('event', 'funnel_1_1');
+    return fresh;
+  }
   try {
     return normalizeSave(decodeSaveData(raw));
   } catch (e) {
@@ -471,7 +478,41 @@ function loadSave() {
   }
 }
 
+const FUNNEL_BLOCKS = [
+  { id: '1-2', check: () => save.prestige >= 1 },
+  { id: '1-3', check: () => (save.godStatue.sent || 0) >= 1 },
+  { id: '1-4', check: () => discipleTotalParams() >= 100 },
+  { id: '1-5', check: () => discipleTotalParams() >= 500 },
+  { id: '1-6', check: () => !!save.disciple.classUpped },
+  { id: '1-7', check: () => (save.maouLossCount || 0) >= 1 },
+  { id: '1-8', check: () => !!save.ricoUnlocked },
+  { id: '1-9', check: () => isRicoFullyOwned(save) },
+  { id: '1-10', check: () => (save.godStatue.sent || 0) >= 100 },
+  { id: '1-11', check: () => (save.godStatue.gardenRestorations || 0) >= 1 },
+  { id: '1-12', check: () => isAllRicoMaxed() },
+  { id: '1-13', check: () => !!save.ricoMet },
+  { id: '1-14', check: () => !!save.maouSealUnlocked },
+  { id: '1-15', check: () => (save.maouSealCount || 0) >= 1 },
+  { id: '1-16', check: () => (save.maouLossCount || 0) >= 2 },
+  { id: '1-17', check: () => !!save.godGardenHintShown },
+  { id: '1-18', check: () => !!save.eternalComboUnlocked },
+  { id: '1-19', check: () => discipleMaxStreak() >= 10000 },
+  { id: '1-20', check: () => !!save.prestigeAwakened },
+  { id: '1-21', check: () => !!save.maouDefeated },
+];
+
+function checkFunnelBlocks() {
+  if (!save.funnelBlocksSent) save.funnelBlocksSent = [];
+  FUNNEL_BLOCKS.forEach(({ id, check }) => {
+    if (save.funnelBlocksSent.includes(id)) return;
+    if (!check()) return;
+    save.funnelBlocksSent.push(id);
+    if (typeof gtag === 'function') gtag('event', `funnel_${id.replace('-', '_')}`);
+  });
+}
+
 function persistSave() {
+  checkFunnelBlocks();
   localStorage.setItem(SAVE_KEY, encodeSaveData(save));
 }
 
@@ -2053,6 +2094,7 @@ function advanceMaouTurn() {
     } else if (timeout) {
       triggerMaouDefeatFlash();
       save.maouEmblems = 0;
+      save.maouLossCount = (save.maouLossCount || 0) + 1;
       persistSave();
       setTimeout(() => {
         queueReveal(
@@ -2066,6 +2108,7 @@ function advanceMaouTurn() {
     } else {
       triggerMaouDefeatFlash();
       save.maouEmblems = 0;
+      save.maouLossCount = (save.maouLossCount || 0) + 1;
       persistSave();
       setTimeout(() => {
         queueReveal(
