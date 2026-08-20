@@ -116,6 +116,15 @@ function buildEnTarget(text) {
   return new TypingTarget({ display: text, reading: null, chunks, caseInsensitive: true });
 }
 
+function itemStartsWithN(item) {
+  if (typeof item === 'string') return false;
+  const kana = item && item.kana;
+  if (!kana) return false;
+  const chunks = tokenizeKana(kana);
+  if (!chunks.length) return false;
+  return chunks[0].options.some((o) => o.toLowerCase().startsWith('n'));
+}
+
 const DEFAULT_COMBO_STEP = 20;
 const DEFAULT_COMBO_SECONDS = 2;
 const DEFAULT_COMBO_CAP_RATIO = 0.5;
@@ -156,14 +165,17 @@ class TimeAttackSession {
     this._advance();
   }
 
-  _pickItem() {
+  _pickItem(avoidNStart) {
     if (this.pool.length === 1) return this.pool[0];
     let idx;
     let attempts = 0;
     do {
       idx = Math.floor(Math.random() * this.pool.length);
       attempts++;
-    } while (this.recentIndices.includes(idx) && attempts < 200);
+    } while (
+      (this.recentIndices.includes(idx) || (avoidNStart && itemStartsWithN(this.pool[idx])))
+      && attempts < 200
+    );
     this.recentIndices.push(idx);
     if (this.recentIndices.length > this.avoidRepeatWindow) this.recentIndices.shift();
     return this.pool[idx];
@@ -172,7 +184,8 @@ class TimeAttackSession {
   _advance() {
     this.current = this.buildTarget(this.nextItem);
     this.currentIsRare = Math.random() < this.rareChance;
-    this.nextItem = this._pickItem();
+    const avoidNStart = !!(this.current.reading && this.current.reading.endsWith('ん'));
+    this.nextItem = this._pickItem(avoidNStart);
   }
 
   get nextDisplay() {

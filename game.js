@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.63',
+    items: [
+      'とある規則に則った出題文が発生した際に一部入力方法のプレイヤーを配慮すべく出題ロジックを変更しました。',
+    ],
+  },
+  {
     version: 'Beta0.62',
     items: [
       '特定条件における文字入力が正しく行えない問題を修正しました。',
