@@ -530,7 +530,7 @@ function updateFunnelUserProperties() {
     dungeon_play_long: save.dungeonPlayCounts.long,
     best_rank: save.bestRank,
     avg_rank: avgRank,
-    disciple_strengthen_count: save.disciple.strengthenCount,
+    disciple_strengthen_cnt: save.disciple.strengthenCount,
   });
 }
 
