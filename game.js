@@ -113,6 +113,13 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.62',
+    items: [
+      '特定条件における文字入力が正しく行えない問題を修正しました。',
+      '一部入力方法に未対応だったのを修正しました。',
+    ],
+  },
+  {
     version: 'Beta0.61',
     items: [
       '初回起動時にヘルプが起動するようにしました。また右上でいつでもヘルプを起動することが出来ます。',
@@ -688,6 +695,7 @@ let screen = 'home';
 let timerHandle = null;
 let levelAtSessionStart = 1;
 let sessionPtEarned = 0;
+let awaitingGraceNSwallow = false;
 let sessionMaouPrayerBonus = 0;
 let sessionPrayerSuperActive = false;
 let currentShopTab = 'sword';
@@ -3706,8 +3714,26 @@ function showRareBonusPopup(rareBonus, includeEmblemLine) {
 }
 
 function handleTypedChar(ch) {
+  if (awaitingGraceNSwallow) {
+    awaitingGraceNSwallow = false;
+    if (ch === 'n') {
+      const nextOptions = session.current && session.current.matcher.currentRemainingOptions();
+      const nextCouldBeN = nextOptions && nextOptions.some((o) => o.toLowerCase().startsWith('n'));
+      if (!nextCouldBeN) return;
+    }
+  }
+
   const target = session.current;
   const res = session.handleKey(ch);
+
+  if (
+    res.result === 'complete-all'
+    && target.reading
+    && target.reading.endsWith('ん')
+    && target.matcher.log[target.matcher.log.length - 1] === 'n'
+  ) {
+    awaitingGraceNSwallow = true;
+  }
 
   if (res.result === 'incorrect') {
     const expected = target.matcher.renderParts().currentRemainderPart[0];
