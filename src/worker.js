@@ -106,7 +106,6 @@ async function handleShareView(id, env, url) {
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="${imageUrl}">
-<meta http-equiv="refresh" content="3;url=https://endless-type-loop.online">
 <style>
   body { background:#0c0e17; color:#eef0ff; font-family:'M PLUS Rounded 1c', sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; margin:0; gap:20px; padding:20px; box-sizing:border-box; }
   img { max-width:90vw; max-height:70vh; border-radius:10px; border:1px solid #33375a; }
