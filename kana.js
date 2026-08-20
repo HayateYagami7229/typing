@@ -14,10 +14,10 @@ const TWO_CHAR_TABLE = {
   'びゃ': ['bya'], 'びゅ': ['byu'], 'びょ': ['byo'],
   'ぴゃ': ['pya'], 'ぴゅ': ['pyu'], 'ぴょ': ['pyo'],
   'ふぁ': ['fa', 'fuxa', 'fula'], 'ふぃ': ['fi', 'fuxi', 'fuli'], 'ふぇ': ['fe', 'fuxe', 'fule'], 'ふぉ': ['fo', 'fuxo', 'fulo'],
-  'てぃ': ['ti', 'texi', 'teli'], 'でぃ': ['di', 'dexi', 'deli'],
-  'とぅ': ['tu', 'toxu', 'tolu'], 'どぅ': ['du', 'doxu', 'dolu'],
+  'てぃ': ['thi', 'texi', 'teli'], 'でぃ': ['dhi', 'dexi', 'deli'],
+  'とぅ': ['twu', 'toxu', 'tolu'], 'どぅ': ['dwu', 'doxu', 'dolu'],
   'ちぇ': ['che', 'chixe', 'chile'], 'じぇ': ['je', 'jixe', 'jile'], 'しぇ': ['she', 'shixe', 'shile'],
-  'うぃ': ['wi', 'uxi', 'uli'], 'うぇ': ['we', 'uxe', 'ule'], 'うぉ': ['wo', 'who', 'uxo', 'ulo'],
+  'うぃ': ['wi', 'uxi', 'uli'], 'うぇ': ['we', 'uxe', 'ule'], 'うぉ': ['who', 'uxo', 'ulo'],
 };
 
 const KANA_TABLE = {
@@ -93,17 +93,7 @@ function tokenizeKana(raw) {
       continue;
     }
     if (t.type === 'chouon') {
-      const prev = merged[merged.length - 1];
-      const options = ['-'];
-      if (prev && prev.options) {
-        const vowels = new Set();
-        prev.options.forEach((o) => {
-          const last = o.slice(-1).toLowerCase();
-          if ('aiueo'.includes(last)) vowels.add(last);
-        });
-        vowels.forEach((v) => options.push(v));
-      }
-      merged.push({ kana: t.kana, options });
+      merged.push({ kana: t.kana, options: ['-'] });
       continue;
     }
     merged.push({ kana: t.kana, options: t.options });
