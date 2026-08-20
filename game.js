@@ -118,7 +118,7 @@ const CHANGELOG = [
       'Beta版を公開いたしました！<br>'
       + 'Beta版となりますのでトラブル・文字入力相違などが発生する場合が御座います。<br>'
       + 'トラブルがあった際にはX（旧Twitter）のメンションかDMまで御連絡いただけましたら幸いです。<br>'
-      + 'https://x.com/HayateYagami_X<br>'
+      + '<a href="https://x.com/HayateYagami_X" target="_blank" rel="noopener noreferrer">https://x.com/HayateYagami_X</a><br>'
       + '是非とも、終わりのないタイピングをお楽しみ下さい。',
     ],
   },
