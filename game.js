@@ -511,8 +511,31 @@ function checkFunnelBlocks() {
   });
 }
 
+function updateFunnelUserProperties() {
+  if (typeof gtag !== 'function') return;
+  const avgRank = save.completedRuns > 0
+    ? RANK_ORDER[Math.round(save.rankIndexSum / save.completedRuns)]
+    : null;
+  gtag('set', 'user_properties', {
+    max_level: save.maxLevelReached,
+    prestige_count: save.prestige,
+    max_win_streak: discipleMaxStreak(),
+    max_combo: save.bestCombo,
+    best_kpm: save.bestKpm,
+    total_correct_keystrokes: save.totalCorrect,
+    total_play_time_min: Math.round((save.totalTypingTimeMs || 0) / 60000),
+    dungeon_play_word: save.dungeonPlayCounts.word,
+    dungeon_play_sentence: save.dungeonPlayCounts.sentence,
+    dungeon_play_long: save.dungeonPlayCounts.long,
+    best_rank: save.bestRank,
+    avg_rank: avgRank,
+    disciple_strengthen_count: save.disciple.strengthenCount,
+  });
+}
+
 function persistSave() {
   checkFunnelBlocks();
+  updateFunnelUserProperties();
   localStorage.setItem(SAVE_KEY, encodeSaveData(save));
 }
 
