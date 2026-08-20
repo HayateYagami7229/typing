@@ -3598,6 +3598,7 @@ function startSession() {
 
   save.playCount++;
   save.dungeonPlayCounts[currentMode] = (save.dungeonPlayCounts[currentMode] || 0) + 1;
+  if (typeof gtag === 'function') gtag('event', 'dungeon_start', { dungeon_mode: currentMode, lang: currentLang });
   persistSave();
 
   setScreen('game');
