@@ -115,7 +115,8 @@ const CHANGELOG = [
   {
     version: 'Beta0.66',
     items: [
-      '右上にプロフィールカードをXでシェアできるボタン（📤）を追加しました。現在のレベル・転生回数・総タイプ数などをまとめた画像を生成し、Xの投稿画面に自動で本文を入力した状態で開けます。',
+      '右上にプロフィールカードをXでシェアできるボタン（📤）を追加しました。<br>'
+      + '現在のレベル・転生回数・総タイプ数などをまとめた画像を生成し、Xの投稿画面に自動で本文を入力した状態で開けます。',
     ],
   },
   {
@@ -4150,6 +4151,15 @@ function formatDurationHMS(ms) {
 const PROFILE_CARD_WIDTH = 1200;
 const PROFILE_CARD_HEIGHT = 675;
 
+function loadImageAsync(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 function getProfileStatsLines() {
   return [
     { icon: '⭐', label: 'レベル', value: `Lv.${save.level}（転生${save.prestige}回）` },
@@ -4182,9 +4192,20 @@ async function generateProfileCardBlob() {
 
   ctx.textBaseline = 'alphabetic';
 
-  ctx.fillStyle = '#7c8cff';
-  ctx.font = '700 46px "M PLUS Rounded 1c", sans-serif';
-  ctx.fillText('ENDLESS TYPE-LOOP', 60, 92);
+  const logoPath = save.maouDefeated ? 'logo/phase2m.png' : 'logo/phase1m.png';
+  const logoSrc = trimmedImageCache[logoPath] || logoPath;
+  let logoImg = null;
+  try { logoImg = await loadImageAsync(logoSrc); } catch (e) { logoImg = null; }
+
+  if (logoImg && logoImg.naturalWidth > 0) {
+    const logoHeight = 74;
+    const logoWidth = logoImg.naturalWidth * (logoHeight / logoImg.naturalHeight);
+    ctx.drawImage(logoImg, 60, 26, logoWidth, logoHeight);
+  } else {
+    ctx.fillStyle = '#7c8cff';
+    ctx.font = '700 46px "M PLUS Rounded 1c", sans-serif';
+    ctx.fillText('ENDLESS TYPE-LOOP', 60, 92);
+  }
 
   ctx.fillStyle = '#8a8fb8';
   ctx.font = '500 20px "M PLUS Rounded 1c", sans-serif';
@@ -4232,7 +4253,7 @@ async function generateProfileCardBlob() {
 let profileCardBlob = null;
 let profileCardObjectUrl = null;
 
-function buildProfileShareText() {
+function buildProfileShareText(shareUrl) {
   const stats = getProfileStatsLines();
   const statsText = [
     `プレイヤーネーム：${save.profile.name || 'Typer'}`,
@@ -4242,7 +4263,7 @@ function buildProfileShareText() {
     `総タイプ時間：${stats[3].value}`,
     `レアモンスター討伐数：${stats[4].value}`,
   ].join('\n');
-  return `無限に打てる蓄積型タイピングゲーム\n「ENDLESS TYPE-LOOP」\n\n${statsText}\n\n#ENDLESSTYPELOOP`;
+  return `無限に打てる蓄積型タイピングゲーム\n「ENDLESS TYPE-LOOP」\n\n${statsText}\n\n${shareUrl}\n#ENDLESSTYPELOOP`;
 }
 
 async function openProfileCardPopup() {
@@ -4287,7 +4308,7 @@ async function postProfileCardToX() {
     }
   }
 
-  const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildProfileShareText())}&url=${encodeURIComponent(shareUrl)}`;
+  const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(buildProfileShareText(shareUrl))}`;
   if (popupWin) popupWin.location.href = intentUrl;
   else window.open(intentUrl, '_blank', 'noopener');
 }
