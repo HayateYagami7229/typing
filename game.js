@@ -282,6 +282,9 @@ const MECHANICAL_EGG_BASE_RATE_UNITS = 1;
 const MECHANICAL_EGG_BATTERY_RATE_BOOST = 1;
 const MECHANICAL_EGG_BATTERY_UNLOCK_KEYS = 0.1;
 const MECHANICAL_EGG_RUNAWAY_RATE_UNITS = 10;
+const JUNKYARD_TICKET_DIG_COST = 2000000000;
+const JUNKYARD_PITY_REMAINING_THRESHOLD = 50;
+const JUNKYARD_TICKET_DROP_CHANCE = { word: 0.001, sentence: 0.03, long: 0.07 };
 
 const GOD_STATUE_BUFFS = [
   { id: 'exp_boost', name: '経験の祝福', desc: 'EXPが永続的に+20%' },
@@ -389,6 +392,12 @@ function defaultSave() {
     mechanicalEggHatched: false,
     mechanicalEggBatteryAnnounced: false,
     mechanicalEggRunawayTier: 0,
+    junkyardTickets: 0,
+    junkyardDeck: [],
+    junkyardDraws: 0,
+    junkyardJunkCount: 0,
+    junkyardPartsOwned: [],
+    junkyardBuffCounts: {},
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -876,9 +885,19 @@ const el = {
   maouGatePanel: document.getElementById('maouGatePanel'),
   maouGateText: document.getElementById('maouGateText'),
   mechanicalEggPanel: document.getElementById('mechanicalEggPanel'),
+  mechanicalEggPanelTitle: document.getElementById('mechanicalEggPanelTitle'),
   mechanicalEggText: document.getElementById('mechanicalEggText'),
   mechanicalEggBarFill: document.getElementById('mechanicalEggBarFill'),
   mechanicalEggRateText: document.getElementById('mechanicalEggRateText'),
+  junkyardPanel: document.getElementById('junkyardPanel'),
+  junkyardHeaderIcon: document.getElementById('junkyardHeaderIcon'),
+  junkyardTicketCount: document.getElementById('junkyardTicketCount'),
+  junkyardRemainingCount: document.getElementById('junkyardRemainingCount'),
+  junkyardPartsList: document.getElementById('junkyardPartsList'),
+  junkyardBuffList: document.getElementById('junkyardBuffList'),
+  junkyardJunkCountText: document.getElementById('junkyardJunkCountText'),
+  junkyardDigBtn: document.getElementById('junkyardDigBtn'),
+  junkyardBombBtn: document.getElementById('junkyardBombBtn'),
   openMaouBtn: document.getElementById('openMaouBtn'),
   maouCastleText: document.getElementById('maouCastleText'),
   maouSealCountText: document.getElementById('maouSealCountText'),
@@ -912,6 +931,7 @@ const el = {
   maouStoryText: document.getElementById('maouStoryText'),
   storyBgmAudio: document.getElementById('storyBgmAudio'),
   simpleRevealPopup: document.getElementById('simpleRevealPopup'),
+  simpleRevealImage: document.getElementById('simpleRevealImage'),
   simpleRevealTitle: document.getElementById('simpleRevealTitle'),
   simpleRevealDesc: document.getElementById('simpleRevealDesc'),
   simpleRevealCloseBtn: document.getElementById('simpleRevealCloseBtn'),
@@ -1028,6 +1048,7 @@ const el = {
   seVolumeValue: document.getElementById('seVolumeValue'),
   frameSettingSection: document.getElementById('frameSettingSection'),
   typingFrameSelect: document.getElementById('typingFrameSelect'),
+  junkyardAuraOption: document.getElementById('junkyardAuraOption'),
   phase2AnnouncePopup: document.getElementById('phase2AnnouncePopup'),
   phase2AnnounceBody: document.getElementById('phase2AnnounceBody'),
   phase2AnnounceCloseBtn: document.getElementById('phase2AnnounceCloseBtn'),
@@ -1048,6 +1069,7 @@ function setScreen(name) {
 
 function goHome() {
   setScreen('home');
+  checkMechanicalEggHatch();
   renderPlayerCard();
   renderDungeonBadges();
   renderAnnouncements();
@@ -1131,9 +1153,91 @@ function updateLogos() {
   loadAutoTrimmedImage(src, el.homeLogo);
 }
 
+const whiteKeyedImageCache = {};
+function loadWhiteKeyedImage(path, targetImgEl) {
+  if (whiteKeyedImageCache[path]) {
+    targetImgEl.src = whiteKeyedImageCache[path];
+    return;
+  }
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const { data } = imageData;
+    const whiteFloor = 200;
+    const whiteCeil = 245;
+    for (let i = 0; i < data.length; i += 4) {
+      const minChannel = Math.min(data[i], data[i + 1], data[i + 2]);
+      let alpha;
+      if (minChannel >= whiteCeil) alpha = 0;
+      else if (minChannel <= whiteFloor) alpha = 255;
+      else alpha = Math.round(255 * (1 - (minChannel - whiteFloor) / (whiteCeil - whiteFloor)));
+      data[i + 3] = Math.min(data[i + 3], alpha);
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    let minX = canvas.width;
+    let minY = canvas.height;
+    let maxX = -1;
+    let maxY = -1;
+    const coreThreshold = 30;
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        if (data[(y * canvas.width + x) * 4 + 3] > coreThreshold) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < minX || maxY < minY) {
+      const dataUrl = canvas.toDataURL('image/png');
+      whiteKeyedImageCache[path] = dataUrl;
+      targetImgEl.src = dataUrl;
+      return;
+    }
+    const pad = Math.round(Math.max(maxX - minX, maxY - minY) * 0.04);
+    const cropX = Math.max(0, minX - pad);
+    const cropY = Math.max(0, minY - pad);
+    const cropRight = Math.min(canvas.width, maxX + 1 + pad);
+    const cropBottom = Math.min(canvas.height, maxY + 1 + pad);
+    const trimCanvas = document.createElement('canvas');
+    trimCanvas.width = cropRight - cropX;
+    trimCanvas.height = cropBottom - cropY;
+    trimCanvas.getContext('2d').drawImage(
+      canvas,
+      cropX,
+      cropY,
+      trimCanvas.width,
+      trimCanvas.height,
+      0,
+      0,
+      trimCanvas.width,
+      trimCanvas.height,
+    );
+
+    const dataUrl = trimCanvas.toDataURL('image/png');
+    whiteKeyedImageCache[path] = dataUrl;
+    targetImgEl.src = dataUrl;
+  };
+  img.onerror = () => {
+    targetImgEl.src = path;
+  };
+  img.src = encodeURI(path);
+}
+
 function isMaouAuraFrameActive() {
   if (save.maouGateRevealed && !save.maouDefeated) return true;
   return save.maouDefeated && save.settings.typingFrame === 'maouAura';
+}
+
+function isJunkyardAuraFrameActive() {
+  return !!save.mechanicalEggHatched && !!save.maouDefeated;
 }
 
 function showPhase2Announcement() {
@@ -1432,6 +1536,7 @@ const ACHIEVEMENTS = [
   { id: 'disciple_params_1000', icon: '👑', label: '弟子のパラメーター合計が1000を達成（勇者化）', check: (s) => !!s.disciple.classUpped },
   { id: 'maou_gate_seen', icon: '🏰', label: '魔王城への道が見えてきた', check: (s) => !!s.maouGateRevealed },
   { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated, sss: true },
+  { id: 'mechanical_egg_hatched', icon: '🐦', iconImage: 'img/bird_icon.png', label: '機械仕掛けの卵をふ化させた', check: (s) => !!s.mechanicalEggHatched },
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
   { id: 'fairy_dust_500', icon: '🧚', label: '妖精の粉を500回購入した', hoverText: '不思議な粉', check: (s) => ((s.itemPurchaseCounts && s.itemPurchaseCounts.item_fairy_dust) || 0) >= 500 },
@@ -1473,7 +1578,15 @@ function renderAchievements() {
     if (a.sss) iconClass += ' achievement-icon-sss';
     span.className = iconClass;
     span.title = a.hoverText || a.label;
-    span.textContent = a.icon;
+    if (a.iconImage) {
+      const img = document.createElement('img');
+      img.className = 'achievement-icon-img';
+      img.alt = a.label;
+      loadWhiteKeyedImage(a.iconImage, img);
+      span.appendChild(img);
+    } else {
+      span.textContent = a.icon;
+    }
     el.achievementIcons.appendChild(span);
   });
 }
@@ -1508,6 +1621,7 @@ function renderPlayerCard() {
   renderGodStatue();
   renderMaouGate();
   renderMechanicalEgg();
+  renderJunkyard();
 }
 
 function godStatueSvg(stage) {
@@ -1670,15 +1784,7 @@ function mechanicalEggEffectiveRateUnits() {
   return mechanicalEggRateUnits() * mechanicalEggChargeMultiplier();
 }
 
-function renderMechanicalEgg() {
-  const visible = save.mechanicalEggOwned && !save.mechanicalEggHatched && save.maouDefeated;
-  el.mechanicalEggPanel.classList.toggle('hidden', !visible);
-  if (!visible) return;
-  const keys = Math.min(save.mechanicalEggChargeKeys || 0, MECHANICAL_EGG_CHARGE_TARGET);
-  const pct = (keys / MECHANICAL_EGG_CHARGE_TARGET) * 100;
-  el.mechanicalEggText.textContent = `充電 ${pct.toFixed(3)}%`;
-  el.mechanicalEggBarFill.style.width = `${pct}%`;
-
+function renderMechanicalEggRateLine() {
   const perKeyPct = (mechanicalEggEffectiveRateUnits() / 1000).toFixed(3);
   let rateLine = `充電効率：1キー入力につき${perKeyPct}％`;
 
@@ -1688,31 +1794,244 @@ function renderMechanicalEgg() {
   const runawayTier = save.mechanicalEggRunawayTier || 0;
   if (runawayTier > 0) rateLine += ` バッテリー暴走×${runawayTier}`;
 
-  el.mechanicalEggRateText.textContent = rateLine;
+  return rateLine;
+}
+
+function renderMechanicalEgg() {
+  const visible = !!save.mechanicalEggOwned && !!save.maouDefeated;
+  el.mechanicalEggPanel.classList.toggle('hidden', !visible);
+  if (!visible) return;
+  const keys = Math.min(save.mechanicalEggChargeKeys || 0, MECHANICAL_EGG_CHARGE_TARGET);
+  const pct = (keys / MECHANICAL_EGG_CHARGE_TARGET) * 100;
+  if (save.mechanicalEggHatched) {
+    el.mechanicalEggPanelTitle.textContent = '🔋 ジャンクヤードチケット排出器 充電状況';
+    el.mechanicalEggText.textContent = `充電 ${pct.toFixed(3)}%`;
+  } else {
+    el.mechanicalEggPanelTitle.textContent = '🥚 機械仕掛けの卵';
+    el.mechanicalEggText.textContent = `充電 ${pct.toFixed(3)}%`;
+  }
+  el.mechanicalEggBarFill.style.width = `${pct}%`;
+  el.mechanicalEggRateText.textContent = renderMechanicalEggRateLine();
+}
+
+function generateJunkyardDeck() {
+  const items = [];
+  JUNKYARD_BUFFS.forEach((b) => { for (let i = 0; i < b.count; i++) items.push(b.id); });
+  JUNKYARD_PARTS.forEach((p) => items.push(p.id));
+  for (let i = 0; i < JUNKYARD_JUNK_COUNT; i++) items.push('junk');
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
+function junkyardMissingParts() {
+  const owned = save.junkyardPartsOwned || [];
+  return JUNKYARD_PARTS.filter((p) => !owned.includes(p.id));
+}
+
+function junkyardBuffStacks(id) {
+  return (save.junkyardBuffCounts && save.junkyardBuffCounts[id]) || 0;
+}
+
+function junkyardExpBonusMultiplier() {
+  return 1 + junkyardBuffStacks('buff_exp') * 0.01;
+}
+
+function junkyardRareHeartBonusChance() {
+  return junkyardBuffStacks('buff_rare_heart') * 0.01;
+}
+
+function junkyardRareChanceBonus() {
+  return junkyardBuffStacks('buff_rare_chance') * 0.01;
+}
+
+function junkyardDiscipleRewardMultiplier() {
+  return 1 + junkyardBuffStacks('buff_disciple_reward') * 0.01;
+}
+
+function junkyardDrawOne() {
+  const deck = save.junkyardDeck || [];
+  const idx = save.junkyardDraws || 0;
+  if (idx >= deck.length) return null;
+  const remaining = deck.length - idx;
+  const missing = junkyardMissingParts();
+  if (missing.length === 1 && remaining >= JUNKYARD_PITY_REMAINING_THRESHOLD) {
+    const blockedId = missing[0].id;
+    if (deck[idx] === blockedId) {
+      let j = idx + 1;
+      while (j < deck.length && deck[j] === blockedId) j += 1;
+      if (j < deck.length) {
+        const tmp = deck[idx];
+        deck[idx] = deck[j];
+        deck[j] = tmp;
+      }
+    }
+  }
+  const result = deck[idx];
+  save.junkyardDraws = idx + 1;
+  return result;
+}
+
+function applyJunkyardResult(result) {
+  if (!result || result === 'junk') {
+    save.junkyardJunkCount = (save.junkyardJunkCount || 0) + 1;
+    return 'がらくたが手に入った……';
+  }
+  const part = JUNKYARD_PARTS.find((p) => p.id === result);
+  if (part) {
+    save.junkyardPartsOwned = save.junkyardPartsOwned || [];
+    const alreadyOwned = save.junkyardPartsOwned.includes(part.id);
+    if (!alreadyOwned) {
+      save.junkyardPartsOwned.push(part.id);
+      pushAnnouncement('⚙️', `ジャンクヤードから「${part.name}」を手に入れました`);
+      if (save.junkyardPartsOwned.length >= JUNKYARD_PARTS.length) {
+        pushAnnouncement('✨', 'スリスのパーツが全て揃いました');
+      }
+    }
+    return `「${part.name}」を手に入れた！`;
+  }
+  const buff = JUNKYARD_BUFFS.find((b) => b.id === result);
+  if (buff) {
+    save.junkyardBuffCounts = save.junkyardBuffCounts || {};
+    save.junkyardBuffCounts[buff.id] = (save.junkyardBuffCounts[buff.id] || 0) + 1;
+    const total = save.junkyardBuffCounts[buff.id];
+    return `${buff.label(1)}を手に入れた\n（がらくたの効果の合計で${buff.label(total)}）`;
+  }
+  return 'がらくたが手に入った……';
+}
+
+function digJunkyard() {
+  if (!save.maouDefeated || !save.mechanicalEggHatched) return;
+  const remaining = JUNKYARD_POOL_TOTAL - (save.junkyardDraws || 0);
+  if (remaining <= 0) return;
+  const useTicket = (save.junkyardTickets || 0) > 0;
+  if (useTicket) {
+    save.junkyardTickets -= 1;
+  } else {
+    if (save.pt < JUNKYARD_TICKET_DIG_COST) return;
+    save.pt -= JUNKYARD_TICKET_DIG_COST;
+    save.totalPtSpent += JUNKYARD_TICKET_DIG_COST;
+  }
+  const result = junkyardDrawOne();
+  const resultLabel = applyJunkyardResult(result);
+  persistSave();
+  refreshTotalPt();
+  renderAnnouncements();
+  renderJunkyard();
+  queueReveal('ジャンクヤード', resultLabel);
+}
+
+function craftJunkyardBomb() {
+  if ((save.junkyardJunkCount || 0) < 10) return;
+  save.junkyardJunkCount -= 10;
+  persistSave();
+  renderJunkyard();
+  queueReveal('がらくた爆弾', 'がらくた爆弾によってジャンクヤードからがらくたが10個消えた！');
+}
+
+function renderJunkyard() {
+  const visible = !!save.mechanicalEggHatched && !!save.maouDefeated;
+  el.junkyardPanel.classList.toggle('hidden', !visible);
+  if (!visible) return;
+
+  loadWhiteKeyedImage('img/bird_icon.png', el.junkyardHeaderIcon);
+
+  const tickets = save.junkyardTickets || 0;
+  el.junkyardTicketCount.textContent = `ジャンクヤードチケット枚数 ${tickets.toLocaleString()}枚`;
+
+  const remaining = Math.max(0, JUNKYARD_POOL_TOTAL - (save.junkyardDraws || 0));
+  el.junkyardRemainingCount.textContent = `残りがらくた数 ${remaining}/${JUNKYARD_POOL_TOTAL}`;
+
+  const owned = save.junkyardPartsOwned || [];
+  el.junkyardPartsList.textContent = JUNKYARD_PARTS.map((p) => (owned.includes(p.id) ? p.name : '？？？')).join(' / ');
+
+  const buffLines = JUNKYARD_BUFFS
+    .map((b) => ({ b, n: junkyardBuffStacks(b.id) }))
+    .filter(({ n }) => n > 0)
+    .map(({ b, n }) => `・${b.label(n)}`);
+  el.junkyardBuffList.innerHTML = buffLines.length > 0 ? buffLines.join('<br>') : 'なし';
+
+  el.junkyardJunkCountText.textContent = `がらくたの数：${(save.junkyardJunkCount || 0).toLocaleString()}個`;
+
+  const canAffordDig = tickets > 0 || save.pt >= JUNKYARD_TICKET_DIG_COST;
+  el.junkyardDigBtn.textContent = tickets > 0
+    ? 'ジャンクヤードチケットでがらくたを探す'
+    : `ジャンクヤードからがらくたを探す（${JUNKYARD_TICKET_DIG_COST.toLocaleString()}pt）`;
+  el.junkyardDigBtn.disabled = remaining <= 0 || !canAffordDig;
+
+  el.junkyardBombBtn.classList.toggle('hidden', (save.junkyardJunkCount || 0) < 10);
+}
+
+function checkMechanicalEggHatch() {
+  if (!save.maouDefeated || !save.mechanicalEggOwned || save.mechanicalEggHatched) return;
+  if ((save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_CHARGE_TARGET) return;
+  save.mechanicalEggHatched = true;
+  save.mechanicalEggChargeKeys = 0;
+  save.junkyardDeck = generateJunkyardDeck();
+  save.junkyardDraws = 0;
+  pushAnnouncement('🐦', '機械仕掛けの卵がふ化しました');
+  persistSave();
+  renderMechanicalEgg();
+  renderJunkyard();
+  renderAnnouncements();
+  renderDungeonBadges();
+  renderAchievements();
+  playMechanicalEggHatchSequence();
+}
+
+function playMechanicalEggHatchSequence() {
+  queueReveal('', 'おや、卵の様子が……！', null, false, 'img/ps2_1.png');
+  queueReveal('', '卵から機械仕掛けの鳥が現れた。', null, false, 'img/ps2_2.png');
+  queueReveal(
+    '？？？',
+    '「ふぃーやっと出れた。何百年も待たされた気分だよ……\n君が出してくれたんだね。ありがとう！」',
+    null,
+    false,
+    'img/ps2_2.png',
+  );
+  queueReveal(
+    'スリス',
+    '「僕の名前はスリス。よろしくね。\nそれにしても……。色々とパーツが落ちちゃってるみたいで\n真の力が発揮出来てないみたい」',
+    null,
+    false,
+    'img/ps2_2.png',
+  );
+  queueReveal(
+    'スリス',
+    '「良かったら、僕のパーツを探してくれないかな。\n魔王城跡はジャンクヤードになってるんだ。\nそこで探せばきっと見つかるはずだよ！」',
+    null,
+    false,
+    'img/ps2_2.png',
+  );
 }
 
 function addMechanicalEggProgress() {
-  if (!save.maouDefeated || !save.mechanicalEggOwned || save.mechanicalEggHatched) return;
+  if (!save.maouDefeated || !save.mechanicalEggOwned) return;
   const keys = mechanicalEggEffectiveRateUnits();
   save.mechanicalEggChargeKeys = Math.min(
     MECHANICAL_EGG_CHARGE_TARGET,
     (save.mechanicalEggChargeKeys || 0) + keys,
   );
 
-  if (!save.mechanicalEggBatteryAnnounced && save.mechanicalEggChargeKeys >= MECHANICAL_EGG_BATTERY_UNLOCK_KEYS) {
-    save.mechanicalEggBatteryAnnounced = true;
-    pushAnnouncement('📦', '更に新しい商品が入荷されたようです。');
+  if (!save.mechanicalEggHatched) {
+    if (!save.mechanicalEggBatteryAnnounced && save.mechanicalEggChargeKeys >= MECHANICAL_EGG_BATTERY_UNLOCK_KEYS) {
+      save.mechanicalEggBatteryAnnounced = true;
+      pushAnnouncement('📦', '更に新しい商品が入荷されたようです。');
+    }
+    return;
   }
 
   if (save.mechanicalEggChargeKeys >= MECHANICAL_EGG_CHARGE_TARGET) {
-    save.mechanicalEggHatched = true;
-    pushAnnouncement('🥚', '機械仕掛けの卵がふ化しました');
-    queueReveal('卵がふ化しました', '機械仕掛けの卵が、静かに動き出しました。\n……しかし、まだ何も起きていないようです。');
+    save.mechanicalEggChargeKeys = 0;
+    save.junkyardTickets = (save.junkyardTickets || 0) + 1;
+    pushAnnouncement('🎫', 'ジャンクヤードチケット排出器からチケットを1枚手に入れた');
   }
 }
 
 function boostMechanicalEggChargeRate() {
-  if (!save.maouDefeated || !save.mechanicalEggOwned || save.mechanicalEggHatched) return;
+  if (!save.maouDefeated || !save.mechanicalEggOwned) return;
   save.mechanicalEggChargeRateUnits = mechanicalEggRateUnits() + MECHANICAL_EGG_BATTERY_RATE_BOOST;
   const currentTier = save.mechanicalEggRunawayTier || 0;
   const newTier = Math.floor(save.mechanicalEggChargeRateUnits / MECHANICAL_EGG_RUNAWAY_RATE_UNITS);
@@ -2282,16 +2601,18 @@ function advanceMaouTurn() {
 
 let revealQueue = [];
 let revealQueueEmptyCallback = null;
-function queueReveal(title, desc, onEmptyCallback, noBackdropClose) {
-  revealQueue.push({ title, desc, noBackdropClose: !!onEmptyCallback || !!noBackdropClose });
+function queueReveal(title, desc, onEmptyCallback, noBackdropClose, image) {
+  revealQueue.push({ title, desc, image: image || null, noBackdropClose: !!onEmptyCallback || !!noBackdropClose });
   if (onEmptyCallback) revealQueueEmptyCallback = onEmptyCallback;
   if (revealQueue.length === 1) setTimeout(showNextReveal, 0);
 }
 function showNextReveal() {
   if (revealQueue.length === 0) return;
-  const { title, desc } = revealQueue[0];
+  const { title, desc, image } = revealQueue[0];
   el.simpleRevealTitle.textContent = title;
   el.simpleRevealDesc.textContent = desc;
+  el.simpleRevealImage.src = image ? encodeURI(image) : '';
+  el.simpleRevealImage.classList.toggle('hidden', !image);
   el.simpleRevealCloseBtn.textContent = revealQueue.length > 1 ? '次へ' : '閉じる';
   el.simpleRevealPopup.classList.remove('hidden');
 }
@@ -2578,7 +2899,7 @@ function gainHappyGrassStock(exp) {
 }
 
 function gainExp(amount, opts = {}) {
-  const boosted = Math.round(amount * godStatueExpMultiplier());
+  const boosted = Math.round(amount * godStatueExpMultiplier() * junkyardExpBonusMultiplier());
   if (opts.countsForHappyGrass !== false) gainHappyGrassStock(boosted);
   return addExp(save, boosted);
 }
@@ -2729,7 +3050,7 @@ function fightDiscipleOpponent(opp) {
     save.disciple.battleWins += 1;
     const streakBefore = save.disciple.streaks[opp.tierKey] || 0;
     const bonusSteps = Math.floor(streakBefore / DISCIPLE_STREAK_STEP);
-    earned = opp.reward + bonusSteps * opp.streakBonus;
+    earned = Math.round((opp.reward + bonusSteps * opp.streakBonus) * junkyardDiscipleRewardMultiplier());
     streakAfter = streakBefore + 1;
     save.disciple.streaks[opp.tierKey] = streakAfter;
     checkHeartVesselUnlock();
@@ -2766,7 +3087,7 @@ function batchFightStrongOpponents() {
     if (result.win) {
       wins += 1;
       const bonusSteps = Math.floor(streak / DISCIPLE_STREAK_STEP);
-      ptEarned += opp.reward + bonusSteps * opp.streakBonus;
+      ptEarned += Math.round((opp.reward + bonusSteps * opp.streakBonus) * junkyardDiscipleRewardMultiplier());
       streak += 1;
     } else {
       streak = 0;
@@ -2912,6 +3233,7 @@ el.openSettingsBtn.addEventListener('click', () => {
   el.seVolumeSlider.value = save.settings.seVolume;
   el.seVolumeValue.textContent = save.settings.seVolume;
   el.frameSettingSection.classList.toggle('hidden', !save.maouDefeated);
+  el.junkyardAuraOption.hidden = !save.maouDefeated || !save.mechanicalEggHatched;
   el.typingFrameSelect.value = save.settings.typingFrame;
   el.settingsPopup.classList.remove('hidden');
 });
@@ -2954,8 +3276,11 @@ el.typingFrameSelect.addEventListener('change', () => {
   save.settings.typingFrame = el.typingFrameSelect.value;
   persistSave();
   el.typingStage.classList.toggle('maou-aura', isMaouAuraFrameActive());
+  el.typingStage.classList.toggle('junkyard-aura', isJunkyardAuraFrameActive());
   renderDungeonBadges();
 });
+el.junkyardDigBtn.addEventListener('click', digJunkyard);
+el.junkyardBombBtn.addEventListener('click', craftJunkyardBomb);
 el.exportSaveBtn.addEventListener('click', downloadSaveFile);
 el.importSaveFileBtn.addEventListener('click', () => el.importSaveFile.click());
 el.importSaveFile.addEventListener('change', () => {
@@ -3073,10 +3398,14 @@ function renderDungeonBadges() {
     badge.textContent = rank ? `Best: ${rank}` : '';
   });
   const maouAuraStoryActive = save.maouGateRevealed && !save.maouDefeated;
+  const junkyardActive = !!save.mechanicalEggHatched && !!save.maouDefeated;
   el.dungeonGrid.classList.toggle('maou-aura', isMaouAuraFrameActive());
+  el.dungeonGrid.classList.toggle('junkyard-aura', isJunkyardAuraFrameActive());
   el.dungeonSelectHeading.textContent = maouAuraStoryActive
     ? 'ダンジョン選択（魔王が現れた事で魔王紋章ドロップ）'
-    : 'ダンジョン選択';
+    : junkyardActive
+      ? 'ダンジョン選択（ジャンクヤードチケット排出中 ※ダンジョンにより排出率は異なります）'
+      : 'ダンジョン選択';
 }
 
 function renderAnnouncements() {
@@ -3406,8 +3735,8 @@ function buyConsumableItem(itemId) {
   }
 
   if (item.effect === 'mechanical_egg_charge') {
-    if (!save.maouDefeated || !save.mechanicalEggOwned || save.mechanicalEggHatched) return;
-    if ((save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS) return;
+    if (!save.maouDefeated || !save.mechanicalEggOwned) return;
+    if (!save.mechanicalEggHatched && (save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS) return;
     if (save.pt < item.price) return;
     save.pt -= item.price;
     save.totalPtSpent += item.price;
@@ -3417,6 +3746,7 @@ function buyConsumableItem(itemId) {
     refreshTotalPt();
     renderShopList();
     renderMechanicalEgg();
+    renderJunkyard();
     return;
   }
 
@@ -3534,8 +3864,7 @@ function renderItemShop() {
     if (item.requiresMaouDefeated && !save.maouDefeated) return;
     if (item.effect === 'mechanical_egg_charge' && (
       !save.mechanicalEggOwned
-      || save.mechanicalEggHatched
-      || (save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS
+      || (!save.mechanicalEggHatched && (save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS)
     )) return;
 
     const owned = oneTimeOwned ? 1 : (item.stackable ? (save.inventory.consumables[item.id] || 0) : 0);
@@ -3729,6 +4058,7 @@ function renderTitleShop() {
 function startSession() {
   el.typingStage.classList.toggle('long-mode', currentMode === 'long');
   el.typingStage.classList.toggle('maou-aura', isMaouAuraFrameActive());
+  el.typingStage.classList.toggle('junkyard-aura', isJunkyardAuraFrameActive());
   renderEternalCombo();
   const dungeon = DUNGEONS[currentMode];
   const pool = dungeon.bank[currentLang];
@@ -3741,6 +4071,7 @@ function startSession() {
   let rareChanceBonus = ring ? ring.rareChanceBonus : 0;
   rareChanceBonus += Math.min(GOD_STATUE_RARE_BONUS_CAP, 0.01 * (save.godStatueBuffs.rareBonusStacks || 0));
   rareChanceBonus += Math.min(PRESTIGE_RARE_BONUS_CAP, PRESTIGE_RARE_BONUS_PER * save.prestige);
+  rareChanceBonus += junkyardRareChanceBonus();
   const fairyDustCount = save.inventory.consumables.item_fairy_dust || 0;
   let fairyDustActive = false;
   if (fairyDustCount > 0) {
@@ -4059,9 +4390,10 @@ function handleTypedChar(ch) {
       save.ricoShards = (save.ricoShards || 0) + shardGain;
       save.ricoShardsEarned = (save.ricoShardsEarned || 0) + shardGain;
     }
-    if (save.mechanicalEggOwned && !save.mechanicalEggHatched && save.maouDefeated) {
+    if (save.mechanicalEggOwned && save.maouDefeated) {
       addMechanicalEggProgress();
       renderMechanicalEgg();
+      renderJunkyard();
     }
     refreshTotalPt();
 
@@ -4107,7 +4439,7 @@ function handleTypedChar(ch) {
         const levelsGainedFromRare = gainExp(res.rareBonus.exp, { countsForHappyGrass: false });
         renderGameExpBar();
         if (levelsGainedFromRare.length > 0) showLevelUpPopup(save.level);
-        if (Math.random() < prestigeRareHeartBonusChance(save)) {
+        if (Math.random() < prestigeRareHeartBonusChance(save) + junkyardRareHeartBonusChance()) {
           res.rareBonus.heart += 1;
         }
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
@@ -4118,6 +4450,15 @@ function handleTypedChar(ch) {
       } else if (emblemDropped) {
         showMaouEmblemPopup();
         SFX.rare();
+      }
+      if (save.maouDefeated && save.mechanicalEggHatched) {
+        const ticketChance = JUNKYARD_TICKET_DROP_CHANCE[currentMode] || 0;
+        if (Math.random() < ticketChance) {
+          save.junkyardTickets = (save.junkyardTickets || 0) + 1;
+          pushAnnouncement('🎫', 'ジャンクヤードからチケットを手に入れました');
+          renderAnnouncements();
+          renderJunkyard();
+        }
       }
       persistSave();
       if (!session.isTimeUp) renderTarget();

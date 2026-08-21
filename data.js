@@ -617,6 +617,23 @@ const ITEM_CATALOG = [
   { id: 'item_compressed_battery', name: '圧縮バッテリー', price: 100000000, effect: 'mechanical_egg_charge', stackable: false, requiresMaouDefeated: true },
 ];
 
+const JUNKYARD_PARTS = [
+  { id: 'part_void_eye', name: '虚空の単眼' },
+  { id: 'part_dawn_seraphim', name: '暁光のセラフィム' },
+  { id: 'part_judgment_claw', name: '断罪の魔爪' },
+  { id: 'part_obsidian_tailfeather', name: '黒曜石の尾羽' },
+];
+
+const JUNKYARD_BUFFS = [
+  { id: 'buff_exp', count: 100, label: (n) => `EXPボーナス+${n}%` },
+  { id: 'buff_rare_heart', count: 30, label: (n) => `レアエネミー撃破時 ハート追加率+${n}%` },
+  { id: 'buff_rare_chance', count: 10, label: (n) => `レアエネミー出現率+${n}%` },
+  { id: 'buff_disciple_reward', count: 100, label: (n) => `弟子の獲得賞金+${n}%` },
+];
+
+const JUNKYARD_JUNK_COUNT = 256;
+const JUNKYARD_POOL_TOTAL = JUNKYARD_BUFFS.reduce((sum, b) => sum + b.count, 0) + JUNKYARD_PARTS.length + JUNKYARD_JUNK_COUNT;
+
 const ICON_CATALOG = {
   free: ['🗡️', '⚔️', '🏹', '🔥', '❄️', '⭐', '👑', '🐉', '🦊', '🐱', '🧙', '🛡️'],
   shop: [

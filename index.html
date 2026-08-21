@@ -139,6 +139,45 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
         <button id="discipleBatchBattleBtn" class="disciple-battle-btn batch-battle-btn hidden">⚡ 一括対戦</button>
       </div>
 
+      <div class="god-statue-panel junkyard-panel hidden" id="junkyardPanel">
+        <div class="god-statue-header">
+          <h2><img id="junkyardHeaderIcon" class="junkyard-header-icon" alt="スリス">ジャンクヤード</h2>
+        </div>
+        <div class="player-card-row sub">
+          <span id="junkyardTicketCount">ジャンクヤードチケット枚数 0枚</span>
+        </div>
+        <div class="player-card-row sub">
+          <span id="junkyardRemainingCount">残りがらくた数 500/500</span>
+        </div>
+        <div class="player-card-row sub">
+          <span>揃ったパーツ：</span><span id="junkyardPartsList">？？？ / ？？？ / ？？？ / ？？？</span>
+        </div>
+        <div class="player-card-row sub">
+          <span>発動しているがらくたの効果</span>
+        </div>
+        <div class="player-card-row sub junkyard-buff-list" id="junkyardBuffList">なし</div>
+        <div class="player-card-row sub">
+          <span id="junkyardJunkCountText">がらくたの数：0個</span>
+        </div>
+        <button id="junkyardDigBtn" class="god-statue-btn">ジャンクヤードからがらくたを探す（2,000,000,000pt）</button>
+        <button id="junkyardBombBtn" class="god-statue-btn hidden">💣 がらくた爆弾を作る（がらくたを10個消費）</button>
+      </div>
+
+      <div class="god-statue-panel mechanical-egg-panel hidden" id="mechanicalEggPanel">
+        <div class="god-statue-header">
+          <h2 id="mechanicalEggPanelTitle">🥚 機械仕掛けの卵</h2>
+        </div>
+        <div class="player-card-row sub">
+          <span id="mechanicalEggText">充電 0.000%</span>
+        </div>
+        <div class="exp-bar mechanical-egg-bar">
+          <div id="mechanicalEggBarFill" class="exp-bar-fill"></div>
+        </div>
+        <div class="player-card-row sub">
+          <span id="mechanicalEggRateText">充電効率：1キー入力につき0.001％</span>
+        </div>
+      </div>
+
       <div class="god-statue-panel" id="godStatuePanel">
         <div class="god-statue-header">
           <h2>女神像の復興</h2>
@@ -184,21 +223,6 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
         </div>
         <button id="openMaouBtn" class="god-statue-btn">🏰 魔王城へ向かう</button>
         <button id="maouCraftSealBtn" class="god-statue-btn maou-craft-seal-btn hidden">🔒 封紋章を作る（魔王の紋章100個消費）</button>
-      </div>
-
-      <div class="god-statue-panel mechanical-egg-panel hidden" id="mechanicalEggPanel">
-        <div class="god-statue-header">
-          <h2>🥚 機械仕掛けの卵</h2>
-        </div>
-        <div class="player-card-row sub">
-          <span id="mechanicalEggText">充電 0.000%</span>
-        </div>
-        <div class="exp-bar mechanical-egg-bar">
-          <div id="mechanicalEggBarFill" class="exp-bar-fill"></div>
-        </div>
-        <div class="player-card-row sub">
-          <span id="mechanicalEggRateText">充電効率：1キー入力につき0.001％</span>
-        </div>
       </div>
     </div>
   </section>
@@ -463,6 +487,7 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
 
 <div id="simpleRevealPopup" class="disciple-popup hidden">
   <div class="disciple-popup-inner rico-complete-inner">
+    <img id="simpleRevealImage" class="simple-reveal-image hidden" alt="">
     <h2 id="simpleRevealTitle"></h2>
     <p class="rico-complete-desc" id="simpleRevealDesc"></p>
     <button id="simpleRevealCloseBtn" class="choice-btn">閉じる</button>
@@ -524,6 +549,7 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
       <select id="typingFrameSelect" class="settings-select">
         <option value="none">なし</option>
         <option value="maouAura">魔王オーラ（紫）</option>
+        <option value="junkyardAura" id="junkyardAuraOption" hidden>ジャンクヤード（灰）</option>
       </select>
     </div>
 
@@ -568,7 +594,7 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
   </div>
 </div>
 
-<div id="appVersion" class="app-version">Beta0.67b</div>
+<div id="appVersion" class="app-version">Beta0.67c</div>
 
 <script src="data.js"></script>
 <script src="kana.js"></script>
