@@ -4471,8 +4471,9 @@ function handleTypedChar(ch) {
       if (save.maouDefeated && save.mechanicalEggHatched) {
         const ticketChance = JUNKYARD_TICKET_DROP_CHANCE[currentMode] || 0;
         if (Math.random() < ticketChance) {
-          save.junkyardTickets = (save.junkyardTickets || 0) + 1;
-          pushAnnouncement('🎫', 'ジャンクヤードからチケットを手に入れました');
+          const ticketsFound = 1;
+          save.junkyardTickets = (save.junkyardTickets || 0) + ticketsFound;
+          pushAnnouncement('🎫', `ダンジョン探索中にジャンクヤードチケットを${ticketsFound}枚見つけました！`);
           renderAnnouncements();
           renderJunkyard();
         }
