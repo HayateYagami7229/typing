@@ -9,12 +9,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-7W2B8HZERF"></script>
 <script>
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-7W2B8HZERF');
+if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  const gtagScript = document.createElement('script');
+  gtagScript.async = true;
+  gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-7W2B8HZERF';
+  document.head.appendChild(gtagScript);
+  gtag('js', new Date());
+  gtag('config', 'G-7W2B8HZERF');
+} else {
+  console.info('[GA4] localhost detected — analytics disabled for local testing');
+}
 </script>
 </head>
 <body>
@@ -177,6 +184,21 @@ gtag('config', 'G-7W2B8HZERF');
         </div>
         <button id="openMaouBtn" class="god-statue-btn">🏰 魔王城へ向かう</button>
         <button id="maouCraftSealBtn" class="god-statue-btn maou-craft-seal-btn hidden">🔒 封紋章を作る（魔王の紋章100個消費）</button>
+      </div>
+
+      <div class="god-statue-panel mechanical-egg-panel hidden" id="mechanicalEggPanel">
+        <div class="god-statue-header">
+          <h2>🥚 機械仕掛けの卵</h2>
+        </div>
+        <div class="player-card-row sub">
+          <span id="mechanicalEggText">充電 0.000%</span>
+        </div>
+        <div class="exp-bar mechanical-egg-bar">
+          <div id="mechanicalEggBarFill" class="exp-bar-fill"></div>
+        </div>
+        <div class="player-card-row sub">
+          <span id="mechanicalEggRateText">充電効率：1キー入力につき0.001％</span>
+        </div>
       </div>
     </div>
   </section>
@@ -526,11 +548,27 @@ gtag('config', 'G-7W2B8HZERF');
       </div>
     </div>
 
+    <div class="save-data-section settings-section">
+      <h3>⚠️ セーブデータの初期化</h3>
+      <button id="resetSaveBtn" class="choice-btn danger-btn">セーブデータを初期化する</button>
+    </div>
+
     <button id="settingsCloseBtn" class="choice-btn">閉じる</button>
   </div>
 </div>
 
-<div id="appVersion" class="app-version">Beta0.66</div>
+<div id="resetSaveConfirmPopup" class="disciple-popup hidden">
+  <div class="disciple-popup-inner">
+    <h2>⚠️ セーブデータの初期化</h2>
+    <p class="subtitle">本当にセーブデータを初期化しますがよろしいですか？<br>バックアップが必要な場合は先にエクスポートをお試し下さい</p>
+    <div class="profile-card-actions">
+      <button id="resetSaveConfirmBtn" class="choice-btn danger-btn">初期化</button>
+      <button id="resetSaveCancelBtn" class="choice-btn">戻る</button>
+    </div>
+  </div>
+</div>
+
+<div id="appVersion" class="app-version">Beta0.67</div>
 
 <script src="data.js"></script>
 <script src="kana.js"></script>

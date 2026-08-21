@@ -113,6 +113,18 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.67',
+    items: [
+      '一部、メインシナリオの進捗を貫通してアイテムが表示されてしまっていたため、修正しました。',
+      '設定ボタンから初期化機能を追加しました。',
+      '超越したスキル所持者のために称号を追加しました。<br>'
+      + '（条件を満たしていた場合、再読み込みで自動的に取得されます）',
+      '一部の高ランク称号がオーラを纏うようになりました。',
+      '称号の順番を一部並び変えました。',
+      'メインシナリオを拡張しました。',
+    ],
+  },
+  {
     version: 'Beta0.66',
     items: [
       '右上にプロフィールカードをXでシェアできるボタン（📤）を追加しました。<br>'
@@ -265,6 +277,11 @@ const MAOU_EMBLEM_BASE_CHANCE = 0.001;
 const MAOU_EMBLEM_REQUIRED = 100;
 const MAOU_EMBLEM_WORD_CHANCE = { sentence: 0.1, long: 0.4 };
 const DISCIPLE_CLASS_UP_THRESHOLD = 1000;
+const MECHANICAL_EGG_CHARGE_TARGET = 100000;
+const MECHANICAL_EGG_BASE_RATE_UNITS = 1;
+const MECHANICAL_EGG_BATTERY_RATE_BOOST = 1;
+const MECHANICAL_EGG_BATTERY_UNLOCK_KEYS = 0.1;
+const MECHANICAL_EGG_RUNAWAY_RATE_UNITS = 10;
 
 const GOD_STATUE_BUFFS = [
   { id: 'exp_boost', name: '経験の祝福', desc: 'EXPが永続的に+20%' },
@@ -367,6 +384,11 @@ function defaultSave() {
     secretKeyboardClicks: 0,
     eternalComboUnlocked: false,
     mechanicalEggOwned: false,
+    mechanicalEggChargeKeys: 0,
+    mechanicalEggChargeRateUnits: 1,
+    mechanicalEggHatched: false,
+    mechanicalEggBatteryAnnounced: false,
+    mechanicalEggRunawayTier: 0,
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -853,6 +875,10 @@ const el = {
   godGardenHintBtn: document.getElementById('godGardenHintBtn'),
   maouGatePanel: document.getElementById('maouGatePanel'),
   maouGateText: document.getElementById('maouGateText'),
+  mechanicalEggPanel: document.getElementById('mechanicalEggPanel'),
+  mechanicalEggText: document.getElementById('mechanicalEggText'),
+  mechanicalEggBarFill: document.getElementById('mechanicalEggBarFill'),
+  mechanicalEggRateText: document.getElementById('mechanicalEggRateText'),
   openMaouBtn: document.getElementById('openMaouBtn'),
   maouCastleText: document.getElementById('maouCastleText'),
   maouSealCountText: document.getElementById('maouSealCountText'),
@@ -992,6 +1018,10 @@ const el = {
   openSettingsBtn: document.getElementById('openSettingsBtn'),
   settingsPopup: document.getElementById('settingsPopup'),
   settingsCloseBtn: document.getElementById('settingsCloseBtn'),
+  resetSaveBtn: document.getElementById('resetSaveBtn'),
+  resetSaveConfirmPopup: document.getElementById('resetSaveConfirmPopup'),
+  resetSaveConfirmBtn: document.getElementById('resetSaveConfirmBtn'),
+  resetSaveCancelBtn: document.getElementById('resetSaveCancelBtn'),
   bgmVolumeSlider: document.getElementById('bgmVolumeSlider'),
   bgmVolumeValue: document.getElementById('bgmVolumeValue'),
   seVolumeSlider: document.getElementById('seVolumeSlider'),
@@ -1381,9 +1411,19 @@ const ACHIEVEMENTS = [
   { id: 'prestige_super_awaken', icon: '🌌', label: '転生30回達成（超覚醒）', check: (s) => (s.prestigeAwakenedTiers || []).includes(30) },
   { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
   { id: 'disciple_streak_10000', icon: '🔥', label: '弟子が10000連勝を達成', check: (s) => discipleMaxStreakOf(s) >= 10000 },
+  {
+    id: 'rank_sss_any',
+    icon: '🌠',
+    label: 'いずれかのダンジョンでSSSを達成',
+    check: (s) => ['jp:word', 'jp:sentence', 'jp:long'].some((k) => rankAtLeast(s.bestRankByKey[k], 'SSS')),
+    sss: true,
+  },
   { id: 'rank_ss_word', icon: '🗡️', label: '単語の間でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:word'], 'SS') },
+  { id: 'rank_sss_word', icon: '🗡️', label: '単語の間でSSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:word'], 'SSS'), sss: true },
   { id: 'rank_ss_sentence', icon: '⚔️', label: '文章の回廊でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:sentence'], 'SS') },
+  { id: 'rank_sss_sentence', icon: '⚔️', label: '文章の回廊でSSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:sentence'], 'SSS'), sss: true },
   { id: 'rank_ss_long', icon: '🗼', label: '長文の塔でSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:long'], 'SS') },
+  { id: 'rank_sss_long', icon: '🗼', label: '長文の塔でSSSを達成', check: (s) => rankAtLeast(s.bestRankByKey['jp:long'], 'SSS'), sss: true },
   { id: 'shop_complete', icon: '🏆', label: 'ショップの装備・称号・アイコンをコンプ', check: (s) => !!s.ricoUnlocked },
   { id: 'rico_all_owned', icon: '🕶️', label: 'リコ装備を全て購入', check: isRicoFullyOwned, red: true },
   { id: 'god_statue_once', icon: '🛠️', label: '女神像を復興した', check: (s) => (s.godStatue.sent || 0) >= 1 },
@@ -1391,10 +1431,9 @@ const ACHIEVEMENTS = [
   { id: 'disciple_params_500', icon: '💪', label: '弟子のパラメーター合計が500を達成', check: (s) => discipleTotalParamsOf(s) >= 500 },
   { id: 'disciple_params_1000', icon: '👑', label: '弟子のパラメーター合計が1000を達成（勇者化）', check: (s) => !!s.disciple.classUpped },
   { id: 'maou_gate_seen', icon: '🏰', label: '魔王城への道が見えてきた', check: (s) => !!s.maouGateRevealed },
-  { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated },
+  { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated, sss: true },
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
-  { id: 'secret_keyboard_100', icon: '😝', label: 'くだらないギミックのクリックを頑張ったで賞', hoverText: 'いいからタイピングしなよ', check: (s) => (s.secretKeyboardClicks || 0) >= 100 },
   { id: 'fairy_dust_500', icon: '🧚', label: '妖精の粉を500回購入した', hoverText: '不思議な粉', check: (s) => ((s.itemPurchaseCounts && s.itemPurchaseCounts.item_fairy_dust) || 0) >= 500 },
   { id: 'happy_grass_500', icon: '🌿', label: 'しあわせ草を500回購入した', hoverText: '草中毒', check: (s) => ((s.itemPurchaseCounts && s.itemPurchaseCounts.item_happy_grass) || 0) >= 500 },
   { id: 'eternal_combo_100', icon: '🔵', label: '永続コンボ100達成（輪廻の始まり）', check: (s) => (s.eternalComboMax || 0) >= 100 },
@@ -1412,6 +1451,7 @@ const ACHIEVEMENTS = [
   { id: 'typing_time_100h', icon: '🕰️', label: '総タイピング時間100時間達成', check: (s) => (s.totalTypingTimeMs || 0) >= 360000000 },
   { id: 'empty_prayer_100', icon: '👀', label: '見てるからもう祈らないでください', check: (s) => (s.emptyPrayerClicks || 0) >= 100 },
   { id: 'help_100', icon: '😰', label: '疑心暗鬼', check: (s) => (s.helpManualOpens || 0) >= 100 },
+  { id: 'secret_keyboard_100', icon: '😝', label: 'くだらないギミックのクリックを頑張ったで賞', hoverText: 'いいからタイピングしなよ', check: (s) => (s.secretKeyboardClicks || 0) >= 100 },
 ];
 
 function discipleMaxStreakOf(s) {
@@ -1428,7 +1468,10 @@ function renderAchievements() {
   ACHIEVEMENTS.forEach((a) => {
     if (!a.check(save)) return;
     const span = document.createElement('span');
-    span.className = a.red ? 'achievement-icon achievement-icon-red' : 'achievement-icon';
+    let iconClass = 'achievement-icon';
+    if (a.red) iconClass += ' achievement-icon-red';
+    if (a.sss) iconClass += ' achievement-icon-sss';
+    span.className = iconClass;
     span.title = a.hoverText || a.label;
     span.textContent = a.icon;
     el.achievementIcons.appendChild(span);
@@ -1462,6 +1505,7 @@ function renderPlayerCard() {
   renderEquipmentSummary();
   renderGodStatue();
   renderMaouGate();
+  renderMechanicalEgg();
 }
 
 function godStatueSvg(stage) {
@@ -1609,6 +1653,70 @@ function renderMaouGate() {
   if (save.maouSealUnlocked) {
     el.maouSealCountText.textContent = `｜🔒封紋章 ${(save.maouSealCount || 0).toLocaleString()}個`;
     el.maouCraftSealBtn.disabled = save.maouEmblems < MAOU_SEAL_CRAFT_COST;
+  }
+}
+
+function mechanicalEggChargeMultiplier() {
+  return 2 ** (save.mechanicalEggRunawayTier || 0);
+}
+
+function mechanicalEggRateUnits() {
+  return save.mechanicalEggChargeRateUnits || MECHANICAL_EGG_BASE_RATE_UNITS;
+}
+
+function mechanicalEggEffectiveRateUnits() {
+  return mechanicalEggRateUnits() * mechanicalEggChargeMultiplier();
+}
+
+function renderMechanicalEgg() {
+  const visible = save.mechanicalEggOwned && !save.mechanicalEggHatched && save.maouDefeated;
+  el.mechanicalEggPanel.classList.toggle('hidden', !visible);
+  if (!visible) return;
+  const keys = Math.min(save.mechanicalEggChargeKeys || 0, MECHANICAL_EGG_CHARGE_TARGET);
+  const pct = (keys / MECHANICAL_EGG_CHARGE_TARGET) * 100;
+  el.mechanicalEggText.textContent = `充電 ${pct.toFixed(3)}%`;
+  el.mechanicalEggBarFill.style.width = `${pct}%`;
+
+  const perKeyPct = (mechanicalEggEffectiveRateUnits() / 1000).toFixed(3);
+  let rateLine = `充電効率：1キー入力につき${perKeyPct}％`;
+
+  const batteryCount = mechanicalEggRateUnits() - MECHANICAL_EGG_BASE_RATE_UNITS;
+  if (batteryCount > 0) rateLine += ` 圧縮バッテリー所持：${batteryCount.toLocaleString()}個`;
+
+  const runawayTier = save.mechanicalEggRunawayTier || 0;
+  if (runawayTier > 0) rateLine += ` バッテリー暴走×${runawayTier}`;
+
+  el.mechanicalEggRateText.textContent = rateLine;
+}
+
+function addMechanicalEggProgress() {
+  if (!save.maouDefeated || !save.mechanicalEggOwned || save.mechanicalEggHatched) return;
+  const keys = mechanicalEggEffectiveRateUnits();
+  save.mechanicalEggChargeKeys = Math.min(
+    MECHANICAL_EGG_CHARGE_TARGET,
+    (save.mechanicalEggChargeKeys || 0) + keys,
+  );
+
+  if (!save.mechanicalEggBatteryAnnounced && save.mechanicalEggChargeKeys >= MECHANICAL_EGG_BATTERY_UNLOCK_KEYS) {
+    save.mechanicalEggBatteryAnnounced = true;
+    pushAnnouncement('📦', '更に新しい商品が入荷されたようです。');
+  }
+
+  if (save.mechanicalEggChargeKeys >= MECHANICAL_EGG_CHARGE_TARGET) {
+    save.mechanicalEggHatched = true;
+    pushAnnouncement('🥚', '機械仕掛けの卵がふ化しました');
+    queueReveal('卵がふ化しました', '機械仕掛けの卵が、静かに動き出しました。\n……しかし、まだ何も起きていないようです。');
+  }
+}
+
+function boostMechanicalEggChargeRate() {
+  if (!save.maouDefeated || !save.mechanicalEggOwned || save.mechanicalEggHatched) return;
+  save.mechanicalEggChargeRateUnits = mechanicalEggRateUnits() + MECHANICAL_EGG_BATTERY_RATE_BOOST;
+  const currentTier = save.mechanicalEggRunawayTier || 0;
+  const newTier = Math.floor(save.mechanicalEggChargeRateUnits / MECHANICAL_EGG_RUNAWAY_RATE_UNITS);
+  if (newTier > currentTier) {
+    save.mechanicalEggRunawayTier = newTier;
+    queueReveal('圧縮バッテリー', '圧縮バッテリーが暴走！\n充電効率が2倍に！');
   }
 }
 
@@ -2806,6 +2914,17 @@ el.openSettingsBtn.addEventListener('click', () => {
   el.settingsPopup.classList.remove('hidden');
 });
 el.settingsCloseBtn.addEventListener('click', () => el.settingsPopup.classList.add('hidden'));
+
+el.resetSaveBtn.addEventListener('click', () => {
+  el.resetSaveConfirmPopup.classList.remove('hidden');
+});
+el.resetSaveCancelBtn.addEventListener('click', () => {
+  el.resetSaveConfirmPopup.classList.add('hidden');
+});
+el.resetSaveConfirmBtn.addEventListener('click', () => {
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+});
 el.phase2AnnounceCloseBtn.addEventListener('click', () => {
   el.phase2AnnouncePopup.classList.add('hidden');
   el.topbar.classList.remove('hidden');
@@ -3266,6 +3385,7 @@ function buyConsumableItem(itemId) {
   }
 
   if (item.effect === 'easter_egg_dev_contact') {
+    if (!save.maouDefeated) return;
     if (save.mechanicalEggOwned) return;
     if (save.pt < item.price) return;
     save.pt -= item.price;
@@ -3275,6 +3395,23 @@ function buyConsumableItem(itemId) {
     persistSave();
     refreshTotalPt();
     renderShopList();
+    renderPlayerCard();
+    queueReveal('道具屋の店主', '仕入れたのは良いんだけど、全く動きやしない。\nまさか不良品だっったのかなぁ。\n何はともあれ毎度ありー');
+    return;
+  }
+
+  if (item.effect === 'mechanical_egg_charge') {
+    if (!save.maouDefeated || !save.mechanicalEggOwned || save.mechanicalEggHatched) return;
+    if ((save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS) return;
+    if (save.pt < item.price) return;
+    save.pt -= item.price;
+    save.totalPtSpent += item.price;
+    boostMechanicalEggChargeRate();
+    SFX.correct();
+    persistSave();
+    refreshTotalPt();
+    renderShopList();
+    renderMechanicalEgg();
     return;
   }
 
@@ -3372,7 +3509,8 @@ function itemEffectLabel(item) {
   if (item.effect === 'rare_chance_next_game') return `次のゲームでレア出現率+${Math.round(item.value * 100)}%`;
   if (item.effect === 'heart_cap_up') return `弟子のハート上限が${item.value}になる（永続）`;
   if (item.effect === 'unlock_eternal_combo') return '永続コンボシステムを開放する';
-  if (item.effect === 'easter_egg_dev_contact') return 'この画面を開けた方は開発者へご連絡下さい';
+  if (item.effect === 'easter_egg_dev_contact') return '？？？？？？？？？？？';
+  if (item.effect === 'mechanical_egg_charge') return '機械仕掛けの卵の充電効率+0.001%（複数購入可）';
   return '';
 }
 
@@ -3382,11 +3520,18 @@ function renderItemShop() {
     const isHeartVessel = item.effect === 'heart_cap_up';
     const isEternalCombo = item.effect === 'unlock_eternal_combo';
     const isMechanicalEgg = item.effect === 'easter_egg_dev_contact';
+    const isCompressedBattery = item.effect === 'mechanical_egg_charge';
     const oneTimeOwned = (isHeartVessel && save.disciple.heartVesselOwned)
       || (isEternalCombo && save.eternalComboUnlocked)
       || (isMechanicalEgg && save.mechanicalEggOwned);
     if (item.requiresDiscipleStreak && !oneTimeOwned && discipleMaxStreak() <= item.requiresDiscipleStreak) return;
     if (item.requiresPrestige && !oneTimeOwned && save.prestige < item.requiresPrestige) return;
+    if (item.requiresMaouDefeated && !save.maouDefeated) return;
+    if (item.effect === 'mechanical_egg_charge' && (
+      !save.mechanicalEggOwned
+      || save.mechanicalEggHatched
+      || (save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS
+    )) return;
 
     const owned = oneTimeOwned ? 1 : (item.stackable ? (save.inventory.consumables[item.id] || 0) : 0);
     const maxed = oneTimeOwned || (item.stackable && owned >= item.maxStack);
@@ -3406,6 +3551,7 @@ function renderItemShop() {
         <span class="shop-item-name">${item.name}</span>
         <span class="shop-item-effect">（${itemEffectLabel(item)}）</span>
         ${item.stackable ? `<span class="shop-item-owned">所持: ${owned}/${item.maxStack}</span>` : ''}
+        ${isCompressedBattery ? `<span class="shop-item-owned">所持: ${(mechanicalEggRateUnits() - MECHANICAL_EGG_BASE_RATE_UNITS).toLocaleString()}</span>` : ''}
         ${item.hasShopStock ? `<span class="shop-item-owned">在庫: ${save.happyGrassStock}/${HAPPY_GRASS_MAX_STOCK}</span>` : ''}
       </div>
       <div class="shop-item-side">
@@ -3908,6 +4054,10 @@ function handleTypedChar(ch) {
       save.ricoShards = (save.ricoShards || 0) + shardGain;
       save.ricoShardsEarned = (save.ricoShardsEarned || 0) + shardGain;
     }
+    if (save.mechanicalEggOwned && !save.mechanicalEggHatched && save.maouDefeated) {
+      addMechanicalEggProgress();
+      renderMechanicalEgg();
+    }
     refreshTotalPt();
 
     if (res.comboBonus > 0) {
@@ -4354,7 +4504,8 @@ function renderStats() {
     rows.push(['女神の祝福：レア出現率', `+${Math.min(50, save.godStatueBuffs.rareBonusStacks)}%`]);
   }
   if (save.eternalComboUnlocked) {
-    rows.push(['最大永続コンボ', (save.eternalComboMax || 0).toLocaleString()]);
+    const comboIndex = rows.findIndex(([label]) => label === '最大コンボ');
+    rows.splice(comboIndex + 1, 0, ['最大永続コンボ', (save.eternalComboMax || 0).toLocaleString()]);
   }
   if ((save.maouPrayerCount || 0) > 0) {
     rows.push(['リコへの祈り回数', save.maouPrayerCount.toLocaleString()]);
