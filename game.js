@@ -3867,7 +3867,8 @@ function itemEffectLabel(item) {
 
 function renderItemShop() {
   el.shopItemList.innerHTML = '';
-  ITEM_CATALOG.forEach((item) => {
+  const sortedCatalog = [...ITEM_CATALOG].sort((a, b) => (a.purple ? 1 : 0) - (b.purple ? 1 : 0));
+  sortedCatalog.forEach((item) => {
     const isHeartVessel = item.effect === 'heart_cap_up';
     const isEternalCombo = item.effect === 'unlock_eternal_combo';
     const isMechanicalEgg = item.effect === 'easter_egg_dev_contact';
@@ -3895,7 +3896,7 @@ function renderItemShop() {
     const bulkUnlocked = BULK_BUY_ITEM_IDS.includes(item.id)
       && ((save.itemPurchaseCounts && save.itemPurchaseCounts[item.id]) || 0) >= BULK_BUY_THRESHOLD;
     const row = document.createElement('div');
-    row.className = (isHeartVessel || isEternalCombo) ? 'shop-item shop-item-rico' : 'shop-item';
+    row.className = item.purple ? 'shop-item shop-item-rico' : 'shop-item';
     row.innerHTML = `
       <div class="shop-item-main">
         <span class="shop-item-name">${item.name}</span>
