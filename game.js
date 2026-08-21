@@ -3035,7 +3035,7 @@ function renderDiscipleOpponents() {
   currentDiscipleOpponents.forEach((opp, idx) => {
     const streak = save.disciple.streaks[opp.tierKey] || 0;
     const bonusSteps = Math.floor(streak / DISCIPLE_STREAK_STEP);
-    const currentReward = opp.reward + bonusSteps * opp.streakBonus;
+    const currentReward = Math.round((opp.reward + bonusSteps * opp.streakBonus) * discipleRewardMultiplier());
     const card = document.createElement('div');
     card.className = 'opponent-card';
     card.innerHTML = `
