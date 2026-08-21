@@ -847,6 +847,7 @@ let awaitingGraceNSwallow = false;
 let graceNSwallowDeadline = 0;
 const GRACE_N_SWALLOW_WINDOW_MS = 250;
 let sessionMaouPrayerBonus = 0;
+let sessionJunkyardTicketsFound = 0;
 let sessionPrayerSuperActive = false;
 let currentShopTab = 'sword';
 let awaitingStart = false;
@@ -1928,7 +1929,7 @@ function applyJunkyardResult(result) {
 
 function digJunkyard() {
   if (!save.maouDefeated || !save.mechanicalEggHatched) return;
-  const remaining = JUNKYARD_POOL_TOTAL - (save.junkyardDraws || 0);
+  const remaining = (save.junkyardDeck || []).length - (save.junkyardDraws || 0);
   if (remaining <= 0) return;
   const useTicket = (save.junkyardTickets || 0) > 0;
   if (useTicket) {
@@ -1950,6 +1951,18 @@ function digJunkyard() {
 
 function craftJunkyardBomb() {
   if ((save.junkyardJunkCount || 0) < 10) return;
+  const deck = save.junkyardDeck || [];
+  const drawn = save.junkyardDraws || 0;
+  let removed = 0;
+  let i = drawn;
+  while (i < deck.length && removed < 10) {
+    if (deck[i] === 'junk') {
+      deck.splice(i, 1);
+      removed += 1;
+    } else {
+      i += 1;
+    }
+  }
   save.junkyardJunkCount -= 10;
   persistSave();
   renderJunkyard();
@@ -1966,7 +1979,7 @@ function renderJunkyard() {
   const tickets = save.junkyardTickets || 0;
   el.junkyardTicketCount.textContent = `ジャンクヤードチケット枚数 ${tickets.toLocaleString()}枚`;
 
-  const remaining = Math.max(0, JUNKYARD_POOL_TOTAL - (save.junkyardDraws || 0));
+  const remaining = Math.max(0, (save.junkyardDeck || []).length - (save.junkyardDraws || 0));
   el.junkyardRemainingCount.textContent = `残りがらくた数 ${remaining}/${JUNKYARD_POOL_TOTAL}`;
 
   const owned = save.junkyardPartsOwned || [];
@@ -3286,7 +3299,7 @@ el.resetSaveCancelBtn.addEventListener('click', () => {
   el.resetSaveConfirmPopup.classList.add('hidden');
 });
 el.resetSaveConfirmBtn.addEventListener('click', () => {
-  window.removeEventListener('beforeunload', persistSave);
+  window.removeEventListener('beforeunload', flushSaveOnUnload);
   localStorage.removeItem(SAVE_KEY);
   save = defaultSave();
   persistSave();
@@ -4159,6 +4172,7 @@ function startSession() {
   });
   levelAtSessionStart = save.level;
   sessionPtEarned = 0;
+  sessionJunkyardTicketsFound = 0;
 
   save.playCount++;
   save.dungeonPlayCounts[currentMode] = (save.dungeonPlayCounts[currentMode] || 0) + 1;
@@ -4508,11 +4522,8 @@ function handleTypedChar(ch) {
           ? baseTicketChance * JUNKYARD_TICKET_DROP_DISCOUNT_MULTIPLIER
           : baseTicketChance;
         if (Math.random() < ticketChance) {
-          const ticketsFound = 1;
-          save.junkyardTickets = (save.junkyardTickets || 0) + ticketsFound;
-          pushAnnouncement('🎫', `ダンジョン探索中にジャンクヤードチケットを${ticketsFound}枚見つけました！`);
-          renderAnnouncements();
-          renderJunkyard();
+          save.junkyardTickets = (save.junkyardTickets || 0) + 1;
+          sessionJunkyardTicketsFound += 1;
         }
       }
       persistSave();
@@ -4588,6 +4599,9 @@ function finishSession() {
   if (session.kpm > prevBestKpm) {
     pushAnnouncement('⚡', `最高KPM記録を更新しました（${session.kpm}KPM）`);
   }
+  if (sessionJunkyardTicketsFound > 0) {
+    pushAnnouncement('🎫', `ダンジョン探索中にジャンクヤードチケットを${sessionJunkyardTicketsFound}枚見つけました！`);
+  }
 
   refreshTotalPt();
   persistSave();
@@ -4603,6 +4617,10 @@ function abortSession(options = {}) {
   BGM.stop();
   if (!options.silent) save.abortCount++;
   save.totalTypingTimeMs = (save.totalTypingTimeMs || 0) + session.elapsedMs;
+  if (sessionJunkyardTicketsFound > 0) {
+    pushAnnouncement('🎫', `ダンジョン探索中にジャンクヤードチケットを${sessionJunkyardTicketsFound}枚見つけました！`);
+    sessionJunkyardTicketsFound = 0;
+  }
   persistSave();
   session = null;
   goHome();
@@ -5055,7 +5073,14 @@ document.addEventListener('keydown', (e) => {
   handleTypedChar(e.key);
 });
 
-window.addEventListener('beforeunload', persistSave);
+function flushSaveOnUnload() {
+  if (session && sessionJunkyardTicketsFound > 0) {
+    pushAnnouncement('🎫', `ダンジョン探索中にジャンクヤードチケットを${sessionJunkyardTicketsFound}枚見つけました！`);
+    sessionJunkyardTicketsFound = 0;
+  }
+  persistSave();
+}
+window.addEventListener('beforeunload', flushSaveOnUnload);
 window.addEventListener('storage', (e) => {
   if (e.key !== SAVE_KEY || e.newValue === null) return;
   save = loadSave();
