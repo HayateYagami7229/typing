@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.68',
+    items: [
+      '色々と書けない事をアップデートしました。',
+    ],
+  },
+  {
     version: 'Beta0.67',
     items: [
       '一部、メインシナリオの進捗を貫通してアイテムが表示されてしまっていたため、修正しました。',
