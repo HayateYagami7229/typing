@@ -848,6 +848,7 @@ let graceNSwallowDeadline = 0;
 const GRACE_N_SWALLOW_WINDOW_MS = 250;
 let sessionMaouPrayerBonus = 0;
 let sessionJunkyardTicketsFound = 0;
+let sessionJunkyardDispenserTicketsFound = 0;
 let sessionPrayerSuperActive = false;
 let currentShopTab = 'sword';
 let awaitingStart = false;
@@ -2065,7 +2066,7 @@ function addMechanicalEggProgress() {
   if (save.mechanicalEggChargeKeys >= MECHANICAL_EGG_CHARGE_TARGET) {
     save.mechanicalEggChargeKeys = 0;
     save.junkyardTickets = (save.junkyardTickets || 0) + 1;
-    pushAnnouncement('🎫', 'ジャンクヤードチケット排出器からチケットを1枚手に入れた');
+    sessionJunkyardDispenserTicketsFound += 1;
   }
 }
 
@@ -4173,6 +4174,7 @@ function startSession() {
   levelAtSessionStart = save.level;
   sessionPtEarned = 0;
   sessionJunkyardTicketsFound = 0;
+  sessionJunkyardDispenserTicketsFound = 0;
 
   save.playCount++;
   save.dungeonPlayCounts[currentMode] = (save.dungeonPlayCounts[currentMode] || 0) + 1;
@@ -4602,6 +4604,9 @@ function finishSession() {
   if (sessionJunkyardTicketsFound > 0) {
     pushAnnouncement('🎫', `ダンジョン探索中にジャンクヤードチケットを${sessionJunkyardTicketsFound}枚見つけました！`);
   }
+  if (sessionJunkyardDispenserTicketsFound > 0) {
+    pushAnnouncement('🎫', `ジャンクヤードチケット排出器からチケットを${sessionJunkyardDispenserTicketsFound}枚手に入れました`);
+  }
 
   refreshTotalPt();
   persistSave();
@@ -4620,6 +4625,10 @@ function abortSession(options = {}) {
   if (sessionJunkyardTicketsFound > 0) {
     pushAnnouncement('🎫', `ダンジョン探索中にジャンクヤードチケットを${sessionJunkyardTicketsFound}枚見つけました！`);
     sessionJunkyardTicketsFound = 0;
+  }
+  if (sessionJunkyardDispenserTicketsFound > 0) {
+    pushAnnouncement('🎫', `ジャンクヤードチケット排出器からチケットを${sessionJunkyardDispenserTicketsFound}枚手に入れました`);
+    sessionJunkyardDispenserTicketsFound = 0;
   }
   persistSave();
   session = null;
@@ -5077,6 +5086,10 @@ function flushSaveOnUnload() {
   if (session && sessionJunkyardTicketsFound > 0) {
     pushAnnouncement('🎫', `ダンジョン探索中にジャンクヤードチケットを${sessionJunkyardTicketsFound}枚見つけました！`);
     sessionJunkyardTicketsFound = 0;
+  }
+  if (session && sessionJunkyardDispenserTicketsFound > 0) {
+    pushAnnouncement('🎫', `ジャンクヤードチケット排出器からチケットを${sessionJunkyardDispenserTicketsFound}枚手に入れました`);
+    sessionJunkyardDispenserTicketsFound = 0;
   }
   persistSave();
 }
