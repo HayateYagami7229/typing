@@ -2791,7 +2791,13 @@ function disciplePriceMultiplier(statValue) {
   return 1;
 }
 
+const DISCIPLE_STAT_500_BASE_COST = 100000000;
+const DISCIPLE_STAT_500_STEP_COST = 10000000;
+
 function discipleStepCost(upgradesCount, statValue) {
+  if (statValue >= 500) {
+    return DISCIPLE_STAT_500_BASE_COST + DISCIPLE_STAT_500_STEP_COST * (statValue - 500);
+  }
   return (500 + 100 * upgradesCount) * disciplePriceMultiplier(statValue);
 }
 
