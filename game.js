@@ -269,6 +269,7 @@ const PRESTIGE_RARE_BONUS_PER = 0.01;
 const PRESTIGE_RARE_BONUS_CAP = 0.10;
 const HAPPY_GRASS_EXP_PER_STOCK = 500;
 const HAPPY_GRASS_MAX_STOCK = 99;
+const HAPPY_GRASS_MAX_STOCK_UNLOCKED = 999;
 const GOD_GARDEN_RESTORE_COST = 10000000;
 const GOD_GARDEN_MAX_RESTORATIONS = 20;
 const GOD_GARDEN_EMBLEM_BONUS_PER = 0.001;
@@ -2936,17 +2937,23 @@ function godStatueExpMultiplier() {
   return 1 + 0.20 * (save.godStatueBuffs.expBoostStacks || 0);
 }
 
+function happyGrassMaxStock() {
+  const purchaseCount = (save.itemPurchaseCounts && save.itemPurchaseCounts.item_happy_grass) || 0;
+  return purchaseCount >= BULK_BUY_THRESHOLD ? HAPPY_GRASS_MAX_STOCK_UNLOCKED : HAPPY_GRASS_MAX_STOCK;
+}
+
 function gainHappyGrassStock(exp) {
-  if (save.happyGrassStock >= HAPPY_GRASS_MAX_STOCK) {
+  const maxStock = happyGrassMaxStock();
+  if (save.happyGrassStock >= maxStock) {
     save.happyGrassExpProgress = 0;
     return;
   }
   save.happyGrassExpProgress += exp;
-  while (save.happyGrassExpProgress >= HAPPY_GRASS_EXP_PER_STOCK && save.happyGrassStock < HAPPY_GRASS_MAX_STOCK) {
+  while (save.happyGrassExpProgress >= HAPPY_GRASS_EXP_PER_STOCK && save.happyGrassStock < maxStock) {
     save.happyGrassExpProgress -= HAPPY_GRASS_EXP_PER_STOCK;
     save.happyGrassStock += 1;
   }
-  if (save.happyGrassStock >= HAPPY_GRASS_MAX_STOCK) save.happyGrassExpProgress = 0;
+  if (save.happyGrassStock >= maxStock) save.happyGrassExpProgress = 0;
 }
 
 function gainExp(amount, opts = {}) {
@@ -3951,7 +3958,7 @@ function renderItemShop() {
         <span class="shop-item-effect">（${itemEffectLabel(item)}）</span>
         ${item.stackable ? `<span class="shop-item-owned">所持: ${owned}/${item.maxStack}</span>` : ''}
         ${isCompressedBattery ? `<span class="shop-item-owned">所持: ${(mechanicalEggRateUnits() - MECHANICAL_EGG_BASE_RATE_UNITS).toLocaleString()}</span>` : ''}
-        ${item.hasShopStock ? `<span class="shop-item-owned">在庫: ${save.happyGrassStock}/${HAPPY_GRASS_MAX_STOCK}</span>` : ''}
+        ${item.hasShopStock ? `<span class="shop-item-owned">在庫: ${save.happyGrassStock}/${happyGrassMaxStock()}</span>` : ''}
       </div>
       <div class="shop-item-side">
         <span class="shop-item-price">${oneTimeOwned ? '所持済' : `${item.price.toLocaleString()} pt`}</span>
@@ -4923,6 +4930,7 @@ function renderStats() {
     ['弟子の勝利回数', save.disciple.battleWins.toLocaleString()],
     ['弟子が稼いだ累計pt', Math.floor(save.disciple.ptEarned).toLocaleString()],
     ['レアモンスター討伐数', save.rareMonstersDefeated.toLocaleString()],
+    ['しあわせ草を食べた数', ((save.itemPurchaseCounts && save.itemPurchaseCounts.item_happy_grass) || 0).toLocaleString()],
   ];
 
   if (save.godStatueBuffs.expBoostStacks > 0) {
@@ -5006,7 +5014,7 @@ document.addEventListener('keydown', (e) => {
   if (secretGrassClicks >= 12 && e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     secretGrassClicks = 0;
-    save.happyGrassStock = HAPPY_GRASS_MAX_STOCK;
+    save.happyGrassStock = happyGrassMaxStock();
     pushAnnouncement('🍀', '裏技発動！しあわせ草が大量入荷しました');
     persistSave();
     if (screen === 'shop') renderShopList();
