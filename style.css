@@ -533,6 +533,14 @@ body {
   animation: goddessBlessingGlow 2.4s ease-in-out infinite;
 }
 
+.disciple-streak-20000-bonus {
+  display: inline-block;
+  margin-left: 10px;
+  color: #ffe066;
+  font-weight: bold;
+  animation: goddessBlessingGlow 2.4s ease-in-out infinite;
+}
+
 @keyframes goddessBlessingGlow {
   0%, 100% {
     text-shadow: 0 0 12px rgba(255, 214, 40, 0.6), 0 0 22px rgba(255, 200, 0, 0.35);

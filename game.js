@@ -303,6 +303,8 @@ const DISCIPLE_TIERS = [
   { key: 'strong', label: '強', reward: 500, budgetRange: [28, 50], streakBonus: 300 },
 ];
 const DISCIPLE_STREAK_STEP = 10;
+const DISCIPLE_20000_STREAK_THRESHOLD = 20000;
+const DISCIPLE_20000_STREAK_MULTIPLIER = 2;
 const DISCIPLE_STAT_DEFS = [
   { key: 'hp', label: 'HP' },
   { key: 'str', label: 'STR' },
@@ -2849,6 +2851,11 @@ function discipleMaxStreak() {
   return Math.max(s.weak || 0, s.normal || 0, s.strong || 0);
 }
 
+function discipleRewardMultiplier() {
+  const base = junkyardDiscipleRewardMultiplier();
+  return discipleMaxStreak() >= DISCIPLE_20000_STREAK_THRESHOLD ? base * DISCIPLE_20000_STREAK_MULTIPLIER : base;
+}
+
 function checkHeartVesselUnlock() {
   if (save.disciple.heartVesselOwned || save.disciple.heartVesselAnnounced) return;
   if (discipleMaxStreak() <= 1000) return;
@@ -2986,7 +2993,10 @@ function renderDisciple() {
   if (batchUnlocked) el.discipleBatchBattleBtn.disabled = save.disciple.hearts <= 0;
 
   const s = save.disciple.streaks;
-  el.discipleStreakSummary.textContent = `🔥 連勝: 弱${s.weak} ／ 普${s.normal} ／ 強${s.strong}`;
+  const streak20000Bonus = discipleMaxStreak() >= DISCIPLE_20000_STREAK_THRESHOLD
+    ? ` <span class="disciple-streak-20000-bonus">2万連勝ボーナス中!賞金${DISCIPLE_20000_STREAK_MULTIPLIER}倍!</span>`
+    : '';
+  el.discipleStreakSummary.innerHTML = `🔥 連勝: 弱${s.weak} ／ 普${s.normal} ／ 強${s.strong}${streak20000Bonus}`;
 }
 
 function renderDiscipleIconPicker() {
@@ -3050,7 +3060,7 @@ function fightDiscipleOpponent(opp) {
     save.disciple.battleWins += 1;
     const streakBefore = save.disciple.streaks[opp.tierKey] || 0;
     const bonusSteps = Math.floor(streakBefore / DISCIPLE_STREAK_STEP);
-    earned = Math.round((opp.reward + bonusSteps * opp.streakBonus) * junkyardDiscipleRewardMultiplier());
+    earned = Math.round((opp.reward + bonusSteps * opp.streakBonus) * discipleRewardMultiplier());
     streakAfter = streakBefore + 1;
     save.disciple.streaks[opp.tierKey] = streakAfter;
     checkHeartVesselUnlock();
@@ -3087,7 +3097,7 @@ function batchFightStrongOpponents() {
     if (result.win) {
       wins += 1;
       const bonusSteps = Math.floor(streak / DISCIPLE_STREAK_STEP);
-      ptEarned += Math.round((opp.reward + bonusSteps * opp.streakBonus) * junkyardDiscipleRewardMultiplier());
+      ptEarned += Math.round((opp.reward + bonusSteps * opp.streakBonus) * discipleRewardMultiplier());
       streak += 1;
     } else {
       streak = 0;
