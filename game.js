@@ -2922,7 +2922,10 @@ el.resetSaveCancelBtn.addEventListener('click', () => {
   el.resetSaveConfirmPopup.classList.add('hidden');
 });
 el.resetSaveConfirmBtn.addEventListener('click', () => {
+  window.removeEventListener('beforeunload', persistSave);
   localStorage.removeItem(SAVE_KEY);
+  save = defaultSave();
+  persistSave();
   location.reload();
 });
 el.phase2AnnounceCloseBtn.addEventListener('click', () => {
