@@ -21,6 +21,7 @@ const PRESTIGE_AWAKENING_TIERS = [
   { at: 10, ptBonus: 1000, expMultiplier: 2 },
   { at: 20, ptBonus: 500, expMultiplier: 2 },
   { at: 30, ptBonus: 5000, expMultiplier: 2 },
+  { at: 40, ptBonus: 15000, expMultiplier: 1, rareHeartBonusChance: 0.25 },
 ];
 
 function prestigeAwakeningPtBonus(save) {
@@ -29,6 +30,11 @@ function prestigeAwakeningPtBonus(save) {
 
 function prestigeAwakeningExpMultiplier(save) {
   return PRESTIGE_AWAKENING_TIERS.filter((t) => save.prestige >= t.at).reduce((mult, t) => mult * t.expMultiplier, 1);
+}
+
+function prestigeRareHeartBonusChance(save) {
+  return PRESTIGE_AWAKENING_TIERS.filter((t) => save.prestige >= t.at)
+    .reduce((sum, t) => sum + (t.rareHeartBonusChance || 0), 0);
 }
 
 function expToNextLevel(level, multiplier = 1) {

@@ -1496,7 +1496,9 @@ function renderPlayerCard() {
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
   const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
   const ricoPart = mult.ricoBonus > 0 ? ` リコの加護ボーナス+${mult.ricoBonus.toLocaleString()}` : '';
-  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}${ricoPart}）`;
+  const rareHeartChance = prestigeRareHeartBonusChance(save);
+  const rareHeartPart = rareHeartChance > 0 ? ` レアモンスター撃破時+1ハート追加率${Math.round(rareHeartChance * 100)}%` : '';
+  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}${ricoPart}${rareHeartPart}）`;
   el.prestigeBtn.classList.toggle('hidden', !canPrestige(save));
 
   el.playerCard.className = `player-card design-${save.profile.cardDesign}`;
@@ -4105,6 +4107,9 @@ function handleTypedChar(ch) {
         const levelsGainedFromRare = gainExp(res.rareBonus.exp, { countsForHappyGrass: false });
         renderGameExpBar();
         if (levelsGainedFromRare.length > 0) showLevelUpPopup(save.level);
+        if (Math.random() < prestigeRareHeartBonusChance(save)) {
+          res.rareBonus.heart += 1;
+        }
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
         save.rareMonstersDefeated += 1;
         refreshTotalPt();
