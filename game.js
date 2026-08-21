@@ -289,8 +289,11 @@ const MECHANICAL_EGG_BATTERY_RATE_BOOST = 1;
 const MECHANICAL_EGG_BATTERY_UNLOCK_KEYS = 0.1;
 const MECHANICAL_EGG_RUNAWAY_RATE_UNITS = 10;
 const JUNKYARD_TICKET_DIG_COST = 2000000000;
+const JUNKYARD_TICKET_DIG_COST_DISCOUNTED = 200000000;
 const JUNKYARD_PITY_REMAINING_THRESHOLD = 50;
 const JUNKYARD_TICKET_DROP_CHANCE = { word: 0.001, sentence: 0.03, long: 0.07 };
+const JUNKYARD_TICKET_DROP_DISCOUNT_MULTIPLIER = 10;
+const COMPRESSED_BATTERY_STOCK_CAP = 39;
 
 const GOD_STATUE_BUFFS = [
   { id: 'exp_boost', name: '経験の祝福', desc: 'EXPが永続的に+20%' },
@@ -406,6 +409,7 @@ function defaultSave() {
     junkyardJunkCount: 0,
     junkyardPartsOwned: [],
     junkyardBuffCounts: {},
+    junkyardDealerDiscountAnnounced: false,
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -1792,6 +1796,18 @@ function mechanicalEggEffectiveRateUnits() {
   return mechanicalEggRateUnits() * mechanicalEggChargeMultiplier();
 }
 
+function compressedBatteryCount() {
+  return mechanicalEggRateUnits() - MECHANICAL_EGG_BASE_RATE_UNITS;
+}
+
+function isJunkyardDealerDiscountActive() {
+  return compressedBatteryCount() >= COMPRESSED_BATTERY_STOCK_CAP;
+}
+
+function junkyardDigCost() {
+  return isJunkyardDealerDiscountActive() ? JUNKYARD_TICKET_DIG_COST_DISCOUNTED : JUNKYARD_TICKET_DIG_COST;
+}
+
 function renderMechanicalEggRateLine() {
   const perKeyPct = (mechanicalEggEffectiveRateUnits() / 1000).toFixed(3);
   let rateLine = `充電効率：1キー入力につき${perKeyPct}％`;
@@ -1918,9 +1934,10 @@ function digJunkyard() {
   if (useTicket) {
     save.junkyardTickets -= 1;
   } else {
-    if (save.pt < JUNKYARD_TICKET_DIG_COST) return;
-    save.pt -= JUNKYARD_TICKET_DIG_COST;
-    save.totalPtSpent += JUNKYARD_TICKET_DIG_COST;
+    const digCost = junkyardDigCost();
+    if (save.pt < digCost) return;
+    save.pt -= digCost;
+    save.totalPtSpent += digCost;
   }
   const result = junkyardDrawOne();
   const resultLabel = applyJunkyardResult(result);
@@ -1963,10 +1980,11 @@ function renderJunkyard() {
 
   el.junkyardJunkCountText.textContent = `がらくたの数：${(save.junkyardJunkCount || 0).toLocaleString()}個`;
 
-  const canAffordDig = tickets > 0 || save.pt >= JUNKYARD_TICKET_DIG_COST;
+  const digCost = junkyardDigCost();
+  const canAffordDig = tickets > 0 || save.pt >= digCost;
   el.junkyardDigBtn.textContent = tickets > 0
     ? 'ジャンクヤードチケットでがらくたを探す'
-    : `ジャンクヤードからがらくたを探す（${JUNKYARD_TICKET_DIG_COST.toLocaleString()}pt）`;
+    : `ジャンクヤードからがらくたを探す（${digCost.toLocaleString()}pt）`;
   el.junkyardDigBtn.disabled = remaining <= 0 || !canAffordDig;
 
   el.junkyardBombBtn.classList.toggle('hidden', (save.junkyardJunkCount || 0) < 10);
@@ -3759,6 +3777,7 @@ function buyConsumableItem(itemId) {
   if (item.effect === 'mechanical_egg_charge') {
     if (!save.maouDefeated || !save.mechanicalEggOwned) return;
     if (!save.mechanicalEggHatched && (save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS) return;
+    if (compressedBatteryCount() >= COMPRESSED_BATTERY_STOCK_CAP) return;
     if (save.pt < item.price) return;
     save.pt -= item.price;
     save.totalPtSpent += item.price;
@@ -3769,6 +3788,14 @@ function buyConsumableItem(itemId) {
     renderShopList();
     renderMechanicalEgg();
     renderJunkyard();
+    if (compressedBatteryCount() >= COMPRESSED_BATTERY_STOCK_CAP && !save.junkyardDealerDiscountAnnounced) {
+      save.junkyardDealerDiscountAnnounced = true;
+      persistSave();
+      queueReveal(
+        'ジャンクヤードから連絡',
+        'あんたかい？バッテリーを買いあさってるってお得意さんは\nがらくたを探す時のptを割り引かなきゃだね、コリャ\nダンジョンにも、もっとチケットをばらまいとくよ',
+      );
+    }
     return;
   }
 
@@ -3892,7 +3919,8 @@ function renderItemShop() {
 
     const owned = oneTimeOwned ? 1 : (item.stackable ? (save.inventory.consumables[item.id] || 0) : 0);
     const maxed = oneTimeOwned || (item.stackable && owned >= item.maxStack);
-    const outOfStock = item.hasShopStock && save.happyGrassStock <= 0;
+    const outOfStock = (item.hasShopStock && save.happyGrassStock <= 0)
+      || (isCompressedBattery && compressedBatteryCount() >= COMPRESSED_BATTERY_STOCK_CAP);
     const canAfford = save.pt >= item.price;
     const disabled = maxed || outOfStock || !canAfford;
     let btnLabel = '購入';
@@ -4475,7 +4503,10 @@ function handleTypedChar(ch) {
         SFX.rare();
       }
       if (save.maouDefeated && save.mechanicalEggHatched) {
-        const ticketChance = JUNKYARD_TICKET_DROP_CHANCE[currentMode] || 0;
+        const baseTicketChance = JUNKYARD_TICKET_DROP_CHANCE[currentMode] || 0;
+        const ticketChance = isJunkyardDealerDiscountActive()
+          ? baseTicketChance * JUNKYARD_TICKET_DROP_DISCOUNT_MULTIPLIER
+          : baseTicketChance;
         if (Math.random() < ticketChance) {
           const ticketsFound = 1;
           save.junkyardTickets = (save.junkyardTickets || 0) + ticketsFound;
