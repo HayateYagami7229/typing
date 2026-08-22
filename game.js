@@ -3065,10 +3065,11 @@ function renderDisciple() {
   const batchUnlocked = discipleMaxStreak() >= 10000;
   el.discipleBatchBattleBtn.classList.toggle('hidden', !batchUnlocked);
   if (batchUnlocked) el.discipleBatchBattleBtn.disabled = save.disciple.hearts <= 0;
-  el.discipleBatchBattleBtn.textContent = save.heartVesselRunawayActive
+  const runawayReady = save.heartVesselRunawayActive && save.disciple.hearts >= 999;
+  el.discipleBatchBattleBtn.textContent = runawayReady
     ? '⚡ 一括対戦（ハートの器が暴走中 賞金2倍！）'
     : '⚡ 一括対戦';
-  el.discipleBatchBattleBtn.classList.toggle('heart-vessel-runaway', save.heartVesselRunawayActive);
+  el.discipleBatchBattleBtn.classList.toggle('heart-vessel-runaway', runawayReady);
 
   const s = save.disciple.streaks;
   const streak20000Bonus = discipleMaxStreak() >= DISCIPLE_20000_STREAK_THRESHOLD
