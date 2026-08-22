@@ -416,8 +416,11 @@ function defaultSave() {
       bulkUnlocked: { 5: false, 10: false },
       heartVesselOwned: false,
       heartVesselAnnounced: false,
+      heartGrailOwned: false,
       classUpped: false,
     },
+    batchBattleCount: 0,
+    batchBattleShopAnnounced: false,
     maouEmblems: 0,
     maouGateRevealed: false,
     maouSealUnlocked: false,
@@ -3269,7 +3272,18 @@ function effectiveHeartExpCost() {
 }
 
 function effectiveDiscipleHeartMax() {
+  if (save.disciple.heartGrailOwned) return 9999;
   return save.disciple.heartVesselOwned ? 999 : DISCIPLE_HEART_MAX;
+}
+
+const BATCH_BATTLE_HEART_LOT_SIZE = 999;
+
+function batchFightHeartsToUse() {
+  const hearts = save.disciple.hearts || 0;
+  if (save.disciple.heartGrailOwned) {
+    return hearts >= BATCH_BATTLE_HEART_LOT_SIZE ? BATCH_BATTLE_HEART_LOT_SIZE : 0;
+  }
+  return hearts;
 }
 
 function discipleMaxStreak() {
@@ -3444,11 +3458,16 @@ function renderDisciple() {
 
   const batchUnlocked = discipleMaxStreak() >= 10000;
   el.discipleBatchBattleBtn.classList.toggle('hidden', !batchUnlocked);
-  if (batchUnlocked) el.discipleBatchBattleBtn.disabled = save.disciple.hearts <= 0;
+  if (batchUnlocked) el.discipleBatchBattleBtn.disabled = batchFightHeartsToUse() <= 0;
   const runawayReady = save.heartVesselRunawayActive && save.disciple.hearts >= 999;
-  el.discipleBatchBattleBtn.textContent = runawayReady
-    ? '⚡ 一括対戦（ハートの器が暴走中 賞金2倍！）'
-    : '⚡ 一括対戦';
+  const batchLabel = save.disciple.heartGrailOwned ? '⚡ ♡999個一括対戦' : '⚡ 一括対戦';
+  if (runawayReady) {
+    const streakMult = discipleStreakBonusMultiplier();
+    const multText = Number.isInteger(streakMult) ? `${streakMult}` : streakMult.toFixed(1);
+    el.discipleBatchBattleBtn.textContent = `${batchLabel}（ハートの器が暴走中 賞金${multText}倍！）`;
+  } else {
+    el.discipleBatchBattleBtn.textContent = batchLabel;
+  }
   el.discipleBatchBattleBtn.classList.toggle('heart-vessel-runaway', runawayReady);
 
   const s = save.disciple.streaks;
@@ -3543,7 +3562,7 @@ function fightDiscipleOpponent(opp) {
 
 function batchFightStrongOpponents() {
   if (discipleMaxStreak() <= 10000) return;
-  const heartsToUse = save.disciple.hearts;
+  const heartsToUse = batchFightHeartsToUse();
   if (heartsToUse <= 0) return;
 
   const strongTier = DISCIPLE_TIERS.find((t) => t.key === 'strong');
@@ -3569,18 +3588,25 @@ function batchFightStrongOpponents() {
 
   if (save.heartVesselRunawayActive && heartsToUse >= 999) ptEarned *= 2;
 
-  save.disciple.hearts = 0;
+  save.disciple.hearts -= heartsToUse;
   save.disciple.battleCount += heartsToUse;
   save.disciple.battleWins += wins;
   save.disciple.streaks.strong = streak;
   save.pt += ptEarned;
   save.totalPtEarned += ptEarned;
   save.disciple.ptEarned += ptEarned;
+  save.batchBattleCount = (save.batchBattleCount || 0) + 1;
+  if (!save.batchBattleShopAnnounced && save.batchBattleCount >= 10) {
+    save.batchBattleShopAnnounced = true;
+    pushAnnouncement('📦', '新しい商品が入荷したようだ。', true);
+  }
   checkHeartVesselUnlock();
   persistSave();
   refreshTotalPt();
   renderDisciple();
   renderPlayerCard();
+  renderAnnouncements();
+  renderShopList();
 
   queueReveal(
     '一括対戦 完了',
@@ -4194,6 +4220,24 @@ function buyConsumableItem(itemId) {
     return;
   }
 
+  if (item.effect === 'heart_cap_up_grail') {
+    if (save.disciple.heartGrailOwned) return;
+    if (save.pt < item.price) return;
+    save.pt -= item.price;
+    save.totalPtSpent += item.price;
+    save.disciple.heartGrailOwned = true;
+    pushAnnouncement('🏆', `「${item.name}」を手に入れました！弟子のハート上限が${item.value}になりました`, true);
+    SFX.complete();
+    persistSave();
+    refreshTotalPt();
+    renderPlayerCard();
+    renderDisciple();
+    renderAnnouncements();
+    renderShopList();
+    renderHeartHud();
+    return;
+  }
+
   if (item.effect === 'unlock_eternal_combo') {
     if (save.eternalComboUnlocked) return;
     if (save.pt < item.price) return;
@@ -4346,6 +4390,7 @@ function itemEffectLabel(item) {
   if (item.effect === 'exp') return `即座にEXP+${item.value}`;
   if (item.effect === 'rare_chance_next_game') return `次のゲームでレア出現率+${Math.round(item.value * 100)}%`;
   if (item.effect === 'heart_cap_up') return `弟子のハート上限が${item.value}になる（永続）`;
+  if (item.effect === 'heart_cap_up_grail') return `弟子のハート上限が${item.value}になる（永続）\n一括対戦は999個単位で消費されるようになる`;
   if (item.effect === 'unlock_eternal_combo') return '永続コンボシステムを開放する';
   if (item.effect === 'easter_egg_dev_contact') return '？？？？？？？？？？？';
   if (item.effect === 'mechanical_egg_charge') return '機械仕掛けの卵の充電効率+0.001%（複数購入可）';
@@ -4357,15 +4402,18 @@ function renderItemShop() {
   const sortedCatalog = [...ITEM_CATALOG].sort((a, b) => (a.purple ? 1 : 0) - (b.purple ? 1 : 0));
   sortedCatalog.forEach((item) => {
     const isHeartVessel = item.effect === 'heart_cap_up';
+    const isHeartGrail = item.effect === 'heart_cap_up_grail';
     const isEternalCombo = item.effect === 'unlock_eternal_combo';
     const isMechanicalEgg = item.effect === 'easter_egg_dev_contact';
     const isCompressedBattery = item.effect === 'mechanical_egg_charge';
     const oneTimeOwned = (isHeartVessel && save.disciple.heartVesselOwned)
+      || (isHeartGrail && save.disciple.heartGrailOwned)
       || (isEternalCombo && save.eternalComboUnlocked)
       || (isMechanicalEgg && save.mechanicalEggOwned);
     if (item.requiresDiscipleStreak && !oneTimeOwned && discipleMaxStreak() <= item.requiresDiscipleStreak) return;
     if (item.requiresPrestige && !oneTimeOwned && save.prestige < item.requiresPrestige) return;
     if (item.requiresMaouDefeated && !save.maouDefeated) return;
+    if (item.requiresBatchBattleCount && !oneTimeOwned && (save.batchBattleCount || 0) < item.requiresBatchBattleCount) return;
     if (item.effect === 'mechanical_egg_charge' && (
       !save.mechanicalEggOwned
       || (!save.mechanicalEggHatched && (save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS)
