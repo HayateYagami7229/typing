@@ -1835,17 +1835,15 @@ function renderCausalityTower() {
   el.causalityTowerMonstersText.textContent = `巨塔の周りのモンスター ${(save.causalityTowerMonsters || 0).toLocaleString()}/${CAUSALITY_TOWER_MONSTERS_TOTAL.toLocaleString()}`;
   el.causalityTowerFloorText.textContent = `階層 ${save.causalityTowerFloor || 1}F/300F`;
   el.causalityTowerBtn.disabled = save.pt < CAUSALITY_TOWER_ADVANCE_COST
-    || causalityTowerDefeatCount() <= 0
     || (save.causalityTowerMonsters || 0) <= 0;
 }
 
 function advanceCausalityTower() {
   if (save.pt < CAUSALITY_TOWER_ADVANCE_COST) return;
-  const defeatable = causalityTowerDefeatCount();
-  if (defeatable <= 0) return;
   if ((save.causalityTowerMonsters || 0) <= 0) return;
 
   save.pt -= CAUSALITY_TOWER_ADVANCE_COST;
+  const defeatable = causalityTowerDefeatCount();
   const defeated = Math.min(defeatable, save.causalityTowerMonsters || 0);
   save.causalityTowerMonsters = Math.max(0, (save.causalityTowerMonsters || 0) - defeated);
 
@@ -1853,7 +1851,11 @@ function advanceCausalityTower() {
     save.causalityTowerIntroShown = true;
     queueReveal('因果の巨塔', '塔を登る為にはまず敵を\n片付けなくては……！！');
   }
-  queueReveal('', `${save.disciple.name}と協力して\nモンスターを${defeated.toLocaleString()}体蹴散らした！\n一度、状況を立て直そう`);
+  if (defeated > 0) {
+    queueReveal('', `${save.disciple.name}と協力して\nモンスターを${defeated.toLocaleString()}体蹴散らした！\n一度、状況を立て直そう`);
+  } else {
+    queueReveal('', `${save.disciple.name}と協力したが\nモンスターには歯が立たなかった。\n一度、状況と弟子のパラメーターを立て直そう`);
+  }
 
   persistSave();
   refreshTotalPt();
