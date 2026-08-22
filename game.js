@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.71',
+    items: [
+      'お知らせが上限数に達した場合にレアなお知らせが残り、通常のお知らせが優先的に消去されるように変更しました',
+    ],
+  },
+  {
     version: 'Beta0.70',
     items: [
       'メインシナリオの進捗状況において特定の条件を満たすと特定のモードが解放されるようになりました。',
@@ -308,6 +314,16 @@ const JUNKYARD_TICKET_DROP_CHANCE = { word: 0.001, sentence: 0.03, long: 0.07 };
 const JUNKYARD_TICKET_DROP_DISCOUNT_MULTIPLIER = 10;
 const COMPRESSED_BATTERY_STOCK_CAP = 39;
 const CAUSALITY_TOWER_ADVANCE_COST = 50000000000;
+const NSP_2000M3_PT_BONUS = 125000;
+const NSP_2000M3_RARE_HEART_BONUS = 0.20;
+const CASTLE_BUILD_TOTAL = 250;
+const CASTLE_MATERIAL_GEN_COST = 15000000000;
+const CASTLE_MATERIALS = [
+  { id: 'abyssObsidian', name: 'アビス・オブシディアン' },
+  { id: 'voidPlaster', name: 'ヴォイド・プラスター' },
+  { id: 'rebellionWood', name: 'リベリオン・ウッド' },
+  { id: 'stellaLuminous', name: 'ステラ・ルミナス' },
+];
 
 const GOD_STATUE_BUFFS = [
   { id: 'exp_boost', name: '経験の祝福', desc: 'EXPが永続的に+20%' },
@@ -432,6 +448,11 @@ function defaultSave() {
     endlessDungeonPlayCounts: { word: 0, sentence: 0, long: 0 },
     causalityTowerMonsters: 0,
     causalityTowerFloor: 1,
+    castleConstructionUnlocked: false,
+    castleConstructionProgress: 0,
+    castleMaterials: {
+      abyssObsidian: 0, voidPlaster: 0, rebellionWood: 0, stellaLuminous: 0,
+    },
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -931,6 +952,16 @@ const el = {
   causalityTowerMonstersText: document.getElementById('causalityTowerMonstersText'),
   causalityTowerFloorText: document.getElementById('causalityTowerFloorText'),
   causalityTowerBtn: document.getElementById('causalityTowerBtn'),
+  castlePanel: document.getElementById('castlePanel'),
+  castleTitleText: document.getElementById('castleTitleText'),
+  castleProgressText: document.getElementById('castleProgressText'),
+  castleProgressBarFill: document.getElementById('castleProgressBarFill'),
+  castleMaterial_abyssObsidian: document.getElementById('castleMaterial_abyssObsidian'),
+  castleMaterial_voidPlaster: document.getElementById('castleMaterial_voidPlaster'),
+  castleMaterial_rebellionWood: document.getElementById('castleMaterial_rebellionWood'),
+  castleMaterial_stellaLuminous: document.getElementById('castleMaterial_stellaLuminous'),
+  castleBuildBtn: document.getElementById('castleBuildBtn'),
+  castleGenerateBtn: document.getElementById('castleGenerateBtn'),
   endlessModeToggleRow: document.getElementById('endlessModeToggleRow'),
   endlessModeToggle: document.getElementById('endlessModeToggle'),
   junkyardTicketCount: document.getElementById('junkyardTicketCount'),
@@ -1384,7 +1415,7 @@ function checkRicoTabletDiscovery() {
   if (save.ricoTabletFound) return;
   if (!isAllRicoMaxed()) return;
   save.ricoTabletFound = true;
-  pushAnnouncement('🪦', 'リコの位牌を見つけました');
+  pushAnnouncement('🪦', 'リコの位牌を見つけました', true);
   persistSave();
   renderAnnouncements();
   renderPlayerCard();
@@ -1397,7 +1428,7 @@ function prayAtEmptyRicoTablet() {
   SFX.correct();
   persistSave();
   if (save.emptyPrayerClicks === 100) {
-    pushAnnouncement('👀', '「リコはちょっと嫌がってるかもしれません…」実績を解放しました。');
+    pushAnnouncement('👀', '「リコはちょっと嫌がってるかもしれません…」実績を解放しました。', true);
     renderAnnouncements();
     renderAchievements();
     queueReveal('', '「リコはちょっと嫌がってるかもしれません…」実績を解放しました。');
@@ -1426,7 +1457,7 @@ function prayAtRicoTablet() {
   const justUnlockedSeal = !save.maouSealUnlocked && prayerCount >= MAOU_SEAL_UNLOCK_PRAYER_COUNT;
   if (justUnlockedSeal) {
     save.maouSealUnlocked = true;
-    pushAnnouncement('🔒', 'リコが封紋章の作り方を教えてくれました');
+    pushAnnouncement('🔒', 'リコが封紋章の作り方を教えてくれました', true);
   }
 
   persistSave();
@@ -1435,7 +1466,7 @@ function prayAtRicoTablet() {
   renderGodGarden();
 
   if (justMetRico) {
-    pushAnnouncement('✨', 'リコが現れました');
+    pushAnnouncement('✨', 'リコが現れました', true);
     renderAnnouncements();
     queueReveal(
       'リコ',
@@ -1490,7 +1521,7 @@ function updateShopTabBadges() {
 function checkRicoUnlock() {
   if (save.ricoUnlocked || !isEverythingComplete()) return;
   save.ricoUnlocked = true;
-  pushAnnouncement('📦', 'コンプ報酬「リコシリーズ」が入荷しました');
+  pushAnnouncement('📦', 'コンプ報酬「リコシリーズ」が入荷しました', true);
   persistSave();
   renderAnnouncements();
   el.ricoCompletePopup.classList.remove('hidden');
@@ -1536,8 +1567,17 @@ function fullPtMultiplier() {
   const base = 1 + levelBonus + prestigeBonus;
   const awakeningBonus = prestigeAwakeningPtBonus(save);
   const ricoBonus = save.maouDefeated && isRicoFullyOwned(save) ? 10000 : 0;
-  const total = base * (1 + swordBonus) + awakeningBonus + ricoBonus;
-  return { levelBonus, prestigeBonus, swordBonus, awakeningBonus, ricoBonus, total };
+  const castleBonus = save.castleConstructionUnlocked ? NSP_2000M3_PT_BONUS : 0;
+  const total = base * (1 + swordBonus) + awakeningBonus + ricoBonus + castleBonus;
+  return {
+    levelBonus, prestigeBonus, swordBonus, awakeningBonus, ricoBonus, castleBonus, total,
+  };
+}
+
+function totalRareHeartBonusChance() {
+  return prestigeRareHeartBonusChance(save)
+    + junkyardRareHeartBonusChance()
+    + (save.castleConstructionUnlocked ? NSP_2000M3_RARE_HEART_BONUS : 0);
 }
 
 function rankAtLeast(rank, threshold) {
@@ -1580,6 +1620,7 @@ const ACHIEVEMENTS = [
   { id: 'maou_gate_seen', icon: '🏰', label: '魔王城への道が見えてきた', check: (s) => !!s.maouGateRevealed },
   { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated, sss: true },
   { id: 'mechanical_egg_hatched', icon: '🐦', iconImage: 'img/bird_icon.png', label: '機械仕掛けの卵をふ化させた', check: (s) => !!s.mechanicalEggHatched },
+  { id: 'junkyard_cleaned', icon: '🧹', label: 'ジャンクヤードを綺麗にした', check: (s) => !!s.castleConstructionUnlocked },
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
   { id: 'fairy_dust_500', icon: '🧚', label: '妖精の粉を500回購入した', hoverText: '不思議な粉', check: (s) => ((s.itemPurchaseCounts && s.itemPurchaseCounts.item_fairy_dust) || 0) >= 500 },
@@ -1652,9 +1693,16 @@ function renderPlayerCard() {
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
   const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
   const ricoPart = mult.ricoBonus > 0 ? ` リコの加護ボーナス+${mult.ricoBonus.toLocaleString()}` : '';
-  const rareHeartChance = prestigeRareHeartBonusChance(save);
+  const castlePart = mult.castleBonus > 0 ? ` NSP-2000M3+${mult.castleBonus.toLocaleString()}` : '';
+  const junkyardExpStacks = junkyardBuffStacks('buff_exp');
+  const junkyardExpPart = junkyardExpStacks > 0 ? ` EXPボーナス+${junkyardExpStacks}%` : '';
+  const junkyardDiscipleStacks = junkyardBuffStacks('buff_disciple_reward');
+  const junkyardDiscipleRewardPart = junkyardDiscipleStacks > 0 ? ` 弟子の獲得賞金+${junkyardDiscipleStacks}%` : '';
+  const junkyardRareChanceStacks = junkyardBuffStacks('buff_rare_chance');
+  const junkyardRareChancePart = junkyardRareChanceStacks > 0 ? ` レアエネミー出現率+${junkyardRareChanceStacks}%` : '';
+  const rareHeartChance = totalRareHeartBonusChance();
   const rareHeartPart = rareHeartChance > 0 ? ` レアモンスター撃破時+1ハート追加率${Math.round(rareHeartChance * 100)}%` : '';
-  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}${ricoPart}${rareHeartPart}）`;
+  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}${ricoPart}${castlePart}${junkyardExpPart}${junkyardDiscipleRewardPart}${junkyardRareChancePart}${rareHeartPart}）`;
   el.prestigeBtn.classList.toggle('hidden', !canPrestige(save));
 
   el.playerCard.className = `player-card design-${save.profile.cardDesign}`;
@@ -1667,6 +1715,7 @@ function renderPlayerCard() {
   renderJunkyard();
   renderCausalityTower();
   renderEndlessModeToggle();
+  renderCastle();
 }
 
 function renderCausalityTower() {
@@ -1809,7 +1858,7 @@ function restoreGodGarden() {
   const justCompleted = save.godStatue.gardenRestorations >= GOD_GARDEN_MAX_RESTORATIONS && !save.godGardenHintShown;
   if (justCompleted) {
     save.godGardenHintShown = true;
-    pushAnnouncement('❔', '女神が何かを仄めかしています');
+    pushAnnouncement('❔', '女神が何かを仄めかしています', true);
   }
   persistSave();
   refreshTotalPt();
@@ -1871,7 +1920,7 @@ function renderMechanicalEggRateLine() {
 }
 
 function renderMechanicalEgg() {
-  const visible = !!save.mechanicalEggOwned && !!save.maouDefeated;
+  const visible = !!save.mechanicalEggOwned && !!save.maouDefeated && !save.castleConstructionUnlocked;
   el.mechanicalEggPanel.classList.toggle('hidden', !visible);
   if (!visible) return;
   const keys = Math.min(save.mechanicalEggChargeKeys || 0, MECHANICAL_EGG_CHARGE_TARGET);
@@ -1958,9 +2007,9 @@ function applyJunkyardResult(result) {
     const alreadyOwned = save.junkyardPartsOwned.includes(part.id);
     if (!alreadyOwned) {
       save.junkyardPartsOwned.push(part.id);
-      pushAnnouncement('⚙️', `ジャンクヤードから「${part.name}」を手に入れました`);
+      pushAnnouncement('⚙️', `ジャンクヤードから「${part.name}」を手に入れました`, true);
       if (save.junkyardPartsOwned.length >= JUNKYARD_PARTS.length) {
-        pushAnnouncement('✨', 'スリスのパーツが全て揃いました');
+        pushAnnouncement('✨', 'スリスのパーツが全て揃いました', true);
       }
     }
     return `「${part.name}」を手に入れた！`;
@@ -2000,6 +2049,18 @@ function digJunkyard() {
     persistSave();
     playJunkyardPartsCompleteSequence();
   }
+  const remainingAfter = (save.junkyardDeck || []).length - (save.junkyardDraws || 0);
+  if (remainingAfter <= 0 && !save.castleConstructionUnlocked) {
+    save.castleConstructionUnlocked = true;
+    pushAnnouncement('🔧', '「NSP-2000M3」を手に入れました', true);
+    persistSave();
+    renderJunkyard();
+    renderMechanicalEgg();
+    renderCastle();
+    renderAnnouncements();
+    renderAchievements();
+    playJunkyardExplorationCompleteSequence();
+  }
 }
 
 function craftJunkyardBomb() {
@@ -2023,7 +2084,7 @@ function craftJunkyardBomb() {
 }
 
 function renderJunkyard() {
-  const visible = !!save.mechanicalEggHatched && !!save.maouDefeated;
+  const visible = !!save.mechanicalEggHatched && !!save.maouDefeated && !save.castleConstructionUnlocked;
   el.junkyardPanel.classList.toggle('hidden', !visible);
   if (!visible) return;
 
@@ -2056,6 +2117,63 @@ function renderJunkyard() {
   el.junkyardBombBtn.classList.toggle('hidden', (save.junkyardJunkCount || 0) < 10);
 }
 
+function playJunkyardExplorationCompleteSequence() {
+  queueReveal('', '遂にジャンクヤードのガラクタを一掃した！\n……ん？あれはなんだ？');
+  queueReveal('', 'NSP-2000M3を発見した！\n（タイプ時獲得pt125000倍追加）\n（レアエネミー撃破時ハート+1確率20％UP)');
+  queueReveal('', 'じゃあ、せっかく綺麗になったし\nここに城を建築しよう！', () => {
+    renderPlayerCard();
+  });
+}
+
+function castleBuildProgressPct() {
+  return Math.min(100, ((save.castleConstructionProgress || 0) / CASTLE_BUILD_TOTAL) * 100);
+}
+
+function canCastleBuild() {
+  return CASTLE_MATERIALS.every((m) => (save.castleMaterials[m.id] || 0) >= 1);
+}
+
+function buildCastle() {
+  if (!save.castleConstructionUnlocked) return;
+  if ((save.castleConstructionProgress || 0) >= CASTLE_BUILD_TOTAL) return;
+  if (!canCastleBuild()) return;
+  CASTLE_MATERIALS.forEach((m) => {
+    save.castleMaterials[m.id] -= 1;
+  });
+  save.castleConstructionProgress = (save.castleConstructionProgress || 0) + 1;
+  persistSave();
+  renderCastle();
+}
+
+function generateCastleMaterial() {
+  if (!save.castleConstructionUnlocked) return;
+  if (save.pt < CASTLE_MATERIAL_GEN_COST) return;
+  save.pt -= CASTLE_MATERIAL_GEN_COST;
+  save.totalPtSpent += CASTLE_MATERIAL_GEN_COST;
+  const pick = CASTLE_MATERIALS[Math.floor(Math.random() * CASTLE_MATERIALS.length)];
+  save.castleMaterials[pick.id] = (save.castleMaterials[pick.id] || 0) + 1;
+  persistSave();
+  refreshTotalPt();
+  renderCastle();
+  queueReveal('', `${pick.name}を生成した！`);
+}
+
+function renderCastle() {
+  const visible = !!save.castleConstructionUnlocked;
+  el.castlePanel.classList.toggle('hidden', !visible);
+  if (!visible) return;
+  el.castleTitleText.textContent = `${save.profile.name || 'プレイヤー'}城の建築`;
+  const pct = castleBuildProgressPct();
+  el.castleProgressText.textContent = `建築率 ${Math.floor(pct)}/100％`;
+  el.castleProgressBarFill.style.width = `${pct}%`;
+  CASTLE_MATERIALS.forEach((m) => {
+    el[`castleMaterial_${m.id}`].textContent = `${m.name} 所持数${(save.castleMaterials[m.id] || 0).toLocaleString()}個`;
+  });
+  const complete = (save.castleConstructionProgress || 0) >= CASTLE_BUILD_TOTAL;
+  el.castleBuildBtn.disabled = complete || !canCastleBuild();
+  el.castleGenerateBtn.disabled = save.pt < CASTLE_MATERIAL_GEN_COST;
+}
+
 function checkMechanicalEggHatch() {
   if (!save.maouDefeated || !save.mechanicalEggOwned || save.mechanicalEggHatched) return;
   if ((save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_CHARGE_TARGET) return;
@@ -2063,7 +2181,7 @@ function checkMechanicalEggHatch() {
   save.mechanicalEggChargeKeys = 0;
   save.junkyardDeck = generateJunkyardDeck();
   save.junkyardDraws = 0;
-  pushAnnouncement('🐦', '機械仕掛けの卵がふ化しました');
+  pushAnnouncement('🐦', '機械仕掛けの卵がふ化しました', true);
   persistSave();
   renderMechanicalEgg();
   renderJunkyard();
@@ -2154,7 +2272,7 @@ function addMechanicalEggProgress() {
   if (!save.mechanicalEggHatched) {
     if (!save.mechanicalEggBatteryAnnounced && save.mechanicalEggChargeKeys >= MECHANICAL_EGG_BATTERY_UNLOCK_KEYS) {
       save.mechanicalEggBatteryAnnounced = true;
-      pushAnnouncement('📦', '更に新しい商品が入荷されたようです。');
+      pushAnnouncement('📦', '更に新しい商品が入荷されたようです。', true);
     }
     return;
   }
@@ -2763,7 +2881,7 @@ function showNextReveal() {
 function checkGodStatueCompletion() {
   if (save.godStatue.completed || save.godStatue.sent < GOD_STATUE_MAX_SENT) return;
   save.godStatue.completed = true;
-  pushAnnouncement('⛩️', 'ラグナロクに全ての女神を帰しました');
+  pushAnnouncement('⛩️', 'ラグナロクに全ての女神を帰しました', true);
   persistSave();
   renderAnnouncements();
   renderGodStatue();
@@ -2774,7 +2892,7 @@ function checkGodStatueCompletion() {
 function checkDiscipleClassUp() {
   if (save.disciple.classUpped || discipleTotalParams() < DISCIPLE_CLASS_UP_THRESHOLD) return;
   save.disciple.classUpped = true;
-  pushAnnouncement('⚔️', `${save.disciple.name}は勇者でした！勇者にクラスアップしました`);
+  pushAnnouncement('⚔️', `${save.disciple.name}は勇者でした！勇者にクラスアップしました`, true);
   persistSave();
   renderAnnouncements();
   queueReveal('弟子の様子が…！？', `${save.disciple.name}は勇者だった！勇者にクラスアップした！`);
@@ -2785,7 +2903,7 @@ function checkMaouGateReveal() {
   if (save.maouGateRevealed || !save.disciple.classUpped) return;
   save.maouGateRevealed = true;
   save.maouEmblems = MAOU_EMBLEM_REQUIRED;
-  pushAnnouncement('🏰', '勇者が生まれた事で霧が晴れ、魔王城への道が開かれました');
+  pushAnnouncement('🏰', '勇者が生まれた事で霧が晴れ、魔王城への道が開かれました', true);
   persistSave();
   renderAnnouncements();
   renderMaouGate();
@@ -2809,7 +2927,7 @@ function restoreGodStatue() {
   save.totalPtSpent += GOD_STATUE_RESTORE_COST;
   save.godStatue.restoration += 1;
   if (save.godStatue.restoration >= GOD_STATUE_MAX) {
-    pushAnnouncement('⛩️', '女神像が完全に復活しました');
+    pushAnnouncement('⛩️', '女神像が完全に復活しました', true);
     renderAnnouncements();
   }
   persistSave();
@@ -2963,7 +3081,7 @@ function checkDiscipleBulkUnlocks() {
   DISCIPLE_BULK_THRESHOLDS.forEach(({ count, minTotal }) => {
     if (total > minTotal && !save.disciple.bulkUnlocked[count]) {
       save.disciple.bulkUnlocked[count] = true;
-      pushAnnouncement('💪', `弟子のパラメーター合計が${minTotal}を超えたことで「+${count}」ボタンが追加されました`);
+      pushAnnouncement('💪', `弟子のパラメーター合計が${minTotal}を超えたことで「+${count}」ボタンが追加されました`, true);
       renderAnnouncements();
     }
   });
@@ -3007,7 +3125,7 @@ function checkHeartVesselUnlock() {
   if (save.disciple.heartVesselOwned || save.disciple.heartVesselAnnounced) return;
   if (discipleMaxStreak() <= 1000) return;
   save.disciple.heartVesselAnnounced = true;
-  pushAnnouncement('❓', 'ショップに何かが入荷されました');
+  pushAnnouncement('❓', 'ショップに何かが入荷されました', true);
   renderAnnouncements();
 }
 
@@ -3015,7 +3133,7 @@ function checkBatchBattleReveal() {
   if (save.batchBattleAnnounced) return;
   if (discipleMaxStreak() < 10000) return;
   save.batchBattleAnnounced = true;
-  pushAnnouncement('⚡', '10000連勝したことで一括対戦が解放されました');
+  pushAnnouncement('⚡', '10000連勝したことで一括対戦が解放されました', true);
   renderAnnouncements();
   queueReveal('一括対戦 解放', '10000連勝したことで一括対戦が解放されました');
 }
@@ -3382,7 +3500,7 @@ el.openHelpBtn.addEventListener('click', () => {
   save.helpManualOpens = (save.helpManualOpens || 0) + 1;
   persistSave();
   if (save.helpManualOpens === 100) {
-    pushAnnouncement('😰', '実績「疑心暗鬼」が解放されました。');
+    pushAnnouncement('😰', '実績「疑心暗鬼」が解放されました。', true);
     renderAnnouncements();
     renderAchievements();
     queueReveal('', 'まだ何か分らないことがありますか？\n実績「疑心暗鬼」が解放されました。');
@@ -3401,7 +3519,7 @@ el.secretKeyboardIcon.addEventListener('click', () => {
   if (save.secretKeyboardClicks <= 99) {
     queueReveal('', SECRET_KEYBOARD_LINES[save.secretKeyboardClicks - 1]);
   } else {
-    pushAnnouncement('😝', '実績「くだらないギミックのクリックを頑張ったで賞」が解放されました。');
+    pushAnnouncement('😝', '実績「くだらないギミックのクリックを頑張ったで賞」が解放されました。', true);
     renderAnnouncements();
     renderAchievements();
     queueReveal('勘弁して下さい', '実績「くだらないギミックのクリックを頑張ったで賞」が解放されました。');
@@ -3466,6 +3584,8 @@ el.typingFrameSelect.addEventListener('change', () => {
 });
 el.junkyardDigBtn.addEventListener('click', digJunkyard);
 el.junkyardBombBtn.addEventListener('click', craftJunkyardBomb);
+el.castleBuildBtn.addEventListener('click', buildCastle);
+el.castleGenerateBtn.addEventListener('click', generateCastleMaterial);
 el.endlessModeToggle.addEventListener('change', () => {
   save.endlessModeOn = el.endlessModeToggle.checked;
   persistSave();
@@ -3611,9 +3731,15 @@ function renderAnnouncements() {
   });
 }
 
-function pushAnnouncement(icon, text) {
-  save.announcements.unshift({ ts: Date.now(), icon, text });
-  if (save.announcements.length > ANNOUNCEMENT_HISTORY_MAX) save.announcements.length = ANNOUNCEMENT_HISTORY_MAX;
+function pushAnnouncement(icon, text, rare) {
+  save.announcements.unshift({ ts: Date.now(), icon, text, rare: !!rare });
+  let overflow = save.announcements.length - ANNOUNCEMENT_HISTORY_MAX;
+  for (let i = save.announcements.length - 1; i >= 0 && overflow > 0; i--) {
+    if (!save.announcements[i].rare) {
+      save.announcements.splice(i, 1);
+      overflow -= 1;
+    }
+  }
 }
 
 function formatTimestamp(ts) {
@@ -3667,7 +3793,7 @@ function checkReincarnationNecklaceReveal() {
   if (save.reincarnationNecklaceAnnounced || save.eternalComboUnlocked) return;
   if (save.prestige < 1) return;
   save.reincarnationNecklaceAnnounced = true;
-  pushAnnouncement('🔄', 'ショップに新商品が入荷しました');
+  pushAnnouncement('🔄', 'ショップに新商品が入荷しました', true);
   persistSave();
   renderAnnouncements();
   queueReveal(
@@ -3687,7 +3813,7 @@ el.prestigeBtn.addEventListener('click', () => {
   renderAnnouncements();
   SFX.prestige();
   newTiers.forEach((tier) => {
-    pushAnnouncement('✨', `眠っていた力が目覚めました（pt倍率+${tier.ptBonus}・以後の経験値テーブルが${tier.expMultiplier}倍）`);
+    pushAnnouncement('✨', `眠っていた力が目覚めました（pt倍率+${tier.ptBonus}・以後の経験値テーブルが${tier.expMultiplier}倍）`, true);
     renderAnnouncements();
     queueReveal(
       '体が眩く光り出す…！',
@@ -3759,9 +3885,9 @@ el.maouNextTurnBtn.addEventListener('click', () => {
     playMaouStoryScene(getMaouStoryScenes(), () => {
       el.maouSideBox.classList.remove('maou-victory-flicker', 'maou-victory-vanishing');
       save.maouDefeated = true;
-      pushAnnouncement('💀', '魔王を討伐しました');
-      pushAnnouncement('🍃', 'リコはあの場所を去りました');
-      pushAnnouncement('🌌', 'ENDLESS TYPE-LOOP Phase2に突入しました');
+      pushAnnouncement('💀', '魔王を討伐しました', true);
+      pushAnnouncement('🍃', 'リコはあの場所を去りました', true);
+      pushAnnouncement('🌌', 'ENDLESS TYPE-LOOP Phase2に突入しました', true);
       renderAnnouncements();
       persistSave();
       updateLogos();
@@ -3879,7 +4005,7 @@ function buyConsumableItem(itemId) {
     save.pt -= item.price;
     save.totalPtSpent += item.price;
     save.disciple.heartVesselOwned = true;
-    pushAnnouncement('❤️', `「${item.name}」を手に入れました！弟子のハート上限が${item.value}になりました`);
+    pushAnnouncement('❤️', `「${item.name}」を手に入れました！弟子のハート上限が${item.value}になりました`, true);
     SFX.complete();
     persistSave();
     refreshTotalPt();
@@ -3896,7 +4022,7 @@ function buyConsumableItem(itemId) {
     save.pt -= item.price;
     save.totalPtSpent += item.price;
     save.eternalComboUnlocked = true;
-    pushAnnouncement('🔄', `「${item.name}」を手に入れました！永続コンボシステムが解放されました`);
+    pushAnnouncement('🔄', `「${item.name}」を手に入れました！永続コンボシステムが解放されました`, true);
     SFX.complete();
     persistSave();
     refreshTotalPt();
@@ -4649,7 +4775,7 @@ function handleTypedChar(ch) {
         const levelsGainedFromRare = gainExp(res.rareBonus.exp, { countsForHappyGrass: false });
         renderGameExpBar();
         if (levelsGainedFromRare.length > 0) showLevelUpPopup(save.level);
-        if (Math.random() < prestigeRareHeartBonusChance(save) + junkyardRareHeartBonusChance()) {
+        if (Math.random() < totalRareHeartBonusChance()) {
           res.rareBonus.heart += 1;
         }
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
