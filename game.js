@@ -3917,6 +3917,7 @@ function bulkBuyItem(itemId) {
   const levelBefore = save.level;
   let used = 0;
   while (true) {
+    if (item.effect === 'exp' && save.level >= MAX_LEVEL) break;
     if (item.hasShopStock && save.happyGrassStock <= 0) break;
     if (save.pt < item.price) break;
     save.pt -= item.price;
