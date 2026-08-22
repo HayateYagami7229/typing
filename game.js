@@ -2074,6 +2074,7 @@ function digJunkyard() {
     renderCastle();
     renderAnnouncements();
     renderAchievements();
+    renderDungeonBadges();
     playJunkyardExplorationCompleteSequence();
   }
 }
