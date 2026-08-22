@@ -262,17 +262,18 @@ async function handleProgressView(request, env, url) {
     <td data-count="${funnelCounts[id]}">${funnelCounts[id]}</td>
   </tr>`).join('');
 
-  const tableRows = rows.map((r) => `<tr
-    data-level="${r.level}" data-prestige="${r.prestige}" data-god_statue_sent="${r.god_statue_sent}"
+  const tableRows = rows.map((r) => {
+    const progressScore = r.prestige * 100 + r.level;
+    return `<tr
+    data-progress="${progressScore}"
     data-disciple_total_params="${r.disciple_total_params}" data-castle_progress="${r.castle_progress}"
     data-pt="${r.pt}" data-total_pt_earned="${r.total_pt_earned}" data-total_correct="${r.total_correct}"
     data-dungeon_starts="${r.dungeon_starts}" data-total_play_time_min="${r.total_play_time_min}"
     data-updated_at="${r.updated_at}">
     <td>${escapeHtml(r.player_name || '')}</td>
-    <td>${r.level}</td>
-    <td>${r.prestige}</td>
-    <td>${r.god_statue_sent}</td>
-    <td>${r.garden_restorations}</td>
+    <td>Lv${r.level}（転生${r.prestige}）</td>
+    <td>${r.god_statue_completed ? '✅' : ''}</td>
+    <td>${r.garden_restorations >= 20 ? '✅' : ''}</td>
     <td>${r.disciple_total_params}</td>
     <td>${r.maou_defeated ? '✅' : ''}</td>
     <td>${r.castle_unlocked ? r.castle_progress : ''}</td>
@@ -283,7 +284,8 @@ async function handleProgressView(request, env, url) {
     <td>${fmtNum(r.dungeon_starts)}</td>
     <td>${fmtNum(r.total_play_time_min)}分</td>
     <td>${new Date(r.updated_at).toLocaleString('ja-JP')}</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 
   const html = `<!doctype html>
 <html lang="ja">
@@ -341,7 +343,7 @@ async function handleProgressView(request, env, url) {
 <h2>プレイヤー一覧（列見出しクリックで並べ替え）</h2>
 <table id="playerTable">
 <thead><tr>
-  <th>名前</th><th data-sort="level">Lv</th><th data-sort="prestige">転生</th><th data-sort="god_statue_sent">女神像sent</th>
+  <th>名前</th><th data-sort="progress">Lv（転生）</th><th>女神像</th>
   <th>園復興</th><th data-sort="disciple_total_params">弟子params</th><th>魔王討伐</th><th data-sort="castle_progress">城進捗</th>
   <th>Endless</th><th data-sort="pt">所持pt</th><th data-sort="total_pt_earned">総獲得pt</th>
   <th data-sort="total_correct">総タイプ数</th><th data-sort="dungeon_starts">開始回数</th>
