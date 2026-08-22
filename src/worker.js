@@ -339,6 +339,7 @@ async function handleProgressView(request, env, url) {
 </table>
 
 <h2>プレイヤー一覧（列見出しクリックで並べ替え）</h2>
+<div class="funnel-controls"><label><input type="checkbox" id="hideLowLevelToggle"> Lv5以下のプレイヤーを非表示</label></div>
 <table id="playerTable">
 <thead><tr>
   <th>名前</th><th data-sort="progress">Lv</th><th>女神像</th>
@@ -393,6 +394,26 @@ async function handleProgressView(request, env, url) {
     applyHidden();
   });
   applyHidden();
+
+  var LOW_LEVEL_KEY = 'progressHideLowLevel';
+  var hideLowLevel = localStorage.getItem(LOW_LEVEL_KEY) === '1';
+  var lowLevelToggle = document.getElementById('hideLowLevelToggle');
+  function applyLowLevelFilter() {
+    document.querySelectorAll('#playerTable tbody tr').forEach(function (tr) {
+      if (hideLowLevel && (parseFloat(tr.getAttribute('data-progress')) || 0) <= 5) {
+        tr.style.display = 'none';
+      } else {
+        tr.style.display = '';
+      }
+    });
+  }
+  lowLevelToggle.checked = hideLowLevel;
+  lowLevelToggle.addEventListener('change', function () {
+    hideLowLevel = lowLevelToggle.checked;
+    localStorage.setItem(LOW_LEVEL_KEY, hideLowLevel ? '1' : '0');
+    applyLowLevelFilter();
+  });
+  applyLowLevelFilter();
 })();
 </script>
 </body>
