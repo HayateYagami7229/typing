@@ -3280,8 +3280,8 @@ const BATCH_BATTLE_HEART_LOT_SIZE = 999;
 
 function batchFightHeartsToUse() {
   const hearts = save.disciple.hearts || 0;
-  if (save.disciple.heartGrailOwned) {
-    return hearts >= BATCH_BATTLE_HEART_LOT_SIZE ? BATCH_BATTLE_HEART_LOT_SIZE : 0;
+  if (save.disciple.heartGrailOwned && hearts >= BATCH_BATTLE_HEART_LOT_SIZE) {
+    return BATCH_BATTLE_HEART_LOT_SIZE;
   }
   return hearts;
 }
@@ -3460,7 +3460,8 @@ function renderDisciple() {
   el.discipleBatchBattleBtn.classList.toggle('hidden', !batchUnlocked);
   if (batchUnlocked) el.discipleBatchBattleBtn.disabled = batchFightHeartsToUse() <= 0;
   const runawayReady = save.heartVesselRunawayActive && save.disciple.hearts >= 999;
-  const batchLabel = save.disciple.heartGrailOwned ? '⚡ ♡999個一括対戦' : '⚡ 一括対戦';
+  const lotModeActive = save.disciple.heartGrailOwned && save.disciple.hearts >= BATCH_BATTLE_HEART_LOT_SIZE;
+  const batchLabel = lotModeActive ? '⚡ ♡×999 一括対戦' : '⚡ 一括対戦';
   if (runawayReady) {
     const streakMult = discipleStreakBonusMultiplier();
     const multText = Number.isInteger(streakMult) ? `${streakMult}` : streakMult.toFixed(1);
