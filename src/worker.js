@@ -271,7 +271,7 @@ async function handleProgressView(request, env, url) {
     data-dungeon_starts="${r.dungeon_starts}" data-total_play_time_min="${r.total_play_time_min}"
     data-updated_at="${r.updated_at}">
     <td>${escapeHtml(r.player_name || '')}</td>
-    <td>Lv${r.level}（転生${r.prestige}）</td>
+    <td>${progressScore}</td>
     <td>${r.god_statue_completed ? '✅' : ''}</td>
     <td>${r.garden_restorations >= 20 ? '✅' : ''}</td>
     <td>${r.disciple_total_params}</td>
@@ -343,7 +343,7 @@ async function handleProgressView(request, env, url) {
 <h2>プレイヤー一覧（列見出しクリックで並べ替え）</h2>
 <table id="playerTable">
 <thead><tr>
-  <th>名前</th><th data-sort="progress">Lv（転生）</th><th>女神像</th>
+  <th>名前</th><th data-sort="progress">Lv</th><th>女神像</th>
   <th>園復興</th><th data-sort="disciple_total_params">弟子params</th><th>魔王討伐</th><th data-sort="castle_progress">城進捗</th>
   <th>Endless</th><th data-sort="pt">所持pt</th><th data-sort="total_pt_earned">総獲得pt</th>
   <th data-sort="total_correct">総タイプ数</th><th data-sort="dungeon_starts">開始回数</th>
