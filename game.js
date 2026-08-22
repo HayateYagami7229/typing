@@ -660,6 +660,25 @@ function getOrCreatePlayerId() {
   return id;
 }
 
+function computeReachedFunnels() {
+  const reached = ['1-1'];
+  FUNNEL_BLOCKS.forEach(({ id, check }) => {
+    try {
+      if (check()) reached.push(id);
+    } catch (e) {
+      // ignore — a broken check() must not block reporting the rest
+    }
+  });
+  return reached;
+}
+
+function totalDungeonStarts() {
+  const counts = save.dungeonPlayCounts || {};
+  const endlessCounts = save.endlessDungeonPlayCounts || {};
+  return (counts.word || 0) + (counts.sentence || 0) + (counts.long || 0)
+    + (endlessCounts.word || 0) + (endlessCounts.sentence || 0) + (endlessCounts.long || 0);
+}
+
 function buildProgressPayload() {
   return {
     player_id: getOrCreatePlayerId(),
@@ -684,6 +703,10 @@ function buildProgressPayload() {
     total_play_time_min: Math.round((save.totalTypingTimeMs || 0) / 60000),
     best_kpm: save.bestKpm || 0,
     best_rank: save.bestRank || null,
+    dungeon_starts: totalDungeonStarts(),
+    pt: Math.floor(save.pt || 0),
+    total_pt_earned: Math.floor(save.totalPtEarned || 0),
+    funnels_reached: computeReachedFunnels(),
   };
 }
 

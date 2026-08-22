@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS player_progress (
   total_play_time_min INTEGER NOT NULL DEFAULT 0,
   best_kpm INTEGER NOT NULL DEFAULT 0,
   best_rank TEXT,
+  dungeon_starts INTEGER NOT NULL DEFAULT 0,
+  pt INTEGER NOT NULL DEFAULT 0,
+  total_pt_earned INTEGER NOT NULL DEFAULT 0,
+  funnels_reached TEXT NOT NULL DEFAULT '[]',
   updated_at INTEGER NOT NULL DEFAULT 0
 );
 

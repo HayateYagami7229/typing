@@ -89,7 +89,7 @@ const PROGRESS_FIELDS = [
   'god_statue_sent', 'god_statue_completed', 'garden_restorations', 'disciple_total_params',
   'disciple_class_upped', 'maou_defeated', 'rico_unlocked', 'rico_fully_owned',
   'mechanical_egg_hatched', 'castle_unlocked', 'castle_progress', 'endless_mode_unlocked',
-  'total_correct', 'total_play_time_min', 'best_kpm',
+  'total_correct', 'total_play_time_min', 'best_kpm', 'dungeon_starts', 'pt', 'total_pt_earned',
 ];
 
 function clampInt(v, min, max) {
@@ -113,7 +113,44 @@ const FIELD_CAPS = {
   total_correct: 1000000000,
   total_play_time_min: 5256000,
   best_kpm: 10000,
+  dungeon_starts: 10000000,
+  pt: 1e15,
+  total_pt_earned: 1e15,
 };
+
+const VALID_FUNNEL_IDS = new Set(
+  Array.from({ length: 21 }, (_, i) => `1-${i + 1}`),
+);
+
+const FUNNEL_LABELS = {
+  '1-1': 'ゲーム開始',
+  '1-2': '転生1回達成',
+  '1-3': '女神像sent≥1',
+  '1-4': '弟子params≥100',
+  '1-5': '弟子params≥500',
+  '1-6': '弟子クラスアップ',
+  '1-7': '魔王に1回敗北',
+  '1-8': 'リコ解放',
+  '1-9': 'リコ装備コンプ',
+  '1-10': '女神像sent≥100',
+  '1-11': '女神の園復興1回',
+  '1-12': 'リコ全MAX',
+  '1-13': 'リコと出会った',
+  '1-14': '封紋章解放',
+  '1-15': '封紋章1回作成',
+  '1-16': '魔王に2回敗北',
+  '1-17': '園復興ヒント表示',
+  '1-18': '永続コンボ解放',
+  '1-19': '弟子連勝1万',
+  '1-20': '覚醒（転生10回）',
+  '1-21': '魔王討伐',
+};
+
+function sanitizeFunnelsReached(v) {
+  if (!Array.isArray(v)) return '[]';
+  const filtered = v.filter((x) => typeof x === 'string' && VALID_FUNNEL_IDS.has(x)).slice(0, 21);
+  return JSON.stringify(filtered);
+}
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
@@ -139,6 +176,7 @@ async function handleProgressReport(request, env) {
   const playerId = data.player_id.slice(0, 128);
   const playerName = String(data.player_name || '').slice(0, 64);
   const bestRank = data.best_rank ? String(data.best_rank).slice(0, 8) : null;
+  const funnelsReached = sanitizeFunnelsReached(data.funnels_reached);
   const now = Date.now();
 
   const boolFields = new Set([
@@ -154,13 +192,23 @@ async function handleProgressReport(request, env) {
   const setClause = PROGRESS_FIELDS.map((f) => `${f}=excluded.${f}`).join(', ');
   await env.DB.prepare(`
     INSERT INTO player_progress (
-      player_id, player_name, ${PROGRESS_FIELDS.join(', ')}, best_rank, updated_at
-    ) VALUES (?, ?, ${PROGRESS_FIELDS.map(() => '?').join(', ')}, ?, ?)
+      player_id, player_name, ${PROGRESS_FIELDS.join(', ')}, best_rank, funnels_reached, updated_at
+    ) VALUES (?, ?, ${PROGRESS_FIELDS.map(() => '?').join(', ')}, ?, ?, ?)
     ON CONFLICT(player_id) DO UPDATE SET
-      player_name=excluded.player_name, ${setClause}, best_rank=excluded.best_rank, updated_at=excluded.updated_at
-  `).bind(playerId, playerName, ...values, bestRank, now).run();
+      player_name=excluded.player_name, ${setClause}, best_rank=excluded.best_rank,
+      funnels_reached=excluded.funnels_reached, updated_at=excluded.updated_at
+  `).bind(playerId, playerName, ...values, bestRank, funnelsReached, now).run();
 
   return new Response(null, { status: 204 });
+}
+
+function fmtNum(n) {
+  return Number(n || 0).toLocaleString('ja-JP');
+}
+
+function maxRow(rows, key) {
+  if (!rows.length) return null;
+  return rows.reduce((best, r) => ((best === null || r[key] > best[key]) ? r : best), null);
 }
 
 async function handleProgressView(request, env, url) {
@@ -175,6 +223,7 @@ async function handleProgressView(request, env, url) {
   const rows = results || [];
   const total = rows.length;
   const count = (pred) => rows.filter(pred).length;
+  const sum = (key2) => rows.reduce((s, r) => s + (Number(r[key2]) || 0), 0);
   const summary = {
     total,
     prestigeAny: count((r) => r.prestige > 0),
@@ -183,9 +232,42 @@ async function handleProgressView(request, env, url) {
     maouDefeated: count((r) => r.maou_defeated),
     castleUnlocked: count((r) => r.castle_unlocked),
     endlessUnlocked: count((r) => r.endless_mode_unlocked),
+    totalDungeonStarts: sum('dungeon_starts'),
+    totalTypedKeys: sum('total_correct'),
   };
 
-  const tableRows = rows.map((r) => `<tr>
+  const highlights = [
+    { label: '最高レベル', row: maxRow(rows, 'level'), fmt: (r) => `Lv.${r.level}` },
+    { label: '最大所持pt', row: maxRow(rows, 'pt'), fmt: (r) => `${fmtNum(r.pt)}pt` },
+    { label: '最大総獲得pt', row: maxRow(rows, 'total_pt_earned'), fmt: (r) => `${fmtNum(r.total_pt_earned)}pt` },
+    { label: '最長プレイ時間', row: maxRow(rows, 'total_play_time_min'), fmt: (r) => `${fmtNum(r.total_play_time_min)}分` },
+  ];
+  const highlightCards = highlights.filter((h) => h.row).map((h) => `
+    <div class="highlight">
+      <div class="highlight-label">${h.label}</div>
+      <div class="highlight-value">${h.fmt(h.row)}</div>
+      <div class="highlight-name">${escapeHtml(h.row.player_name || '')}</div>
+    </div>`).join('');
+
+  const funnelCounts = {};
+  Object.keys(FUNNEL_LABELS).forEach((id) => { funnelCounts[id] = 0; });
+  rows.forEach((r) => {
+    let reached = [];
+    try { reached = JSON.parse(r.funnels_reached || '[]'); } catch (e) { reached = []; }
+    reached.forEach((id) => { if (funnelCounts[id] !== undefined) funnelCounts[id] += 1; });
+  });
+  const funnelRows = Object.keys(FUNNEL_LABELS).map((id) => `<tr data-funnel-id="${id}">
+    <td><label><input type="checkbox" value="${id}"> ${id}</label></td>
+    <td>${escapeHtml(FUNNEL_LABELS[id])}</td>
+    <td data-count="${funnelCounts[id]}">${funnelCounts[id]}</td>
+  </tr>`).join('');
+
+  const tableRows = rows.map((r) => `<tr
+    data-level="${r.level}" data-prestige="${r.prestige}" data-god_statue_sent="${r.god_statue_sent}"
+    data-disciple_total_params="${r.disciple_total_params}" data-castle_progress="${r.castle_progress}"
+    data-pt="${r.pt}" data-total_pt_earned="${r.total_pt_earned}" data-total_correct="${r.total_correct}"
+    data-dungeon_starts="${r.dungeon_starts}" data-total_play_time_min="${r.total_play_time_min}"
+    data-updated_at="${r.updated_at}">
     <td>${escapeHtml(r.player_name || '')}</td>
     <td>${r.level}</td>
     <td>${r.prestige}</td>
@@ -195,7 +277,11 @@ async function handleProgressView(request, env, url) {
     <td>${r.maou_defeated ? '✅' : ''}</td>
     <td>${r.castle_unlocked ? r.castle_progress : ''}</td>
     <td>${r.endless_mode_unlocked ? '✅' : ''}</td>
-    <td>${r.total_play_time_min}分</td>
+    <td>${fmtNum(r.pt)}</td>
+    <td>${fmtNum(r.total_pt_earned)}</td>
+    <td>${fmtNum(r.total_correct)}</td>
+    <td>${fmtNum(r.dungeon_starts)}</td>
+    <td>${fmtNum(r.total_play_time_min)}分</td>
     <td>${new Date(r.updated_at).toLocaleString('ja-JP')}</td>
   </tr>`).join('');
 
@@ -206,16 +292,36 @@ async function handleProgressView(request, env, url) {
 <title>プレイヤー進捗</title>
 <style>
   body { background:#0c0e17; color:#eef0ff; font-family:sans-serif; padding:20px; }
-  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+  h1 { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; font-size:1.3rem; }
+  .corner-stats { font-size:0.9rem; font-weight:normal; display:flex; gap:16px; }
+  .corner-stats b { color:#7c8cff; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; margin-bottom:24px; }
   th, td { border: 1px solid #33375a; padding: 4px 8px; text-align: right; }
-  th:first-child, td:first-child { text-align: left; }
-  th { background: #1a1d2e; position: sticky; top: 0; }
-  .summary { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-  .summary div { background: #1a1d2e; border: 1px solid #33375a; border-radius: 8px; padding: 8px 14px; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+  th { background: #1a1d2e; position: sticky; top: 0; cursor: default; }
+  th[data-sort] { cursor: pointer; user-select: none; }
+  th[data-sort]:hover { color: #7c8cff; }
+  .summary, .highlights { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .summary div, .highlights .highlight { background: #1a1d2e; border: 1px solid #33375a; border-radius: 8px; padding: 8px 14px; }
+  .highlight-label { font-size: 0.75rem; color: #9aa0c0; }
+  .highlight-value { font-size: 1.1rem; font-weight: 700; color: #7c8cff; }
+  .highlight-name { font-size: 0.75rem; }
+  #funnelTable { max-width: 480px; }
+  #funnelTable td:nth-child(3) { text-align: right; }
+  .funnel-controls { margin-bottom: 8px; font-size: 0.85rem; }
+  .funnel-controls a { color: #7c8cff; cursor: pointer; }
+  h2 { font-size: 1.05rem; margin-top: 0; }
 </style>
 </head>
 <body>
-<h1>プレイヤー進捗（総数: ${summary.total}）</h1>
+<h1>
+  <span>プレイヤー進捗（総数: ${summary.total}）</span>
+  <span class="corner-stats">
+    <span>タイピング開始回数: <b>${fmtNum(summary.totalDungeonStarts)}</b></span>
+    <span>総タイピング数: <b>${fmtNum(summary.totalTypedKeys)}</b></span>
+  </span>
+</h1>
+<div class="highlights">${highlightCards}</div>
 <div class="summary">
   <div>転生経験者: ${summary.prestigeAny}</div>
   <div>女神像送付経験者: ${summary.godStatueAny}</div>
@@ -224,13 +330,71 @@ async function handleProgressView(request, env, url) {
   <div>城建築解放: ${summary.castleUnlocked}</div>
   <div>Endless解放: ${summary.endlessUnlocked}</div>
 </div>
-<table>
+
+<h2>ファネル到達状況</h2>
+<div class="funnel-controls"><a id="showAllFunnels">すべて表示に戻す</a></div>
+<table id="funnelTable">
+<thead><tr><th>ID（外す）</th><th>内容</th><th>到達人数</th></tr></thead>
+<tbody>${funnelRows}</tbody>
+</table>
+
+<h2>プレイヤー一覧（列見出しクリックで並べ替え）</h2>
+<table id="playerTable">
 <thead><tr>
-  <th>名前</th><th>Lv</th><th>転生</th><th>女神像sent</th><th>園復興</th><th>弟子params</th>
-  <th>魔王討伐</th><th>城進捗</th><th>Endless</th><th>総プレイ時間</th><th>最終更新</th>
+  <th>名前</th><th data-sort="level">Lv</th><th data-sort="prestige">転生</th><th data-sort="god_statue_sent">女神像sent</th>
+  <th>園復興</th><th data-sort="disciple_total_params">弟子params</th><th>魔王討伐</th><th data-sort="castle_progress">城進捗</th>
+  <th>Endless</th><th data-sort="pt">所持pt</th><th data-sort="total_pt_earned">総獲得pt</th>
+  <th data-sort="total_correct">総タイプ数</th><th data-sort="dungeon_starts">開始回数</th>
+  <th data-sort="total_play_time_min">総プレイ時間</th><th data-sort="updated_at">最終更新</th>
 </tr></thead>
 <tbody>${tableRows}</tbody>
 </table>
+
+<script>
+(function () {
+  var tbody = document.querySelector('#playerTable tbody');
+  var dir = {};
+  document.querySelectorAll('#playerTable th[data-sort]').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var key = th.getAttribute('data-sort');
+      dir[key] = dir[key] === 'asc' ? 'desc' : 'asc';
+      var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+      rows.sort(function (a, b) {
+        var av = parseFloat(a.getAttribute('data-' + key)) || 0;
+        var bv = parseFloat(b.getAttribute('data-' + key)) || 0;
+        return dir[key] === 'asc' ? av - bv : bv - av;
+      });
+      rows.forEach(function (r) { tbody.appendChild(r); });
+    });
+  });
+
+  var STORAGE_KEY = 'progressHiddenFunnels';
+  var hidden = [];
+  try { hidden = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) { hidden = []; }
+  function applyHidden() {
+    document.querySelectorAll('#funnelTable tr[data-funnel-id]').forEach(function (tr) {
+      tr.style.display = hidden.indexOf(tr.getAttribute('data-funnel-id')) !== -1 ? 'none' : '';
+    });
+  }
+  document.querySelectorAll('#funnelTable input[type=checkbox]').forEach(function (cb) {
+    cb.checked = hidden.indexOf(cb.value) === -1;
+    cb.addEventListener('change', function () {
+      var idx = hidden.indexOf(cb.value);
+      if (cb.checked && idx !== -1) hidden.splice(idx, 1);
+      if (!cb.checked && idx === -1) hidden.push(cb.value);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(hidden));
+      applyHidden();
+    });
+  });
+  document.getElementById('showAllFunnels').addEventListener('click', function () {
+    hidden = [];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(hidden));
+    document.querySelectorAll('#funnelTable input[type=checkbox]').forEach(function (cb) { cb.checked = true; });
+    applyHidden();
+  });
+  applyHidden();
+})();
+</script>
 </body>
 </html>`;
 
