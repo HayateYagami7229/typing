@@ -325,6 +325,9 @@ const JUNKYARD_TICKET_DROP_CHANCE = { word: 0.001, sentence: 0.03, long: 0.07 };
 const JUNKYARD_TICKET_DROP_DISCOUNT_MULTIPLIER = 10;
 const COMPRESSED_BATTERY_STOCK_CAP = 39;
 const CAUSALITY_TOWER_ADVANCE_COST = 50000000000;
+const CAUSALITY_TOWER_MONSTERS_TOTAL = 10000;
+const CAUSALITY_TOWER_DISCIPLE_THRESHOLD = 2000;
+const CAUSALITY_TOWER_DEFEAT_MULTIPLIER = 5;
 const NSP_2000M3_PT_MULTIPLIER = 50;
 const NSP_2000M3_RARE_HEART_BONUS = 0.20;
 const CASTLE_BUILD_TOTAL = 500;
@@ -356,6 +359,8 @@ const DISCIPLE_TIERS = [
 const DISCIPLE_STREAK_STEP = 10;
 const DISCIPLE_20000_STREAK_THRESHOLD = 20000;
 const DISCIPLE_20000_STREAK_MULTIPLIER = 2;
+const DISCIPLE_30000_STREAK_THRESHOLD = 30000;
+const DISCIPLE_30000_STREAK_MULTIPLIER = 2.5;
 const DISCIPLE_STAT_DEFS = [
   { key: 'hp', label: 'HP' },
   { key: 'str', label: 'STR' },
@@ -458,7 +463,9 @@ function defaultSave() {
     endlessModeUnlocked: false,
     endlessModeOn: false,
     endlessDungeonPlayCounts: { word: 0, sentence: 0, long: 0 },
-    causalityTowerMonsters: 0,
+    causalityTowerMonsters: 10000,
+    causalityTowerMonstersInitialized: true,
+    causalityTowerIntroShown: false,
     causalityTowerFloor: 1,
     castleConstructionUnlocked: false,
     castleConstructionProgress: 0,
@@ -510,6 +517,8 @@ function normalizeSave(raw) {
       : PRESTIGE_AWAKENING_TIERS.filter((t) => (raw.prestige || 0) >= t.at).map((t) => t.at),
     godGardenHintShown: !!(raw.godGardenHintShown || (raw.godStatue && raw.godStatue.gardenRestorations >= GOD_GARDEN_MAX_RESTORATIONS)),
     ricoTabletFound: !!(raw.ricoTabletFound || raw.ricoMet),
+    causalityTowerMonsters: raw.causalityTowerMonstersInitialized ? (raw.causalityTowerMonsters || 0) : 10000,
+    causalityTowerMonstersInitialized: true,
     profile: { ...base.profile, ...(raw.profile || {}) },
     equipment: { ...base.equipment, ...(raw.equipment || {}), bgmId: (raw.equipment && raw.equipment.bgmId) || 'bgm_default' },
     godStatue: { ...base.godStatue, ...(raw.godStatue || {}) },
@@ -1042,6 +1051,7 @@ const el = {
   causalityTowerFloorText: document.getElementById('causalityTowerFloorText'),
   causalityTowerBtn: document.getElementById('causalityTowerBtn'),
   castlePanel: document.getElementById('castlePanel'),
+  castleEffectsList: document.getElementById('castleEffectsList'),
   castleTitleText: document.getElementById('castleTitleText'),
   castleProgressText: document.getElementById('castleProgressText'),
   castleProgressBarFill: document.getElementById('castleProgressBarFill'),
@@ -1814,14 +1824,42 @@ function renderPlayerCard() {
   renderCastle();
 }
 
+function causalityTowerDefeatCount() {
+  return Math.max(0, (discipleTotalParams() - CAUSALITY_TOWER_DISCIPLE_THRESHOLD) * CAUSALITY_TOWER_DEFEAT_MULTIPLIER);
+}
+
 function renderCausalityTower() {
   const visible = !!save.endlessModeUnlocked;
   el.causalityTowerPanel.classList.toggle('hidden', !visible);
   if (!visible) return;
-  el.causalityTowerMonstersText.textContent = `巨塔の周りのモンスター ${(save.causalityTowerMonsters || 0).toLocaleString()}/10000`;
+  el.causalityTowerMonstersText.textContent = `巨塔の周りのモンスター ${(save.causalityTowerMonsters || 0).toLocaleString()}/${CAUSALITY_TOWER_MONSTERS_TOTAL.toLocaleString()}`;
   el.causalityTowerFloorText.textContent = `階層 ${save.causalityTowerFloor || 1}F/300F`;
-  el.causalityTowerBtn.disabled = save.pt < CAUSALITY_TOWER_ADVANCE_COST;
+  el.causalityTowerBtn.disabled = save.pt < CAUSALITY_TOWER_ADVANCE_COST
+    || causalityTowerDefeatCount() <= 0
+    || (save.causalityTowerMonsters || 0) <= 0;
 }
+
+function advanceCausalityTower() {
+  if (save.pt < CAUSALITY_TOWER_ADVANCE_COST) return;
+  const defeatable = causalityTowerDefeatCount();
+  if (defeatable <= 0) return;
+  if ((save.causalityTowerMonsters || 0) <= 0) return;
+
+  save.pt -= CAUSALITY_TOWER_ADVANCE_COST;
+  const defeated = Math.min(defeatable, save.causalityTowerMonsters || 0);
+  save.causalityTowerMonsters = Math.max(0, (save.causalityTowerMonsters || 0) - defeated);
+
+  if (!save.causalityTowerIntroShown) {
+    save.causalityTowerIntroShown = true;
+    queueReveal('因果の巨塔', '塔を登る為にはまず敵を\n片付けなくては……！！');
+  }
+  queueReveal('', `${save.disciple.name}と協力して\nモンスターを${defeated.toLocaleString()}体蹴散らした！\n一度、状況を立て直そう`);
+
+  persistSave();
+  refreshTotalPt();
+  renderCausalityTower();
+}
+el.causalityTowerBtn.addEventListener('click', advanceCausalityTower);
 
 function renderEndlessModeToggle() {
   const visible = !!save.endlessModeUnlocked;
@@ -2226,6 +2264,28 @@ function castleBuildProgressPct() {
   return Math.min(100, ((save.castleConstructionProgress || 0) / CASTLE_BUILD_TOTAL) * 100);
 }
 
+const CASTLE_EFFECTS = Array.from({ length: 20 }, (_, i) => {
+  const atPercent = (i + 1) * 5;
+  return { atPercent, id: `castle_effect_${atPercent}`, label: '（効果未設定）' };
+});
+
+function unlockedCastleEffects() {
+  const pct = castleBuildProgressPct();
+  return CASTLE_EFFECTS.filter((e) => pct >= e.atPercent);
+}
+
+function renderCastleEffectsList() {
+  const unlocked = unlockedCastleEffects();
+  if (unlocked.length === 0) {
+    el.castleEffectsList.innerHTML = '';
+    return;
+  }
+  const lines = unlocked.map((e) => `・${e.atPercent}%: ${e.label}`).join('<br>');
+  el.castleEffectsList.innerHTML = `<div class="castle-effects-divider"></div>
+    <div class="player-card-row sub">発動している城の効果</div>
+    <div class="castle-effects-body">${lines}</div>`;
+}
+
 function canCastleBuild() {
   return CASTLE_MATERIALS.every((m) => (save.castleMaterials[m.id] || 0) >= 1);
 }
@@ -2263,6 +2323,7 @@ function renderCastle() {
   const pct = castleBuildProgressPct();
   el.castleProgressText.textContent = `建築率 ${Math.floor(pct)}/100％`;
   el.castleProgressBarFill.style.width = `${pct}%`;
+  renderCastleEffectsList();
   CASTLE_MATERIALS.forEach((m) => {
     el[`castleMaterial_${m.id}`].textContent = `${m.name} 所持数${(save.castleMaterials[m.id] || 0).toLocaleString()}個`;
   });
@@ -3214,9 +3275,16 @@ function discipleMaxStreak() {
   return Math.max(s.weak || 0, s.normal || 0, s.strong || 0);
 }
 
+function discipleStreakBonusMultiplier() {
+  const streak = discipleMaxStreak();
+  if (streak >= DISCIPLE_30000_STREAK_THRESHOLD) return DISCIPLE_30000_STREAK_MULTIPLIER;
+  if (streak >= DISCIPLE_20000_STREAK_THRESHOLD) return DISCIPLE_20000_STREAK_MULTIPLIER;
+  return 1;
+}
+
 function discipleRewardMultiplier() {
   const base = junkyardDiscipleRewardMultiplier();
-  return discipleMaxStreak() >= DISCIPLE_20000_STREAK_THRESHOLD ? base * DISCIPLE_20000_STREAK_MULTIPLIER : base;
+  return base * discipleStreakBonusMultiplier();
 }
 
 function checkHeartVesselUnlock() {
@@ -3382,10 +3450,14 @@ function renderDisciple() {
   el.discipleBatchBattleBtn.classList.toggle('heart-vessel-runaway', runawayReady);
 
   const s = save.disciple.streaks;
-  const streak20000Bonus = discipleMaxStreak() >= DISCIPLE_20000_STREAK_THRESHOLD
-    ? ` <span class="disciple-streak-20000-bonus">2万連勝ボーナス中!賞金${DISCIPLE_20000_STREAK_MULTIPLIER}倍!</span>`
-    : '';
-  el.discipleStreakSummary.innerHTML = `🔥 連勝: 弱${s.weak} ／ 普${s.normal} ／ 強${s.strong}${streak20000Bonus}`;
+  const maxStreak = discipleMaxStreak();
+  let streakBonusHtml = '';
+  if (maxStreak >= DISCIPLE_30000_STREAK_THRESHOLD) {
+    streakBonusHtml = ` <span class="disciple-streak-20000-bonus">3万連勝ボーナス中!賞金${DISCIPLE_30000_STREAK_MULTIPLIER}倍!</span>`;
+  } else if (maxStreak >= DISCIPLE_20000_STREAK_THRESHOLD) {
+    streakBonusHtml = ` <span class="disciple-streak-20000-bonus">2万連勝ボーナス中!賞金${DISCIPLE_20000_STREAK_MULTIPLIER}倍!</span>`;
+  }
+  el.discipleStreakSummary.innerHTML = `🔥 連勝: 弱${s.weak} ／ 普${s.normal} ／ 強${s.strong}${streakBonusHtml}`;
 }
 
 function renderDiscipleIconPicker() {

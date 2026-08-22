@@ -447,6 +447,18 @@ body {
   }
 }
 
+.castle-effects-divider {
+  height: 1px;
+  margin: 10px 0 8px;
+  background: #5c3d20;
+}
+
+.castle-effects-body {
+  font-size: 0.82rem;
+  color: #e8c896;
+  line-height: 1.6;
+}
+
 .dungeon-icon {
   font-size: 1.9rem;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
