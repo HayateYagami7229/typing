@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.70',
+    items: [
+      'メインシナリオの進捗状況において特定の条件を満たすと特定のモードが解放されるようになりました。',
+    ],
+  },
+  {
     version: 'Beta0.69',
     items: [
       '特定の操作を行った際にポップアップウィンドウの挙動が意図しない不具合を修正',
@@ -301,6 +307,7 @@ const JUNKYARD_PITY_REMAINING_THRESHOLD = 50;
 const JUNKYARD_TICKET_DROP_CHANCE = { word: 0.001, sentence: 0.03, long: 0.07 };
 const JUNKYARD_TICKET_DROP_DISCOUNT_MULTIPLIER = 10;
 const COMPRESSED_BATTERY_STOCK_CAP = 39;
+const CAUSALITY_TOWER_ADVANCE_COST = 50000000000;
 
 const GOD_STATUE_BUFFS = [
   { id: 'exp_boost', name: '経験の祝福', desc: 'EXPが永続的に+20%' },
@@ -419,6 +426,12 @@ function defaultSave() {
     junkyardDealerDiscountAnnounced: false,
     discipleHeartsMaxedOnce: false,
     heartVesselRunawayActive: false,
+    junkyardPartsCompleteAnnounced: false,
+    endlessModeUnlocked: false,
+    endlessModeOn: false,
+    endlessDungeonPlayCounts: { word: 0, sentence: 0, long: 0 },
+    causalityTowerMonsters: 0,
+    causalityTowerFloor: 1,
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -914,6 +927,12 @@ const el = {
   mechanicalEggRateText: document.getElementById('mechanicalEggRateText'),
   junkyardPanel: document.getElementById('junkyardPanel'),
   junkyardHeaderIcon: document.getElementById('junkyardHeaderIcon'),
+  causalityTowerPanel: document.getElementById('causalityTowerPanel'),
+  causalityTowerMonstersText: document.getElementById('causalityTowerMonstersText'),
+  causalityTowerFloorText: document.getElementById('causalityTowerFloorText'),
+  causalityTowerBtn: document.getElementById('causalityTowerBtn'),
+  endlessModeToggleRow: document.getElementById('endlessModeToggleRow'),
+  endlessModeToggle: document.getElementById('endlessModeToggle'),
   junkyardTicketCount: document.getElementById('junkyardTicketCount'),
   junkyardRemainingCount: document.getElementById('junkyardRemainingCount'),
   junkyardPartsList: document.getElementById('junkyardPartsList'),
@@ -955,6 +974,7 @@ const el = {
   storyBgmAudio: document.getElementById('storyBgmAudio'),
   simpleRevealPopup: document.getElementById('simpleRevealPopup'),
   simpleRevealImage: document.getElementById('simpleRevealImage'),
+  simpleRevealInner: document.getElementById('simpleRevealInner'),
   simpleRevealTitle: document.getElementById('simpleRevealTitle'),
   simpleRevealDesc: document.getElementById('simpleRevealDesc'),
   simpleRevealCloseBtn: document.getElementById('simpleRevealCloseBtn'),
@@ -1645,6 +1665,24 @@ function renderPlayerCard() {
   renderMaouGate();
   renderMechanicalEgg();
   renderJunkyard();
+  renderCausalityTower();
+  renderEndlessModeToggle();
+}
+
+function renderCausalityTower() {
+  const visible = !!save.endlessModeUnlocked;
+  el.causalityTowerPanel.classList.toggle('hidden', !visible);
+  if (!visible) return;
+  el.causalityTowerMonstersText.textContent = `巨塔の周りのモンスター ${(save.causalityTowerMonsters || 0).toLocaleString()}/10000`;
+  el.causalityTowerFloorText.textContent = `階層 ${save.causalityTowerFloor || 1}F/300F`;
+  el.causalityTowerBtn.disabled = save.pt < CAUSALITY_TOWER_ADVANCE_COST;
+}
+
+function renderEndlessModeToggle() {
+  const visible = !!save.endlessModeUnlocked;
+  el.endlessModeToggleRow.classList.toggle('hidden', !visible);
+  if (!visible) return;
+  el.endlessModeToggle.checked = !!save.endlessModeOn;
 }
 
 function godStatueSvg(stage) {
@@ -1957,6 +1995,11 @@ function digJunkyard() {
   renderAnnouncements();
   renderJunkyard();
   queueReveal('ジャンクヤード', resultLabel);
+  if (save.junkyardPartsOwned.length >= JUNKYARD_PARTS.length && !save.junkyardPartsCompleteAnnounced) {
+    save.junkyardPartsCompleteAnnounced = true;
+    persistSave();
+    playJunkyardPartsCompleteSequence();
+  }
 }
 
 function craftJunkyardBomb() {
@@ -2053,6 +2096,50 @@ function playMechanicalEggHatchSequence() {
     null,
     false,
     'img/ps2_2.png',
+  );
+}
+
+const JUNKYARD_PARTS_COMPLETE_PAGES = [
+  'パーツが揃った途端。\nスリスは神々しく光り始めた。',
+  'ありがとう！パーツを揃えてくれて！\nおかげで力と記憶を取り返したんだ。\nちょっと長くなるけど聞いてね。',
+  '僕は時空を司る、アザトースバード。\n神様に世界の均衡を守る為に\n作られたんだ。',
+  '勇者の鼓動を感じた時。\n僕は気付いたら、あの魔王城に送られた。\nきっと、必要な事だったんだね。',
+  '創造主様にお願いがあるんだ。\nこの世界は今とある存在によって\n歪まされてしまっているんだ。',
+  'その歴史の歪みを修正するために\n人類が遺してきた言葉を回収する。\nそれがアナタがやっている事。',
+  'そして創造主が記憶が無いことを良い事に\n利用した存在が居る。\nそれがリリス達なんだ。',
+  'アナタが記憶が無い間に力を貸す\n振りをして、アナタを利用した。\nそう、それが女神像なんだ。',
+  '女神の園を取り返した彼女達は、\n見えない時空の狭間に隠れてる。\nまずは彼女達を見つけに行こう。',
+  '時空の狭間に辿り付く場所である\n【因果の巨塔】の場所は分かってる。\nまずはそこを昇って狭間に行こう。',
+  'もちろん僕も手助けするよ。\nダンジョンの時空を歪ませて、\n更に自由に探索出来るようにする。',
+  '大変な事だけど一緒に頑張ろう！\nこれからもよろしくね！',
+];
+
+function playJunkyardPartsCompleteSequence() {
+  JUNKYARD_PARTS_COMPLETE_PAGES.forEach((desc, i) => {
+    const isFirst = i === 0;
+    const isLast = i === JUNKYARD_PARTS_COMPLETE_PAGES.length - 1;
+    queueReveal('', desc, isLast ? onJunkyardPartsCompleteSequenceDone : null, false, isFirst ? null : 'img/bird_icon.png');
+  });
+}
+
+function onJunkyardPartsCompleteSequenceDone() {
+  save.endlessModeUnlocked = true;
+  persistSave();
+  renderPlayerCard();
+  renderDungeonBadges();
+  queueReveal(
+    'EndlessModeが解放されました！',
+    'ダンジョン選択の下部にEndlessModeのスイッチが解放されました。\n'
+    + 'EndlessModeのルールは以下となります。\n'
+    + '・タイマーが無限になり、時間が減少しません。\n'
+    + '・ESCキーを押すとModeが終了となりリザルト画面に移行します。\n'
+    + '・EndlessModeがONになっている場合はランクは「－－－」と表示されランクは表示されません。\n'
+    + '・EndlessModeでESCキーでタイピングを終了した場合実績画面のESCで中断した回数はカウントされません。\n'
+    + '・探索やpt回収に便利な機能です。永久に入力出来るタイピングモードをお楽しみ下さい。',
+    null,
+    false,
+    null,
+    true,
   );
 }
 
@@ -2650,18 +2737,25 @@ function advanceMaouTurn() {
 
 let revealQueue = [];
 let revealQueueEmptyCallback = null;
-function queueReveal(title, desc, onEmptyCallback, noBackdropClose, image) {
-  revealQueue.push({ title, desc, image: image || null, noBackdropClose: !!onEmptyCallback || !!noBackdropClose });
+function queueReveal(title, desc, onEmptyCallback, noBackdropClose, image, wide) {
+  revealQueue.push({
+    title,
+    desc,
+    image: image || null,
+    wide: !!wide,
+    noBackdropClose: !!onEmptyCallback || !!noBackdropClose,
+  });
   if (onEmptyCallback) revealQueueEmptyCallback = onEmptyCallback;
   if (revealQueue.length === 1) setTimeout(showNextReveal, 0);
 }
 function showNextReveal() {
   if (revealQueue.length === 0) return;
-  const { title, desc, image } = revealQueue[0];
+  const { title, desc, image, wide } = revealQueue[0];
   el.simpleRevealTitle.textContent = title;
   el.simpleRevealDesc.textContent = desc;
   el.simpleRevealImage.src = image ? encodeURI(image) : '';
   el.simpleRevealImage.classList.toggle('hidden', !image);
+  el.simpleRevealInner.classList.toggle('simple-reveal-wide', wide);
   el.simpleRevealCloseBtn.textContent = revealQueue.length > 1 ? '次へ' : '閉じる';
   el.simpleRevealPopup.classList.remove('hidden');
 }
@@ -3372,6 +3466,10 @@ el.typingFrameSelect.addEventListener('change', () => {
 });
 el.junkyardDigBtn.addEventListener('click', digJunkyard);
 el.junkyardBombBtn.addEventListener('click', craftJunkyardBomb);
+el.endlessModeToggle.addEventListener('change', () => {
+  save.endlessModeOn = el.endlessModeToggle.checked;
+  persistSave();
+});
 el.exportSaveBtn.addEventListener('click', downloadSaveFile);
 el.importSaveFileBtn.addEventListener('click', () => el.importSaveFile.click());
 el.importSaveFile.addEventListener('change', () => {
@@ -4208,6 +4306,7 @@ function startSession() {
     comboSeconds: armor.comboSeconds,
     capRatio: armor.capRatio,
     rareChanceBonus,
+    endless: !!(save.endlessModeUnlocked && save.endlessModeOn),
   });
   levelAtSessionStart = save.level;
   sessionPtEarned = 0;
@@ -4215,7 +4314,12 @@ function startSession() {
   sessionJunkyardDispenserTicketsFound = 0;
 
   save.playCount++;
-  save.dungeonPlayCounts[currentMode] = (save.dungeonPlayCounts[currentMode] || 0) + 1;
+  if (session.endless) {
+    save.endlessDungeonPlayCounts = save.endlessDungeonPlayCounts || { word: 0, sentence: 0, long: 0 };
+    save.endlessDungeonPlayCounts[currentMode] = (save.endlessDungeonPlayCounts[currentMode] || 0) + 1;
+  } else {
+    save.dungeonPlayCounts[currentMode] = (save.dungeonPlayCounts[currentMode] || 0) + 1;
+  }
   if (typeof gtag === 'function') gtag('event', 'dungeon_start', { dungeon_mode: currentMode, lang: currentLang });
   persistSave();
 
@@ -4317,6 +4421,7 @@ function renderRomajiLine(target) {
 }
 
 function formatTime(ms) {
+  if (!isFinite(ms)) return '∞';
   const totalSec = Math.ceil(ms / 1000);
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
@@ -4502,7 +4607,7 @@ function handleTypedChar(ch) {
     }
     refreshTotalPt();
 
-    if (res.comboBonus > 0) {
+    if (res.comboBonus > 0 && !session.endless) {
       showComboBonus(res.comboBonus);
       SFX.comboBonus();
     } else {
@@ -4588,6 +4693,7 @@ function finishSession() {
   session.finish();
   save.totalTypingTimeMs = (save.totalTypingTimeMs || 0) + session.elapsedMs;
 
+  const isEndless = session.endless;
   const prevBestRank = save.bestRank;
   const prevBestCombo = save.bestCombo;
   const prevBestKpm = save.bestKpm;
@@ -4598,14 +4704,16 @@ function finishSession() {
   for (let lvl = levelAtSessionStart + 1; lvl <= save.level; lvl++) levelsGained.push(lvl);
   save.totalWordsCompleted += session.wordsCompleted;
 
-  const rank = computeRank(session.kpm, session.accuracy);
-  save.kpmSum += session.kpm;
-  save.rankIndexSum += RANK_ORDER.indexOf(rank);
-  save.completedRuns += 1;
-  if (session.kpm > save.bestKpm) save.bestKpm = session.kpm;
-  if (session.maxCombo > save.bestCombo) save.bestCombo = session.maxCombo;
-  if (isRankBetterThan(rank, save.bestRank)) save.bestRank = rank;
-  if (isRankBetterThan(rank, save.bestRankByKey[key])) save.bestRankByKey[key] = rank;
+  const rank = isEndless ? '－－－' : computeRank(session.kpm, session.accuracy);
+  if (!isEndless) {
+    save.kpmSum += session.kpm;
+    save.rankIndexSum += RANK_ORDER.indexOf(rank);
+    save.completedRuns += 1;
+    if (session.kpm > save.bestKpm) save.bestKpm = session.kpm;
+    if (session.maxCombo > save.bestCombo) save.bestCombo = session.maxCombo;
+    if (isRankBetterThan(rank, save.bestRank)) save.bestRank = rank;
+    if (isRankBetterThan(rank, save.bestRankByKey[key])) save.bestRankByKey[key] = rank;
+  }
 
   save.history.unshift({
     ts: Date.now(),
@@ -4627,16 +4735,16 @@ function finishSession() {
   if (levelsGained.length > 0) {
     pushAnnouncement('🎉', `Lv.${levelAtSessionStart} → Lv.${save.level} に到達しました`);
   }
-  if (isRankBetterThan(rank, prevBestRank)) {
+  if (!isEndless && isRankBetterThan(rank, prevBestRank)) {
     pushAnnouncement('🏆', `自己ベストランク ${rank}(${rankTitle(rank)})を達成しました`);
   }
-  if (isRankBetterThan(rank, prevBestRankForKey)) {
+  if (!isEndless && isRankBetterThan(rank, prevBestRankForKey)) {
     pushAnnouncement('🗝️', `「${DUNGEONS[currentMode].label}」で自己ベストランク ${rank} を達成しました`);
   }
-  if (session.maxCombo > prevBestCombo) {
+  if (!isEndless && session.maxCombo > prevBestCombo) {
     pushAnnouncement('🔥', `最大コンボ記録を更新しました（${session.maxCombo}コンボ）`);
   }
-  if (session.kpm > prevBestKpm) {
+  if (!isEndless && session.kpm > prevBestKpm) {
     pushAnnouncement('⚡', `最高KPM記録を更新しました（${session.kpm}KPM）`);
   }
   if (sessionJunkyardTicketsFound > 0) {
@@ -4948,6 +5056,9 @@ function renderStats() {
     ['文章の回廊 挑戦回数', save.dungeonPlayCounts.sentence],
     ['長文の塔 挑戦回数', save.dungeonPlayCounts.long],
     ['ESCで中断した回数', save.abortCount],
+    ['[EndlessMode]単語の間 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.word) || 0],
+    ['[EndlessMode]文章の回廊 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.sentence) || 0],
+    ['[EndlessMode]長文の塔 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.long) || 0],
     ['最高KPM', save.bestKpm],
     ['平均KPM', avgKpm],
     ['正答率', `${overallAccuracy}%`],
@@ -5113,7 +5224,11 @@ document.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Escape') {
-    abortSession();
+    if (session && session.endless) {
+      finishSession();
+    } else {
+      abortSession();
+    }
     return;
   }
 

@@ -145,6 +145,7 @@ class TimeAttackSession {
     this.comboSeconds = opts.comboSeconds || DEFAULT_COMBO_SECONDS;
     this.capRatio = opts.capRatio || DEFAULT_COMBO_CAP_RATIO;
     this.rareChance = RARE_ENCOUNTER_CHANCE + (opts.rareChanceBonus || 0);
+    this.endless = !!opts.endless;
     this.bonusMs = 0;
     this.maxBonusMs = this.durationMs * this.capRatio;
     this.startTime = null;
@@ -195,6 +196,7 @@ class TimeAttackSession {
   }
 
   get remainingMs() {
+    if (this.endless) return Infinity;
     if (!this.startTime) return this.durationMs;
     const total = this.durationMs + this.bonusMs;
     const elapsed = (this.endTime || Date.now()) - this.startTime;
@@ -202,6 +204,7 @@ class TimeAttackSession {
   }
 
   get isTimeUp() {
+    if (this.endless) return false;
     return this.startTime !== null && this.remainingMs <= 0;
   }
 

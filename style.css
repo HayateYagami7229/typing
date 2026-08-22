@@ -245,6 +245,67 @@ body {
   gap: 12px;
 }
 
+.endless-mode-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-gradient);
+  cursor: pointer;
+}
+
+.endless-mode-toggle-label {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.endless-mode-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.endless-mode-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.endless-mode-toggle-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--border);
+  transition: background 0.2s ease;
+}
+
+.endless-mode-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 2px;
+  top: 2px;
+  border-radius: 50%;
+  background: #ccc;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.endless-mode-toggle-switch input:checked + .endless-mode-toggle-slider {
+  background: rgba(124, 140, 255, 0.6);
+}
+
+.endless-mode-toggle-switch input:checked + .endless-mode-toggle-slider::before {
+  transform: translateX(18px);
+  background: #7c8cff;
+}
+
 .dungeon-card {
   display: flex;
   flex-direction: column;
@@ -1299,6 +1360,14 @@ body {
 
 .rico-complete-inner {
   max-width: 480px;
+}
+
+.rico-complete-inner.simple-reveal-wide {
+  max-width: 580px;
+}
+
+.simple-reveal-wide .rico-complete-desc {
+  text-align: left;
 }
 
 .rico-complete-inner h2 {
