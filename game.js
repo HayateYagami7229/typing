@@ -113,6 +113,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.69',
+    items: [
+      '特定の操作を行った際にポップアップウィンドウの挙動が意図しない不具合を修正',
+    ],
+  },
+  {
     version: 'Beta0.68',
     items: [
       '色々と書けない事をアップデートしました。',
@@ -5030,7 +5036,14 @@ document.addEventListener('keydown', (e) => {
 
   if (screen === 'home' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const key = e.key.toLowerCase();
-    const popupOpen = !el.disciplePopup.classList.contains('hidden');
+    const popupOpen = !el.disciplePopup.classList.contains('hidden')
+      || !el.godStatueBuffPopup.classList.contains('hidden')
+      || !el.settingsPopup.classList.contains('hidden')
+      || !el.resetSaveConfirmPopup.classList.contains('hidden')
+      || !el.simpleRevealPopup.classList.contains('hidden')
+      || !el.announcementHistoryPopup.classList.contains('hidden')
+      || !el.helpPopup.classList.contains('hidden')
+      || !el.phase2AnnouncePopup.classList.contains('hidden');
 
     if (!popupOpen) {
       if (e.key === ' ') {
@@ -5045,7 +5058,9 @@ document.addEventListener('keydown', (e) => {
       }
       if (key === 'm') {
         e.preventDefault();
-        el.godStatueBtn.click();
+        if (!el.godStatuePanel.classList.contains('hidden') && !el.godStatueBtn.disabled) {
+          el.godStatueBtn.click();
+        }
         return;
       }
       return;
