@@ -5130,16 +5130,16 @@ function renderResult({ rank, levelsGained, levelBefore }) {
   }
 
   const rows = [
-    ['完了ワード数', session.wordsCompleted],
-    ['タイプ数', session.correct],
-    ['ミス数', session.incorrect],
+    ['完了ワード数', session.wordsCompleted.toLocaleString()],
+    ['タイプ数', session.correct.toLocaleString()],
+    ['ミス数', session.incorrect.toLocaleString()],
     ['正答率', `${session.accuracy}%`],
-    ['最大コンボ', session.maxCombo],
-    ['KPM', session.kpm],
-    ['適用中のpt倍率', `x${fullPtMultiplier().total.toFixed(1)}`],
-    ['獲得pt(倍率込み)', Math.floor(sessionPtEarned)],
-    ['装備ボーナスpt(撃破時)', session.wordclearPtGained],
-    ['獲得EXP', session.expGained],
+    ['最大コンボ', session.maxCombo.toLocaleString()],
+    ['KPM', session.kpm.toLocaleString()],
+    ['適用中のpt倍率', `x${fullPtMultiplier().total.toLocaleString('ja-JP', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`],
+    ['獲得pt(倍率込み)', Math.floor(sessionPtEarned).toLocaleString()],
+    ['装備ボーナスpt(撃破時)', session.wordclearPtGained.toLocaleString()],
+    ['獲得EXP', session.expGained.toLocaleString()],
     ['所持pt', Math.floor(save.pt).toLocaleString()],
   ];
   el.resultStats.innerHTML = '';
