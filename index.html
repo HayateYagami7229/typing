@@ -33,22 +33,24 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
 </div>
 <div id="app">
   <header class="topbar" id="topbar">
-    <div class="topbar-left">
-      <div class="brand"><span class="brand-emblem" id="secretKeyboardIcon">⌨️</span><img id="topLogo" class="top-logo" alt="Endless Type-loop" title="ホームへ戻る"></div>
-      <div class="header-nav">
-        <button id="openShopBtn" class="icon-btn" title="ショップ">🛒</button>
-        <button id="openStatsBtn" class="icon-btn" title="実績">📊</button>
-        <button id="openHistoryBtn" class="icon-btn" title="履歴">📜</button>
-        <button id="openAnnouncementHistoryBtn" class="icon-btn" title="お知らせ履歴">💬</button>
-        <button id="openChangelogBtn" class="icon-btn" title="アップデート履歴">📰</button>
+    <div class="topbar-inner" id="topbarInner">
+      <div class="topbar-left">
+        <div class="brand"><span class="brand-emblem" id="secretKeyboardIcon">⌨️</span><img id="topLogo" class="top-logo" alt="Endless Type-loop" title="ホームへ戻る"></div>
+        <div class="header-nav">
+          <button id="openShopBtn" class="icon-btn" title="ショップ">🛒</button>
+          <button id="openStatsBtn" class="icon-btn" title="実績">📊</button>
+          <button id="openHistoryBtn" class="icon-btn" title="履歴">📜</button>
+          <button id="openAnnouncementHistoryBtn" class="icon-btn" title="お知らせ履歴">💬</button>
+          <button id="openChangelogBtn" class="icon-btn" title="アップデート履歴">📰</button>
+        </div>
       </div>
-    </div>
-    <div class="topbar-right">
-      <div class="pt-display">💠 <span id="totalPt">0</span> pt</div>
-      <button id="shareProfileBtn" class="icon-btn" title="プロフィールカードをXでシェア">📤</button>
-      <button id="openHelpBtn" class="icon-btn" title="遊び方">？</button>
-      <button id="muteBtn" class="icon-btn" title="ミュート切替">🔊</button>
-      <button id="openSettingsBtn" class="icon-btn" title="設定">⚙️</button>
+      <div class="topbar-right">
+        <div class="pt-display">💠 <span id="totalPt">0</span> pt</div>
+        <button id="shareProfileBtn" class="icon-btn" title="プロフィールカードをXでシェア">📤</button>
+        <button id="openHelpBtn" class="icon-btn" title="遊び方">？</button>
+        <button id="muteBtn" class="icon-btn" title="ミュート切替">🔊</button>
+        <button id="openSettingsBtn" class="icon-btn" title="設定">⚙️</button>
+      </div>
     </div>
   </header>
 
@@ -641,7 +643,7 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
   </div>
 </div>
 
-<div id="appVersion" class="app-version">Beta0.72</div>
+<div id="appVersion" class="app-version">Beta0.72a</div>
 
 <script src="data.js"></script>
 <script src="kana.js"></script>

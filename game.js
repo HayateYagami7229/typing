@@ -908,6 +908,7 @@ let awaitingStart = false;
 const el = {
   totalPt: document.getElementById('totalPt'),
   topbar: document.getElementById('topbar'),
+  topbarInner: document.getElementById('topbarInner'),
   secretKeyboardIcon: document.getElementById('secretKeyboardIcon'),
   topLogo: document.getElementById('topLogo'),
   homeLogo: document.getElementById('homeLogo'),
@@ -1195,7 +1196,7 @@ function loadAutoTrimmedImage(path, targetImgEl) {
       targetImgEl.src = path;
       return;
     }
-    const feather = 50;
+    const feather = 25;
     const cropX = Math.max(0, minX - feather);
     const cropY = Math.max(0, minY - feather);
     const cropRight = Math.min(canvas.width, maxX + 1 + feather);
@@ -5305,7 +5306,7 @@ function renderHistory() {
 
 let secretGrassClicks = 0;
 el.topbar.addEventListener('click', (e) => {
-  if (e.target !== el.topbar) return;
+  if (e.target !== el.topbar && e.target !== el.topbarInner) return;
   secretGrassClicks = Math.min(12, secretGrassClicks + 1);
 });
 
