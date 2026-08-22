@@ -113,6 +113,14 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.72',
+    items: [
+      'コンテンツ拡充に伴いウィンドウ幅を調整しました',
+      '[ご要望]一部コンテンツ操作時において、コンテンツは下部、所持金は上部になってしまっていたため、'
+      + 'ヘッダーを追従してホーム画面では所持金がいつでも閲覧が出来る様に変更しました。',
+    ],
+  },
+  {
     version: 'Beta0.71',
     items: [
       'お知らせが上限数に達した場合にレアなお知らせが残り、通常のお知らせが優先的に消去されるように変更しました',
@@ -316,8 +324,9 @@ const COMPRESSED_BATTERY_STOCK_CAP = 39;
 const CAUSALITY_TOWER_ADVANCE_COST = 50000000000;
 const NSP_2000M3_PT_BONUS = 125000;
 const NSP_2000M3_RARE_HEART_BONUS = 0.20;
-const CASTLE_BUILD_TOTAL = 250;
-const CASTLE_MATERIAL_GEN_COST = 15000000000;
+const CASTLE_BUILD_TOTAL = 500;
+const CASTLE_MATERIAL_GEN_COST = 7500000000;
+const CASTLE_MATERIAL_DROP_CHANCE = { word: 0.01, sentence: 0.10, long: 0.35 };
 const CASTLE_MATERIALS = [
   { id: 'abyssObsidian', name: 'アビス・オブシディアン' },
   { id: 'voidPlaster', name: 'ヴォイド・プラスター' },
@@ -1123,6 +1132,7 @@ const el = {
   frameSettingSection: document.getElementById('frameSettingSection'),
   typingFrameSelect: document.getElementById('typingFrameSelect'),
   junkyardAuraOption: document.getElementById('junkyardAuraOption'),
+  castleAuraOption: document.getElementById('castleAuraOption'),
   phase2AnnouncePopup: document.getElementById('phase2AnnouncePopup'),
   phase2AnnounceBody: document.getElementById('phase2AnnounceBody'),
   phase2AnnounceCloseBtn: document.getElementById('phase2AnnounceCloseBtn'),
@@ -1311,7 +1321,11 @@ function isMaouAuraFrameActive() {
 }
 
 function isJunkyardAuraFrameActive() {
-  return !!save.mechanicalEggHatched && !!save.maouDefeated;
+  return !!save.mechanicalEggHatched && !!save.maouDefeated && !save.castleConstructionUnlocked;
+}
+
+function isCastleAuraFrameActive() {
+  return !!save.castleConstructionUnlocked && !!save.maouDefeated;
 }
 
 function showPhase2Announcement() {
@@ -2171,6 +2185,7 @@ function renderCastle() {
   });
   const complete = (save.castleConstructionProgress || 0) >= CASTLE_BUILD_TOTAL;
   el.castleBuildBtn.disabled = complete || !canCastleBuild();
+  el.castleGenerateBtn.textContent = `✨ 素材を生成する（${CASTLE_MATERIAL_GEN_COST.toLocaleString()}pt）`;
   el.castleGenerateBtn.disabled = save.pt < CASTLE_MATERIAL_GEN_COST;
 }
 
@@ -3537,6 +3552,7 @@ el.openSettingsBtn.addEventListener('click', () => {
   el.seVolumeValue.textContent = save.settings.seVolume;
   el.frameSettingSection.classList.toggle('hidden', !save.maouDefeated);
   el.junkyardAuraOption.hidden = !save.maouDefeated || !save.mechanicalEggHatched;
+  el.castleAuraOption.hidden = !save.maouDefeated || !save.castleConstructionUnlocked;
   el.typingFrameSelect.value = save.settings.typingFrame;
   el.settingsPopup.classList.remove('hidden');
 });
@@ -3580,6 +3596,7 @@ el.typingFrameSelect.addEventListener('change', () => {
   persistSave();
   el.typingStage.classList.toggle('maou-aura', isMaouAuraFrameActive());
   el.typingStage.classList.toggle('junkyard-aura', isJunkyardAuraFrameActive());
+  el.typingStage.classList.toggle('castle-aura', isCastleAuraFrameActive());
   renderDungeonBadges();
 });
 el.junkyardDigBtn.addEventListener('click', digJunkyard);
@@ -3707,14 +3724,18 @@ function renderDungeonBadges() {
     badge.textContent = rank ? `Best: ${rank}` : '';
   });
   const maouAuraStoryActive = save.maouGateRevealed && !save.maouDefeated;
-  const junkyardActive = !!save.mechanicalEggHatched && !!save.maouDefeated;
+  const junkyardActive = isJunkyardAuraFrameActive();
+  const castleActive = isCastleAuraFrameActive();
   el.dungeonGrid.classList.toggle('maou-aura', isMaouAuraFrameActive());
-  el.dungeonGrid.classList.toggle('junkyard-aura', isJunkyardAuraFrameActive());
+  el.dungeonGrid.classList.toggle('junkyard-aura', junkyardActive);
+  el.dungeonGrid.classList.toggle('castle-aura', castleActive);
   el.dungeonSelectHeading.textContent = maouAuraStoryActive
     ? 'ダンジョン選択（魔王が現れた事で魔王紋章ドロップ）'
     : junkyardActive
       ? 'ダンジョン選択（ジャンクヤードチケット排出中 ※ダンジョンにより排出率は異なります）'
-      : 'ダンジョン選択';
+      : castleActive
+        ? 'ダンジョン選択（城建築のための素材ドロップ中）'
+        : 'ダンジョン選択';
 }
 
 function renderAnnouncements() {
@@ -4386,6 +4407,7 @@ function startSession() {
   el.typingStage.classList.toggle('long-mode', currentMode === 'long');
   el.typingStage.classList.toggle('maou-aura', isMaouAuraFrameActive());
   el.typingStage.classList.toggle('junkyard-aura', isJunkyardAuraFrameActive());
+  el.typingStage.classList.toggle('castle-aura', isCastleAuraFrameActive());
   renderEternalCombo();
   const dungeon = DUNGEONS[currentMode];
   const pool = dungeon.bank[currentLang];
@@ -4795,6 +4817,15 @@ function handleTypedChar(ch) {
         if (Math.random() < ticketChance) {
           save.junkyardTickets = (save.junkyardTickets || 0) + 1;
           sessionJunkyardTicketsFound += 1;
+        }
+      }
+      if (save.maouDefeated && save.castleConstructionUnlocked) {
+        const materialDropChance = CASTLE_MATERIAL_DROP_CHANCE[currentMode] || 0;
+        if (Math.random() < materialDropChance) {
+          const pick = CASTLE_MATERIALS[Math.floor(Math.random() * CASTLE_MATERIALS.length)];
+          save.castleMaterials[pick.id] = (save.castleMaterials[pick.id] || 0) + 1;
+          renderCastle();
+          queueReveal('', `${pick.name}を手に入れた！`);
         }
       }
       persistSave();

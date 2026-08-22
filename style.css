@@ -49,8 +49,11 @@ body {
   justify-content: space-between;
   padding: 14px 24px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(124, 140, 255, 0.06), transparent);
+  background: linear-gradient(180deg, var(--bg) 70%, rgba(124, 140, 255, 0.06));
   backdrop-filter: blur(6px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 .brand {
@@ -152,7 +155,7 @@ body {
 
 .home-inner {
   width: 100%;
-  max-width: 760px;
+  max-width: 880px;
   text-align: center;
 }
 
@@ -401,6 +404,40 @@ body {
   }
 }
 
+.dungeon-grid.castle-aura .dungeon-card {
+  background: linear-gradient(165deg, rgba(180, 120, 60, 0.16), var(--panel-gradient));
+  animation: castleCardPulse 3.4s ease-in-out infinite;
+}
+
+.dungeon-grid.castle-aura .dungeon-card:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.dungeon-grid.castle-aura .dungeon-card:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+.dungeon-grid.castle-aura .dungeon-card:hover {
+  border-color: #c98f4e;
+  box-shadow: 0 0 34px rgba(180, 120, 60, 0.5);
+}
+
+.dungeon-grid.castle-aura .dungeon-card.active {
+  background: linear-gradient(165deg, #4a331a, var(--bg-panel-2));
+  box-shadow: 0 0 0 2px rgba(180, 120, 60, 0.5), 0 0 40px rgba(180, 120, 60, 0.4);
+}
+
+@keyframes castleCardPulse {
+  0%, 100% {
+    border-color: #5c3d20;
+    box-shadow: 0 0 14px rgba(180, 120, 60, 0.22);
+  }
+  50% {
+    border-color: #b5824a;
+    box-shadow: 0 0 32px rgba(180, 120, 60, 0.5);
+  }
+}
+
 .dungeon-icon {
   font-size: 1.9rem;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
@@ -586,6 +623,25 @@ body {
   50% {
     border-color: #8c8c96;
     box-shadow: 0 0 65px rgba(150, 150, 160, 0.65), inset 0 0 90px rgba(130, 130, 140, 0.28);
+  }
+}
+
+.typing-stage.castle-aura {
+  background:
+    radial-gradient(ellipse 520px 220px at 50% 0%, rgba(180, 120, 60, 0.22), transparent),
+    radial-gradient(ellipse 400px 300px at 50% 100%, rgba(140, 90, 40, 0.18), transparent),
+    var(--panel-gradient);
+  animation: castleAuraPulse 3.4s ease-in-out infinite;
+}
+
+@keyframes castleAuraPulse {
+  0%, 100% {
+    border-color: #5c3d20;
+    box-shadow: 0 0 30px rgba(180, 120, 60, 0.3), inset 0 0 50px rgba(120, 80, 40, 0.14);
+  }
+  50% {
+    border-color: #b5824a;
+    box-shadow: 0 0 65px rgba(180, 120, 60, 0.65), inset 0 0 90px rgba(160, 110, 60, 0.28);
   }
 }
 
