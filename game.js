@@ -1,4 +1,7 @@
 const SAVE_KEY = 'typingDungeonSave';
+const PLAYER_ID_KEY = 'typingDungeonPlayerId';
+const PROGRESS_REPORT_INTERVAL_MS = 5 * 60 * 1000;
+const PROGRESS_SHARED_KEY = 'jKULS-1GXwisqIj1Oem1sg';
 
 const DUNGEONS = {
   word: { label: '単語の間', expFactor: 1, bank: WORD_BANK },
@@ -322,7 +325,7 @@ const JUNKYARD_TICKET_DROP_CHANCE = { word: 0.001, sentence: 0.03, long: 0.07 };
 const JUNKYARD_TICKET_DROP_DISCOUNT_MULTIPLIER = 10;
 const COMPRESSED_BATTERY_STOCK_CAP = 39;
 const CAUSALITY_TOWER_ADVANCE_COST = 50000000000;
-const NSP_2000M3_PT_BONUS = 125000;
+const NSP_2000M3_PT_MULTIPLIER = 50;
 const NSP_2000M3_RARE_HEART_BONUS = 0.20;
 const CASTLE_BUILD_TOTAL = 500;
 const CASTLE_MATERIAL_GEN_COST = 7500000000;
@@ -646,9 +649,62 @@ function updateFunnelUserProperties() {
   });
 }
 
+function getOrCreatePlayerId() {
+  let id = localStorage.getItem(PLAYER_ID_KEY);
+  if (!id) {
+    id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `p-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(PLAYER_ID_KEY, id);
+  }
+  return id;
+}
+
+function buildProgressPayload() {
+  return {
+    player_id: getOrCreatePlayerId(),
+    player_name: save.profile.name,
+    level: save.level,
+    max_level_reached: save.maxLevelReached,
+    prestige: save.prestige,
+    prestige_awakened: !!save.prestigeAwakened,
+    god_statue_sent: save.godStatue.sent || 0,
+    god_statue_completed: !!save.godStatue.completed,
+    garden_restorations: save.godStatue.gardenRestorations || 0,
+    disciple_total_params: discipleTotalParams(),
+    disciple_class_upped: !!save.disciple.classUpped,
+    maou_defeated: !!save.maouDefeated,
+    rico_unlocked: !!save.ricoUnlocked,
+    rico_fully_owned: isRicoFullyOwned(save),
+    mechanical_egg_hatched: !!save.mechanicalEggHatched,
+    castle_unlocked: !!save.castleConstructionUnlocked,
+    castle_progress: save.castleConstructionProgress || 0,
+    endless_mode_unlocked: !!save.endlessModeUnlocked,
+    total_correct: save.totalCorrect || 0,
+    total_play_time_min: Math.round((save.totalTypingTimeMs || 0) / 60000),
+    best_kpm: save.bestKpm || 0,
+    best_rank: save.bestRank || null,
+  };
+}
+
+let lastProgressReportAt = 0;
+function reportProgress(force) {
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+  const now = Date.now();
+  if (!force && now - lastProgressReportAt < PROGRESS_REPORT_INTERVAL_MS) return;
+  lastProgressReportAt = now;
+  fetch('/api/progress', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-progress-key': PROGRESS_SHARED_KEY },
+    body: JSON.stringify(buildProgressPayload()),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 function persistSave() {
   checkFunnelBlocks();
   updateFunnelUserProperties();
+  reportProgress();
   localStorage.setItem(SAVE_KEY, encodeSaveData(save));
 }
 
@@ -1061,6 +1117,7 @@ const el = {
   eternalComboMarks: document.getElementById('eternalComboMarks'),
   maouPrayerBadge: document.getElementById('maouPrayerBadge'),
   rareBonusPopup: document.getElementById('rareBonusPopup'),
+  castleMaterialPopup: document.getElementById('castleMaterialPopup'),
   levelUpBanner: document.getElementById('levelUpBanner'),
   accuracyDisplay: document.getElementById('accuracyDisplay'),
   kpmDisplay: document.getElementById('kpmDisplay'),
@@ -1582,10 +1639,11 @@ function fullPtMultiplier() {
   const base = 1 + levelBonus + prestigeBonus;
   const awakeningBonus = prestigeAwakeningPtBonus(save);
   const ricoBonus = save.maouDefeated && isRicoFullyOwned(save) ? 10000 : 0;
-  const castleBonus = save.castleConstructionUnlocked ? NSP_2000M3_PT_BONUS : 0;
-  const total = base * (1 + swordBonus) + awakeningBonus + ricoBonus + castleBonus;
+  const preCastleTotal = base * (1 + swordBonus) + awakeningBonus + ricoBonus;
+  const castleMultiplier = save.castleConstructionUnlocked ? NSP_2000M3_PT_MULTIPLIER : 1;
+  const total = preCastleTotal * castleMultiplier;
   return {
-    levelBonus, prestigeBonus, swordBonus, awakeningBonus, ricoBonus, castleBonus, total,
+    levelBonus, prestigeBonus, swordBonus, awakeningBonus, ricoBonus, castleMultiplier, total,
   };
 }
 
@@ -1708,7 +1766,7 @@ function renderPlayerCard() {
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
   const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
   const ricoPart = mult.ricoBonus > 0 ? ` リコの加護ボーナス+${mult.ricoBonus.toLocaleString()}` : '';
-  const castlePart = mult.castleBonus > 0 ? ` NSP-2000M3+${mult.castleBonus.toLocaleString()}` : '';
+  const castlePart = mult.castleMultiplier > 1 ? ` NSP-2000M3 x${mult.castleMultiplier}` : '';
   const junkyardExpStacks = junkyardBuffStacks('buff_exp');
   const junkyardExpPart = junkyardExpStacks > 0 ? ` EXPボーナス+${junkyardExpStacks}%` : '';
   const junkyardDiscipleStacks = junkyardBuffStacks('buff_disciple_reward');
@@ -2279,7 +2337,7 @@ function onJunkyardPartsCompleteSequenceDone() {
 }
 
 function addMechanicalEggProgress() {
-  if (!save.maouDefeated || !save.mechanicalEggOwned) return;
+  if (!save.maouDefeated || !save.mechanicalEggOwned || save.castleConstructionUnlocked) return;
   const keys = mechanicalEggEffectiveRateUnits();
   save.mechanicalEggChargeKeys = Math.min(
     MECHANICAL_EGG_CHARGE_TARGET,
@@ -4679,6 +4737,16 @@ function showRareBonusPopup(rareBonus, includeEmblemLine) {
   rareBonusTimer = setTimeout(() => el.rareBonusPopup.classList.remove('show'), 1800);
 }
 
+let castleMaterialPopupTimer = null;
+function showCastleMaterialPopup(materialName) {
+  el.castleMaterialPopup.textContent = `🧱 ${materialName}を手に入れた！`;
+  el.castleMaterialPopup.classList.remove('show');
+  void el.castleMaterialPopup.offsetWidth;
+  el.castleMaterialPopup.classList.add('show');
+  clearTimeout(castleMaterialPopupTimer);
+  castleMaterialPopupTimer = setTimeout(() => el.castleMaterialPopup.classList.remove('show'), 1800);
+}
+
 function handleTypedChar(ch) {
   if (awaitingGraceNSwallow) {
     awaitingGraceNSwallow = false;
@@ -4811,7 +4879,7 @@ function handleTypedChar(ch) {
         showMaouEmblemPopup();
         SFX.rare();
       }
-      if (save.maouDefeated && save.mechanicalEggHatched) {
+      if (save.maouDefeated && save.mechanicalEggHatched && !save.castleConstructionUnlocked) {
         const baseTicketChance = JUNKYARD_TICKET_DROP_CHANCE[currentMode] || 0;
         const ticketChance = isJunkyardDealerDiscountActive()
           ? baseTicketChance * JUNKYARD_TICKET_DROP_DISCOUNT_MULTIPLIER
@@ -4827,7 +4895,7 @@ function handleTypedChar(ch) {
           const pick = CASTLE_MATERIALS[Math.floor(Math.random() * CASTLE_MATERIALS.length)];
           save.castleMaterials[pick.id] = (save.castleMaterials[pick.id] || 0) + 1;
           renderCastle();
-          queueReveal('', `${pick.name}を手に入れた！`);
+          showCastleMaterialPopup(pick.name);
         }
       }
       persistSave();
@@ -5414,6 +5482,7 @@ function flushSaveOnUnload() {
     sessionJunkyardDispenserTicketsFound = 0;
   }
   persistSave();
+  reportProgress(true);
 }
 window.addEventListener('beforeunload', flushSaveOnUnload);
 window.addEventListener('storage', (e) => {

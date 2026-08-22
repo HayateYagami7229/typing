@@ -2092,6 +2092,31 @@ body {
   100% { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(1); }
 }
 
+.castle-material-popup {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.8);
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #ffe9a8;
+  background: var(--bg-panel);
+  border: 1px solid #ffcc33;
+  border-radius: 18px;
+  padding: 6px 18px;
+  text-shadow: 0 0 16px rgba(255, 204, 51, 0.8);
+  opacity: 0;
+  pointer-events: none;
+  white-space: pre-line;
+  text-align: center;
+  max-width: 92vw;
+  z-index: 60;
+}
+
+.castle-material-popup.show {
+  animation: rareBonusPop 1.8s ease forwards;
+}
+
 /* rank badge */
 .rank-badge-wrap {
   margin: 12px 0 6px;

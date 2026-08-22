@@ -8,5 +8,12 @@
   },
   "r2_buckets": [
     { "binding": "PROFILE_IMAGES", "bucket_name": "endless-type-loop-shares" }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "endless-type-loop-progress",
+      "database_id": "2ccb1e42-7d84-4449-85af-c7cca762daa5"
+    }
   ]
 }
