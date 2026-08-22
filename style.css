@@ -1253,6 +1253,22 @@ body {
   box-shadow: 0 3px 12px rgba(255, 209, 102, 0.3);
 }
 
+.batch-battle-btn.heart-vessel-runaway {
+  color: #fff2c2;
+  animation: heartVesselRunawayGlow 1.6s ease-in-out infinite;
+}
+
+@keyframes heartVesselRunawayGlow {
+  0%, 100% {
+    text-shadow: 0 0 6px rgba(255, 214, 40, 0.6), 0 0 14px rgba(255, 200, 0, 0.4);
+    box-shadow: 0 0 10px rgba(255, 209, 102, 0.35);
+  }
+  50% {
+    text-shadow: 0 0 14px rgba(255, 235, 150, 1), 0 0 28px rgba(255, 200, 0, 0.85);
+    box-shadow: 0 0 26px rgba(255, 209, 102, 0.75);
+  }
+}
+
 .disciple-popup {
   position: fixed;
   inset: 0;

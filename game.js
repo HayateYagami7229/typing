@@ -417,6 +417,8 @@ function defaultSave() {
     junkyardPartsOwned: [],
     junkyardBuffCounts: {},
     junkyardDealerDiscountAnnounced: false,
+    discipleHeartsMaxedOnce: false,
+    heartVesselRunawayActive: false,
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -3032,6 +3034,19 @@ function renderDiscipleStats() {
   });
 }
 
+function checkHeartVesselRunaway() {
+  if (save.disciple.hearts >= 999) save.discipleHeartsMaxedOnce = true;
+  if (save.heartVesselRunawayActive) return;
+  if (!save.discipleHeartsMaxedOnce) return;
+  if (discipleMaxStreak() < 10000) return;
+  save.heartVesselRunawayActive = true;
+  persistSave();
+  queueReveal(
+    'ハートの器の暴走！',
+    '一括対戦を行うと賞金の合計金額が2倍に！\n（ハートを999個一気に消費した場合のみ）',
+  );
+}
+
 function renderDisciple() {
   el.discipleIconBtn.textContent = save.disciple.icon;
   el.discipleName.textContent = save.disciple.name;
@@ -3045,9 +3060,15 @@ function renderDisciple() {
       : `❤️×${heartCount}`;
   el.discipleBattleBtn.disabled = save.disciple.hearts <= 0;
 
+  checkHeartVesselRunaway();
+
   const batchUnlocked = discipleMaxStreak() >= 10000;
   el.discipleBatchBattleBtn.classList.toggle('hidden', !batchUnlocked);
   if (batchUnlocked) el.discipleBatchBattleBtn.disabled = save.disciple.hearts <= 0;
+  el.discipleBatchBattleBtn.textContent = save.heartVesselRunawayActive
+    ? '⚡ 一括対戦（ハートの器が暴走中 賞金2倍！）'
+    : '⚡ 一括対戦';
+  el.discipleBatchBattleBtn.classList.toggle('heart-vessel-runaway', save.heartVesselRunawayActive);
 
   const s = save.disciple.streaks;
   const streak20000Bonus = discipleMaxStreak() >= DISCIPLE_20000_STREAK_THRESHOLD
@@ -3160,6 +3181,8 @@ function batchFightStrongOpponents() {
       streak = 0;
     }
   }
+
+  if (save.heartVesselRunawayActive && heartsToUse >= 999) ptEarned *= 2;
 
   save.disciple.hearts = 0;
   save.disciple.battleCount += heartsToUse;
