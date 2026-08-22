@@ -221,6 +221,7 @@ async function handleProgressView(request, env, url) {
     'SELECT * FROM player_progress ORDER BY maou_defeated DESC, castle_progress DESC, level DESC',
   ).all();
   const rows = results || [];
+  rows.forEach((r) => { r.progress = r.prestige * 100 + r.level; });
   const total = rows.length;
   const count = (pred) => rows.filter(pred).length;
   const sum = (key2) => rows.reduce((s, r) => s + (Number(r[key2]) || 0), 0);
@@ -237,7 +238,7 @@ async function handleProgressView(request, env, url) {
   };
 
   const highlights = [
-    { label: '最高レベル', row: maxRow(rows, 'level'), fmt: (r) => `Lv.${r.level}` },
+    { label: '最高レベル', row: maxRow(rows, 'progress'), fmt: (r) => `${r.progress}` },
     { label: '最大所持pt', row: maxRow(rows, 'pt'), fmt: (r) => `${fmtNum(r.pt)}pt` },
     { label: '最大総獲得pt', row: maxRow(rows, 'total_pt_earned'), fmt: (r) => `${fmtNum(r.total_pt_earned)}pt` },
     { label: '最長プレイ時間', row: maxRow(rows, 'total_play_time_min'), fmt: (r) => `${fmtNum(r.total_play_time_min)}分` },
@@ -262,16 +263,14 @@ async function handleProgressView(request, env, url) {
     <td data-count="${funnelCounts[id]}">${funnelCounts[id]}</td>
   </tr>`).join('');
 
-  const tableRows = rows.map((r) => {
-    const progressScore = r.prestige * 100 + r.level;
-    return `<tr
-    data-progress="${progressScore}"
+  const tableRows = rows.map((r) => `<tr
+    data-progress="${r.progress}"
     data-disciple_total_params="${r.disciple_total_params}" data-castle_progress="${r.castle_progress}"
     data-pt="${r.pt}" data-total_pt_earned="${r.total_pt_earned}" data-total_correct="${r.total_correct}"
     data-dungeon_starts="${r.dungeon_starts}" data-total_play_time_min="${r.total_play_time_min}"
     data-updated_at="${r.updated_at}">
     <td>${escapeHtml(r.player_name || '')}</td>
-    <td>${progressScore}</td>
+    <td>${r.progress}</td>
     <td>${r.god_statue_completed ? '✅' : ''}</td>
     <td>${r.garden_restorations >= 20 ? '✅' : ''}</td>
     <td>${r.disciple_total_params}</td>
@@ -284,8 +283,7 @@ async function handleProgressView(request, env, url) {
     <td>${fmtNum(r.dungeon_starts)}</td>
     <td>${fmtNum(r.total_play_time_min)}分</td>
     <td>${new Date(r.updated_at).toLocaleString('ja-JP')}</td>
-  </tr>`;
-  }).join('');
+  </tr>`).join('');
 
   const html = `<!doctype html>
 <html lang="ja">
