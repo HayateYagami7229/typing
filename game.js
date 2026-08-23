@@ -1485,6 +1485,7 @@ function showHelpPopup() {
 
 function refreshTotalPt() {
   el.totalPt.textContent = Math.floor(save.pt).toLocaleString();
+  renderCausalityTower();
 }
 
 function refreshMuteBtn() {
