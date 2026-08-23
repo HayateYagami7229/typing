@@ -4097,7 +4097,7 @@ el.prestigeBtn.addEventListener('click', () => {
       : '';
     queueReveal(
       '体が眩く光り出す…！',
-      `眠っていた力が目覚めたようだ。\n※pt倍率に+${tier.ptBonus}されました\n※以後の経験値テーブルが${tier.expMultiplier}倍になりました${heartLine}`,
+      `眠っていた力が目覚めたようだ。\n※pt倍率に+${tier.ptBonus}されました${heartLine}`,
     );
   });
   checkReincarnationNecklaceReveal();
