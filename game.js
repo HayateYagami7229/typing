@@ -4090,7 +4090,7 @@ el.prestigeBtn.addEventListener('click', () => {
     const heartPart = tier.rareHeartBonusChance
       ? `・レアモンスター撃破時ハート追加率+${Math.round(tier.rareHeartBonusChance * 100)}%`
       : '';
-    pushAnnouncement('✨', `眠っていた力が目覚めました（pt倍率+${tier.ptBonus}・以後の経験値テーブルが${tier.expMultiplier}倍${heartPart}）`, true);
+    pushAnnouncement('✨', `眠っていた力が目覚めました（pt倍率+${tier.ptBonus}${heartPart}）`, true);
     renderAnnouncements();
     const heartLine = tier.rareHeartBonusChance
       ? `\n※レアモンスター撃破時ハート追加率+${Math.round(tier.rareHeartBonusChance * 100)}%されました`
@@ -5526,9 +5526,6 @@ function renderStats() {
     ['文章の回廊 挑戦回数', save.dungeonPlayCounts.sentence],
     ['長文の塔 挑戦回数', save.dungeonPlayCounts.long],
     ['ESCで中断した回数', save.abortCount],
-    ['[EndlessMode]単語の間 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.word) || 0],
-    ['[EndlessMode]文章の回廊 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.sentence) || 0],
-    ['[EndlessMode]長文の塔 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.long) || 0],
     ['最高KPM', save.bestKpm],
     ['平均KPM', avgKpm],
     ['正答率', `${overallAccuracy}%`],
@@ -5544,6 +5541,14 @@ function renderStats() {
     ['レアモンスター討伐数', save.rareMonstersDefeated.toLocaleString()],
     ['しあわせ草を食べた数', ((save.itemPurchaseCounts && save.itemPurchaseCounts.item_happy_grass) || 0).toLocaleString()],
   ];
+
+  if (save.endlessModeUnlocked) {
+    rows.push(
+      ['[EndlessMode]単語の間 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.word) || 0],
+      ['[EndlessMode]文章の回廊 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.sentence) || 0],
+      ['[EndlessMode]長文の塔 挑戦回数', (save.endlessDungeonPlayCounts && save.endlessDungeonPlayCounts.long) || 0],
+    );
+  }
 
   if (save.godStatueBuffs.expBoostStacks > 0) {
     rows.push(['女神の祝福：EXPボーナス', `+${save.godStatueBuffs.expBoostStacks * 20}%`]);
