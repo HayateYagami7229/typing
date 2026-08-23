@@ -637,6 +637,20 @@ const FUNNEL_BLOCKS = [
   { id: '1-19', check: () => discipleMaxStreak() >= 10000 },
   { id: '1-20', check: () => !!save.prestigeAwakened },
   { id: '1-21', check: () => !!save.maouDefeated },
+  { id: '2-1', check: () => !!save.mechanicalEggOwned },
+  { id: '2-2', check: () => !!save.mechanicalEggHatched },
+  { id: '2-3', check: () => (save.junkyardPartsOwned || []).length >= 1 },
+  { id: '2-4', check: () => compressedBatteryCount() >= COMPRESSED_BATTERY_STOCK_CAP },
+  { id: '2-5', check: () => (save.junkyardPartsOwned || []).length >= JUNKYARD_PARTS.length },
+  { id: '2-6', check: () => !!save.castleConstructionUnlocked },
+  { id: '2-7', check: () => !!save.causalityTowerIntroShown },
+  { id: '2-8', check: () => (save.castleConstructionProgress || 0) >= 1 },
+  { id: '2-9', check: () => !!save.castleConverterOwned },
+  { id: '2-10', check: () => castleBuildProgressPct() >= 5 },
+  { id: '2-11', check: () => castleBuildProgressPct() >= 50 },
+  { id: '2-12', check: () => (save.castleConstructionProgress || 0) >= CASTLE_BUILD_TOTAL },
+  { id: '2-13', check: () => (CAUSALITY_TOWER_MONSTERS_TOTAL - (save.causalityTowerMonsters || 0)) >= 1000 },
+  { id: '2-14', check: () => save.causalityTowerMonstersInitialized && (save.causalityTowerMonsters || 0) <= 0 },
 ];
 
 function checkFunnelBlocks() {

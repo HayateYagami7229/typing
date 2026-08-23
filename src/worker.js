@@ -119,9 +119,10 @@ const FIELD_CAPS = {
   total_pt_earned: 1e15,
 };
 
-const VALID_FUNNEL_IDS = new Set(
-  Array.from({ length: 21 }, (_, i) => `1-${i + 1}`),
-);
+const VALID_FUNNEL_IDS = new Set([
+  ...Array.from({ length: 21 }, (_, i) => `1-${i + 1}`),
+  ...Array.from({ length: 14 }, (_, i) => `2-${i + 1}`),
+]);
 
 const FUNNEL_LABELS = {
   '1-1': 'ゲーム開始',
@@ -145,11 +146,25 @@ const FUNNEL_LABELS = {
   '1-19': '弟子連勝1万',
   '1-20': '覚醒（転生10回）',
   '1-21': '魔王討伐',
+  '2-1': '卵を購入',
+  '2-2': '卵を孵化',
+  '2-3': 'パーツを初めて引いた',
+  '2-4': 'バッテリーをカンスト所持',
+  '2-5': 'パーツを揃えた',
+  '2-6': 'ジャンクヤードを綺麗にした',
+  '2-7': '因果の巨塔に初めて向かった',
+  '2-8': '初めて建築をした',
+  '2-9': '素材変換器を購入した',
+  '2-10': '建築率5％達成',
+  '2-11': '建築率50％達成',
+  '2-12': '城を完全に建築した',
+  '2-13': '因果の巨塔のモンスターを1000体蹴散らした',
+  '2-14': '因果の巨塔のモンスターを全て蹴散らした',
 };
 
 function sanitizeFunnelsReached(v) {
   if (!Array.isArray(v)) return '[]';
-  const filtered = v.filter((x) => typeof x === 'string' && VALID_FUNNEL_IDS.has(x)).slice(0, 21);
+  const filtered = v.filter((x) => typeof x === 'string' && VALID_FUNNEL_IDS.has(x)).slice(0, 35);
   return JSON.stringify(filtered);
 }
 
@@ -258,11 +273,13 @@ async function handleProgressView(request, env, url) {
     try { reached = JSON.parse(r.funnels_reached || '[]'); } catch (e) { reached = []; }
     reached.forEach((id) => { if (funnelCounts[id] !== undefined) funnelCounts[id] += 1; });
   });
-  const funnelRows = Object.keys(FUNNEL_LABELS).map((id) => `<tr data-funnel-id="${id}">
+  const funnelRowHtml = (id) => `<tr data-funnel-id="${id}">
     <td><label><input type="checkbox" value="${id}"> ${id}</label></td>
     <td>${escapeHtml(FUNNEL_LABELS[id])}</td>
     <td data-count="${funnelCounts[id]}">${funnelCounts[id]}</td>
-  </tr>`).join('');
+  </tr>`;
+  const funnelRowsPhase1 = Object.keys(FUNNEL_LABELS).filter((id) => id.startsWith('1-')).map(funnelRowHtml).join('');
+  const funnelRowsPhase2 = Object.keys(FUNNEL_LABELS).filter((id) => id.startsWith('2-')).map(funnelRowHtml).join('');
 
   const tableRows = rows.map((r) => `<tr
     data-progress="${r.progress}"
@@ -307,8 +324,9 @@ async function handleProgressView(request, env, url) {
   .highlight-label { font-size: 0.75rem; color: #9aa0c0; }
   .highlight-value { font-size: 1.1rem; font-weight: 700; color: #7c8cff; }
   .highlight-name { font-size: 0.75rem; }
-  #funnelTable { max-width: 480px; }
-  #funnelTable td:nth-child(3) { text-align: right; }
+  .funnel-tables { display: flex; gap: 16px; flex-wrap: wrap; }
+  #funnelTable, #funnelTable2 { max-width: 480px; flex: 1 1 480px; margin-bottom: 24px; }
+  #funnelTable td:nth-child(3), #funnelTable2 td:nth-child(3) { text-align: right; }
   .funnel-controls { margin-bottom: 8px; font-size: 0.85rem; }
   .funnel-controls a { color: #7c8cff; cursor: pointer; }
   h2 { font-size: 1.05rem; margin-top: 0; }
@@ -334,10 +352,16 @@ async function handleProgressView(request, env, url) {
 
 <h2>ファネル到達状況</h2>
 <div class="funnel-controls"><a id="showAllFunnels">すべて表示に戻す</a></div>
-<table id="funnelTable">
-<thead><tr><th>ID（外す）</th><th>内容</th><th>到達人数</th></tr></thead>
-<tbody>${funnelRows}</tbody>
-</table>
+<div class="funnel-tables">
+  <table id="funnelTable">
+  <thead><tr><th>ID（外す）</th><th>内容</th><th>到達人数</th></tr></thead>
+  <tbody>${funnelRowsPhase1}</tbody>
+  </table>
+  <table id="funnelTable2">
+  <thead><tr><th>ID（外す）</th><th>内容</th><th>到達人数</th></tr></thead>
+  <tbody>${funnelRowsPhase2}</tbody>
+  </table>
+</div>
 
 <h2>プレイヤー一覧（列見出しクリックで並べ替え）</h2>
 <div class="funnel-controls"><label><input type="checkbox" id="hideLowLevelToggle"> Lv5以下のプレイヤーを非表示</label></div>
@@ -374,11 +398,11 @@ async function handleProgressView(request, env, url) {
   var hidden = [];
   try { hidden = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) { hidden = []; }
   function applyHidden() {
-    document.querySelectorAll('#funnelTable tr[data-funnel-id]').forEach(function (tr) {
+    document.querySelectorAll('#funnelTable tr[data-funnel-id], #funnelTable2 tr[data-funnel-id]').forEach(function (tr) {
       tr.style.display = hidden.indexOf(tr.getAttribute('data-funnel-id')) !== -1 ? 'none' : '';
     });
   }
-  document.querySelectorAll('#funnelTable input[type=checkbox]').forEach(function (cb) {
+  document.querySelectorAll('#funnelTable input[type=checkbox], #funnelTable2 input[type=checkbox]').forEach(function (cb) {
     cb.checked = hidden.indexOf(cb.value) === -1;
     cb.addEventListener('change', function () {
       var idx = hidden.indexOf(cb.value);
@@ -391,7 +415,7 @@ async function handleProgressView(request, env, url) {
   document.getElementById('showAllFunnels').addEventListener('click', function () {
     hidden = [];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(hidden));
-    document.querySelectorAll('#funnelTable input[type=checkbox]').forEach(function (cb) { cb.checked = true; });
+    document.querySelectorAll('#funnelTable input[type=checkbox], #funnelTable2 input[type=checkbox]').forEach(function (cb) { cb.checked = true; });
     applyHidden();
   });
   applyHidden();
