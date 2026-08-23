@@ -1,6 +1,7 @@
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const SHARE_ID_LENGTH = 16;
 const DAILY_UPLOAD_CAP = 300;
+const CASTLE_BUILD_TOTAL = 500;
 
 export default {
   async fetch(request, env) {
@@ -275,7 +276,7 @@ async function handleProgressView(request, env, url) {
     <td>${r.garden_restorations >= 20 ? '✅' : ''}</td>
     <td>${r.disciple_total_params}</td>
     <td>${r.maou_defeated ? '✅' : ''}</td>
-    <td>${r.castle_unlocked ? r.castle_progress : ''}</td>
+    <td>${r.castle_unlocked ? `${Math.min(100, (r.castle_progress / CASTLE_BUILD_TOTAL) * 100).toFixed(1)}%` : ''}</td>
     <td>${r.endless_mode_unlocked ? '✅' : ''}</td>
     <td>${fmtNum(r.pt)}</td>
     <td>${fmtNum(r.total_pt_earned)}</td>

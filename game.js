@@ -345,6 +345,8 @@ const CASTLE_MATERIALS = [
   { id: 'rebellionWood', name: 'リベリオン・ウッド' },
   { id: 'stellaLuminous', name: 'ステラ・ルミナス' },
 ];
+const CASTLE_CONVERTER_COST_AMOUNT = 5;
+const CASTLE_CONVERTER_GAIN_AMOUNT = 1;
 
 const GOD_STATUE_BUFFS = [
   { id: 'exp_boost', name: '経験の祝福', desc: 'EXPが永続的に+20%' },
@@ -481,6 +483,9 @@ function defaultSave() {
     castleMaterials: {
       abyssObsidian: 0, voidPlaster: 0, rebellionWood: 0, stellaLuminous: 0,
     },
+    castleMaterialsCollected: 0,
+    castleMaterialsCollected100Announced: false,
+    castleConverterOwned: false,
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -1070,6 +1075,7 @@ const el = {
   castleMaterial_stellaLuminous: document.getElementById('castleMaterial_stellaLuminous'),
   castleBuildBtn: document.getElementById('castleBuildBtn'),
   castleGenerateBtn: document.getElementById('castleGenerateBtn'),
+  castleConvertBtn: document.getElementById('castleConvertBtn'),
   endlessModeToggleRow: document.getElementById('endlessModeToggleRow'),
   endlessModeToggle: document.getElementById('endlessModeToggle'),
   junkyardTicketCount: document.getElementById('junkyardTicketCount'),
@@ -2319,6 +2325,14 @@ function buildCastle() {
   renderCastle();
 }
 
+function incrementCastleMaterialsCollected() {
+  save.castleMaterialsCollected = (save.castleMaterialsCollected || 0) + 1;
+  if (!save.castleMaterialsCollected100Announced && save.castleMaterialsCollected >= 100) {
+    save.castleMaterialsCollected100Announced = true;
+    pushAnnouncement('📦', 'ショップに新商品が追加されたようです', true);
+  }
+}
+
 function generateCastleMaterial() {
   if (!save.castleConstructionUnlocked) return;
   if (save.pt < CASTLE_MATERIAL_GEN_COST) return;
@@ -2326,10 +2340,35 @@ function generateCastleMaterial() {
   save.totalPtSpent += CASTLE_MATERIAL_GEN_COST;
   const pick = CASTLE_MATERIALS[Math.floor(Math.random() * CASTLE_MATERIALS.length)];
   save.castleMaterials[pick.id] = (save.castleMaterials[pick.id] || 0) + 1;
+  incrementCastleMaterialsCollected();
   persistSave();
   refreshTotalPt();
   renderCastle();
+  renderAnnouncements();
+  renderShopList();
   queueReveal('', `${pick.name}を生成した！`);
+}
+
+function canConvertCastleMaterials() {
+  if (!save.castleConverterOwned) return false;
+  const max = Math.max(...CASTLE_MATERIALS.map((m) => save.castleMaterials[m.id] || 0));
+  return max >= CASTLE_CONVERTER_COST_AMOUNT;
+}
+
+function convertCastleMaterials() {
+  if (!canConvertCastleMaterials()) return;
+  const counts = CASTLE_MATERIALS.map((m) => ({ id: m.id, name: m.name, count: save.castleMaterials[m.id] || 0 }));
+  const maxCount = Math.max(...counts.map((c) => c.count));
+  const minCount = Math.min(...counts.map((c) => c.count));
+  const maxCandidates = counts.filter((c) => c.count === maxCount);
+  const minCandidates = counts.filter((c) => c.count === minCount);
+  const pickedMax = maxCandidates[Math.floor(Math.random() * maxCandidates.length)];
+  const pickedMin = minCandidates[Math.floor(Math.random() * minCandidates.length)];
+  save.castleMaterials[pickedMax.id] -= CASTLE_CONVERTER_COST_AMOUNT;
+  save.castleMaterials[pickedMin.id] += CASTLE_CONVERTER_GAIN_AMOUNT;
+  persistSave();
+  renderCastle();
+  queueReveal('', `${pickedMax.name}が${CASTLE_CONVERTER_COST_AMOUNT}個減り、\n${pickedMin.name}が${CASTLE_CONVERTER_GAIN_AMOUNT}個増えた！`);
 }
 
 function renderCastle() {
@@ -2348,6 +2387,8 @@ function renderCastle() {
   el.castleBuildBtn.disabled = complete || !canCastleBuild();
   el.castleGenerateBtn.textContent = `✨ 素材を生成する（${CASTLE_MATERIAL_GEN_COST.toLocaleString()}pt）`;
   el.castleGenerateBtn.disabled = save.pt < CASTLE_MATERIAL_GEN_COST;
+  el.castleConvertBtn.classList.toggle('hidden', !save.castleConverterOwned);
+  if (save.castleConverterOwned) el.castleConvertBtn.disabled = !canConvertCastleMaterials();
 }
 
 function checkMechanicalEggHatch() {
@@ -3799,6 +3840,7 @@ el.junkyardDigBtn.addEventListener('click', digJunkyard);
 el.junkyardBombBtn.addEventListener('click', craftJunkyardBomb);
 el.castleBuildBtn.addEventListener('click', buildCastle);
 el.castleGenerateBtn.addEventListener('click', generateCastleMaterial);
+el.castleConvertBtn.addEventListener('click', convertCastleMaterials);
 el.endlessModeToggle.addEventListener('change', () => {
   save.endlessModeOn = el.endlessModeToggle.checked;
   persistSave();
@@ -4251,6 +4293,22 @@ function buyConsumableItem(itemId) {
     return;
   }
 
+  if (item.effect === 'castle_material_converter') {
+    if (save.castleConverterOwned) return;
+    if (save.pt < item.price) return;
+    save.pt -= item.price;
+    save.totalPtSpent += item.price;
+    save.castleConverterOwned = true;
+    pushAnnouncement('🔄', `「${item.name}」を手に入れました！`, true);
+    SFX.complete();
+    persistSave();
+    refreshTotalPt();
+    renderAnnouncements();
+    renderShopList();
+    renderCastle();
+    return;
+  }
+
   if (item.effect === 'unlock_eternal_combo') {
     if (save.eternalComboUnlocked) return;
     if (save.pt < item.price) return;
@@ -4404,6 +4462,7 @@ function itemEffectLabel(item) {
   if (item.effect === 'rare_chance_next_game') return `次のゲームでレア出現率+${Math.round(item.value * 100)}%`;
   if (item.effect === 'heart_cap_up') return `弟子のハート上限が${item.value}になる（永続）`;
   if (item.effect === 'heart_cap_up_grail') return `弟子のハート上限が${item.value}になる（永続）\n一括対戦は999個単位で消費されるようになる`;
+  if (item.effect === 'castle_material_converter') return '何をどうしたらそうなるのか分からないが\n一番持っている素材5個が一番持っていない素材1個に変換される';
   if (item.effect === 'unlock_eternal_combo') return '永続コンボシステムを開放する';
   if (item.effect === 'easter_egg_dev_contact') return '？？？？？？？？？？？';
   if (item.effect === 'mechanical_egg_charge') return '機械仕掛けの卵の充電効率+0.001%（複数購入可）';
@@ -4419,14 +4478,18 @@ function renderItemShop() {
     const isEternalCombo = item.effect === 'unlock_eternal_combo';
     const isMechanicalEgg = item.effect === 'easter_egg_dev_contact';
     const isCompressedBattery = item.effect === 'mechanical_egg_charge';
+    const isCastleConverter = item.effect === 'castle_material_converter';
     const oneTimeOwned = (isHeartVessel && save.disciple.heartVesselOwned)
       || (isHeartGrail && save.disciple.heartGrailOwned)
       || (isEternalCombo && save.eternalComboUnlocked)
-      || (isMechanicalEgg && save.mechanicalEggOwned);
+      || (isMechanicalEgg && save.mechanicalEggOwned)
+      || (isCastleConverter && save.castleConverterOwned);
     if (item.requiresDiscipleStreak && !oneTimeOwned && discipleMaxStreak() <= item.requiresDiscipleStreak) return;
     if (item.requiresPrestige && !oneTimeOwned && save.prestige < item.requiresPrestige) return;
     if (item.requiresMaouDefeated && !save.maouDefeated) return;
     if (item.requiresBatchBattleCount && !oneTimeOwned && (save.batchBattleCount || 0) < item.requiresBatchBattleCount) return;
+    if (item.requiresCastleMaterialsCollected && !oneTimeOwned
+      && (save.castleMaterialsCollected || 0) < item.requiresCastleMaterialsCollected) return;
     if (item.effect === 'mechanical_egg_charge' && (
       !save.mechanicalEggOwned
       || (!save.mechanicalEggHatched && (save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS)
@@ -5052,6 +5115,7 @@ function handleTypedChar(ch) {
         if (Math.random() < materialDropChance) {
           const pick = CASTLE_MATERIALS[Math.floor(Math.random() * CASTLE_MATERIALS.length)];
           save.castleMaterials[pick.id] = (save.castleMaterials[pick.id] || 0) + 1;
+          incrementCastleMaterialsCollected();
           renderCastle();
           showCastleMaterialPopup(pick.name);
         }
