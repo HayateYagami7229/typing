@@ -4755,7 +4755,7 @@ function renderItemShop() {
         ${item.hasShopStock ? `<span class="shop-item-owned">在庫: ${save.happyGrassStock}/${happyGrassMaxStock()}</span>` : ''}
       </div>
       <div class="shop-item-side">
-        <span class="shop-item-price">${oneTimeOwned ? '所持済' : `${item.price.toLocaleString()} pt`}</span>
+        <span class="shop-item-price">${maxed ? '所持済' : outOfStock ? '在庫切れ' : `${item.price.toLocaleString()} pt`}</span>
         <button class="shop-btn" data-action="use-item" data-item-id="${item.id}" ${disabled ? 'disabled' : ''}>${btnLabel}</button>
         ${bulkUnlocked ? `<button class="shop-btn" data-action="bulk-buy-item" data-item-id="${item.id}" ${disabled ? 'disabled' : ''}>⚡ 一括購入</button>` : ''}
       </div>
