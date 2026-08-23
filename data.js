@@ -614,6 +614,7 @@ const ITEM_CATALOG = [
   { id: 'item_heart_vessel', name: 'ハートの器', price: 100000, effect: 'heart_cap_up', value: 999, stackable: false, requiresDiscipleStreak: 1000, purple: true },
   { id: 'item_heart_grail', name: 'ハートの聖杯', price: 1000000000, effect: 'heart_cap_up_grail', value: 9999, stackable: false, requiresBatchBattleCount: 10, purple: true },
   { id: 'item_castle_converter', name: '素材変換器', price: 20000000000, effect: 'castle_material_converter', stackable: false, requiresCastleMaterialsCollected: 100, purple: true },
+  { id: 'item_soul_relic', name: '魂魄流転のレリック', price: 10000000000, effect: 'auto_prestige', stackable: false, requiresPrestige: 50, purple: true },
   { id: 'item_reincarnation_necklace', name: '輪廻のネックレス', price: 50000, effect: 'unlock_eternal_combo', stackable: false, requiresPrestige: 1, purple: true },
   { id: 'item_mechanical_egg', name: '機械仕掛けの卵', price: 1000000000, effect: 'easter_egg_dev_contact', stackable: false, requiresMaouDefeated: true, purple: true },
   { id: 'item_compressed_battery', name: '圧縮バッテリー', price: 100000000, effect: 'mechanical_egg_charge', stackable: false, requiresMaouDefeated: true },

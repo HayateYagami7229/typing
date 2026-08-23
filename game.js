@@ -486,6 +486,7 @@ function defaultSave() {
     castleMaterialsCollected: 0,
     castleMaterialsCollected100Announced: false,
     castleConverterOwned: false,
+    autoPrestigeRelicOwned: false,
     eternalCombo: 0,
     eternalComboMisses: 0,
     eternalComboMax: 0,
@@ -4076,6 +4077,23 @@ function checkReincarnationNecklaceReveal() {
   );
 }
 
+function checkAutoPrestige(levelBeforeWord) {
+  if (!save.autoPrestigeRelicOwned) return;
+  if (!canPrestige(save)) return;
+  const nextPrestige = save.prestige + 1;
+  if (nextPrestige % 10 === 0) return;
+
+  if (levelBeforeWord < MAX_LEVEL) {
+    pushAnnouncement('🎉', `Lv.${levelBeforeWord} → Lv.${save.level} に到達しました`);
+  }
+  doPrestige(save);
+  pushAnnouncement('🌀', `ダンジョンにて自動転生 +${save.prestige} を達成しました`, true);
+  levelAtSessionStart = save.level;
+  renderPlayerCard();
+  renderGameExpBar();
+  renderAnnouncements();
+}
+
 el.prestigeBtn.addEventListener('click', () => {
   if (!canPrestige(save)) return;
   const ok = window.confirm('転生すると Lv.1 に戻ります。pt・実績・履歴は引き継がれます。よろしいですか？');
@@ -4330,6 +4348,21 @@ function buyConsumableItem(itemId) {
     return;
   }
 
+  if (item.effect === 'auto_prestige') {
+    if (save.autoPrestigeRelicOwned) return;
+    if (save.pt < item.price) return;
+    save.pt -= item.price;
+    save.totalPtSpent += item.price;
+    save.autoPrestigeRelicOwned = true;
+    pushAnnouncement('🌀', `「${item.name}」を手に入れました！`, true);
+    SFX.complete();
+    persistSave();
+    refreshTotalPt();
+    renderAnnouncements();
+    renderShopList();
+    return;
+  }
+
   if (item.effect === 'unlock_eternal_combo') {
     if (save.eternalComboUnlocked) return;
     if (save.pt < item.price) return;
@@ -4484,6 +4517,7 @@ function itemEffectLabel(item) {
   if (item.effect === 'heart_cap_up') return `弟子のハート上限が${item.value}になる（永続）`;
   if (item.effect === 'heart_cap_up_grail') return `弟子のハート上限が${item.value}になる（永続）\n一括対戦は999個単位で消費されるようになる`;
   if (item.effect === 'castle_material_converter') return '何をどうしたらそうなるのか分からないが\n一番持っている素材5個が一番持っていない素材1個に変換される';
+  if (item.effect === 'auto_prestige') return '条件を達成するとダンジョン内で自動転生する\n（ただし10の倍数のレベルアップ時のみ自動転生は行われない）';
   if (item.effect === 'unlock_eternal_combo') return '永続コンボシステムを開放する';
   if (item.effect === 'easter_egg_dev_contact') return '？？？？？？？？？？？';
   if (item.effect === 'mechanical_egg_charge') return '機械仕掛けの卵の充電効率+0.001%（複数購入可）';
@@ -4500,11 +4534,13 @@ function renderItemShop() {
     const isMechanicalEgg = item.effect === 'easter_egg_dev_contact';
     const isCompressedBattery = item.effect === 'mechanical_egg_charge';
     const isCastleConverter = item.effect === 'castle_material_converter';
+    const isSoulRelic = item.effect === 'auto_prestige';
     const oneTimeOwned = (isHeartVessel && save.disciple.heartVesselOwned)
       || (isHeartGrail && save.disciple.heartGrailOwned)
       || (isEternalCombo && save.eternalComboUnlocked)
       || (isMechanicalEgg && save.mechanicalEggOwned)
-      || (isCastleConverter && save.castleConverterOwned);
+      || (isCastleConverter && save.castleConverterOwned)
+      || (isSoulRelic && save.autoPrestigeRelicOwned);
     if (item.requiresDiscipleStreak && !oneTimeOwned && discipleMaxStreak() <= item.requiresDiscipleStreak) return;
     if (item.requiresPrestige && !oneTimeOwned && save.prestige < item.requiresPrestige) return;
     if (item.requiresMaouDefeated && !save.maouDefeated) return;
@@ -5076,6 +5112,7 @@ function handleTypedChar(ch) {
 
     if (res.result === 'complete-all') {
       celebrate();
+      const levelBeforeWord = save.level;
       if (res.ptDelta > 0) {
         save.pt += res.ptDelta;
         save.totalPtEarned += res.ptDelta;
@@ -5141,6 +5178,7 @@ function handleTypedChar(ch) {
           showCastleMaterialPopup(pick.name);
         }
       }
+      checkAutoPrestige(levelBeforeWord);
       persistSave();
       if (!session.isTimeUp) renderTarget();
       updateHud();
