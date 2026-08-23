@@ -1,7 +1,9 @@
 const SAVE_KEY = 'typingDungeonSave';
 const PLAYER_ID_KEY = 'typingDungeonPlayerId';
+const SYNC_TOKEN_KEY = 'typingDungeonSyncToken';
 const PROGRESS_REPORT_INTERVAL_MS = 5 * 60 * 1000;
 const PROGRESS_SHARED_KEY = 'jKULS-1GXwisqIj1Oem1sg';
+const PT_TAMPER_CHECK_INTERVAL_MS = 3000;
 
 const DUNGEONS = {
   word: { label: '単語の間', expFactor: 1, bank: WORD_BANK },
@@ -406,6 +408,9 @@ function defaultSave() {
     pt: 0,
     totalPtEarned: 0,
     totalPtSpent: 0,
+    lastModifiedAt: Date.now(),
+    ptTamperFlag: false,
+    saveChecksum: null,
     profile: { name: 'Typer', icon: '🗡️', cardDesign: 'default', iconFrame: 'none' },
     equipment: { swordId: null, shieldId: null, armorId: 'armor_cloth', ringId: null, titleFrontId: null, titleBackId: null, titleConnectiveId: 'conn_no', bgmId: 'bgm_default' },
     inventory: { swords: [], shields: [], armors: ['armor_cloth'], rings: [], titleFronts: [], titleBacks: [], icons: [], consumables: {}, bgm: ['bgm_default'] },
@@ -604,6 +609,27 @@ function decodeSaveData(encoded) {
   return JSON.parse(new TextDecoder().decode(jsonBytes));
 }
 
+const SAVE_CHECKSUM_SALT = 'etl-integrity-v1';
+
+function computeSaveChecksum(s) {
+  const payload = [s.pt, s.totalPtEarned, s.totalPtSpent, s.level, s.prestige]
+    .map((v) => Math.floor(Number(v) || 0)).join('|');
+  let hash = 0x811c9dc5;
+  const salted = `${SAVE_CHECKSUM_SALT}:${payload}`;
+  for (let i = 0; i < salted.length; i++) {
+    hash ^= salted.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function verifySaveChecksum(s) {
+  if (s.saveChecksum && computeSaveChecksum(s) !== s.saveChecksum) {
+    s.ptTamperFlag = true;
+  }
+  return s;
+}
+
 function loadSave() {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) {
@@ -613,10 +639,10 @@ function loadSave() {
     return fresh;
   }
   try {
-    return normalizeSave(decodeSaveData(raw));
+    return verifySaveChecksum(normalizeSave(decodeSaveData(raw)));
   } catch (e) {
     try {
-      return normalizeSave(JSON.parse(raw));
+      return verifySaveChecksum(normalizeSave(JSON.parse(raw)));
     } catch (e2) {
       return defaultSave();
     }
@@ -693,15 +719,95 @@ function updateFunnelUserProperties() {
   });
 }
 
+function randomIdFallback() {
+  return (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `p-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function getOrCreatePlayerId() {
   let id = localStorage.getItem(PLAYER_ID_KEY);
   if (!id) {
-    id = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : `p-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    id = randomIdFallback();
     localStorage.setItem(PLAYER_ID_KEY, id);
   }
   return id;
+}
+
+function getOrCreateSyncToken() {
+  let token = localStorage.getItem(SYNC_TOKEN_KEY);
+  if (!token) {
+    token = randomIdFallback();
+    localStorage.setItem(SYNC_TOKEN_KEY, token);
+  }
+  return token;
+}
+
+function buildSyncCode() {
+  return `${getOrCreatePlayerId()}.${getOrCreateSyncToken()}`;
+}
+
+function applySyncCode(code) {
+  const trimmed = (code || '').trim();
+  const parts = trimmed.split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    window.alert('同期コードの形式が正しくありません');
+    return false;
+  }
+  localStorage.setItem(PLAYER_ID_KEY, parts[0]);
+  localStorage.setItem(SYNC_TOKEN_KEY, parts[1]);
+  return true;
+}
+
+async function uploadSaveToCloud() {
+  try {
+    const res = await fetch('/api/save/upload', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-progress-key': PROGRESS_SHARED_KEY },
+      body: JSON.stringify({
+        player_id: getOrCreatePlayerId(),
+        sync_token: getOrCreateSyncToken(),
+        save_json: exportSaveString(),
+        last_modified_at: save.lastModifiedAt,
+      }),
+    });
+    if (!res.ok) {
+      window.alert('アップロードに失敗しました');
+      return;
+    }
+    window.alert('アップロードしました');
+  } catch (e) {
+    window.alert('アップロードに失敗しました（通信エラー）');
+  }
+}
+
+async function downloadSaveFromCloud() {
+  try {
+    const res = await fetch('/api/save/download', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-progress-key': PROGRESS_SHARED_KEY },
+      body: JSON.stringify({
+        player_id: getOrCreatePlayerId(),
+        sync_token: getOrCreateSyncToken(),
+      }),
+    });
+    if (!res.ok) {
+      window.alert('ダウンロードに失敗しました');
+      return;
+    }
+    const data = await res.json();
+    if (!data.found) {
+      window.alert('同期されたセーブデータが見つかりませんでした');
+      return;
+    }
+    if (typeof data.last_modified_at === 'number' && data.last_modified_at <= save.lastModifiedAt) {
+      window.alert('手元のセーブデータの方が新しいか同じです。何もしませんでした');
+      return;
+    }
+    importSaveFromText(data.save_json);
+  } catch (e) {
+    window.alert('ダウンロードに失敗しました（通信エラー）');
+  }
 }
 
 function computeReachedFunnels() {
@@ -750,6 +856,7 @@ function buildProgressPayload() {
     dungeon_starts: totalDungeonStarts(),
     pt: Math.floor(save.pt || 0),
     total_pt_earned: Math.floor(save.totalPtEarned || 0),
+    pt_tamper_flag: !!save.ptTamperFlag,
     funnels_reached: computeReachedFunnels(),
   };
 }
@@ -771,6 +878,8 @@ function reportProgress(force) {
 function persistSave() {
   checkFunnelBlocks();
   updateFunnelUserProperties();
+  save.lastModifiedAt = Date.now();
+  save.saveChecksum = computeSaveChecksum(save);
   reportProgress();
   localStorage.setItem(SAVE_KEY, encodeSaveData(save));
 }
@@ -819,7 +928,11 @@ function importSaveFromText(text) {
     window.alert('セーブデータの読み込みに失敗しました（形式が正しくありません）');
     return false;
   }
-  const ok = window.confirm('現在のセーブデータを上書きします。よろしいですか？');
+  const isOlder = typeof raw.lastModifiedAt === 'number' && raw.lastModifiedAt < save.lastModifiedAt;
+  const confirmMessage = isOlder
+    ? '読み込もうとしたデータの方が古い可能性があります。それでも現在のセーブデータを上書きしますか？'
+    : '現在のセーブデータを上書きします。よろしいですか？';
+  const ok = window.confirm(confirmMessage);
   if (!ok) return false;
   save = normalizeSave(raw);
   persistSave();
@@ -1272,6 +1385,12 @@ const el = {
   importSaveFileBtn: document.getElementById('importSaveFileBtn'),
   importSaveText: document.getElementById('importSaveText'),
   importSaveTextBtn: document.getElementById('importSaveTextBtn'),
+  showSyncCodeBtn: document.getElementById('showSyncCodeBtn'),
+  syncCodeText: document.getElementById('syncCodeText'),
+  syncCodeInput: document.getElementById('syncCodeInput'),
+  applySyncCodeBtn: document.getElementById('applySyncCodeBtn'),
+  uploadSaveBtn: document.getElementById('uploadSaveBtn'),
+  downloadSaveBtn: document.getElementById('downloadSaveBtn'),
 };
 
 function setScreen(name) {
@@ -1489,10 +1608,21 @@ function showHelpPopup() {
   el.helpPopup.classList.remove('hidden');
 }
 
+let lastKnownPt = null;
+
 function refreshTotalPt() {
   el.totalPt.textContent = Math.floor(save.pt).toLocaleString();
+  lastKnownPt = save.pt;
   renderCausalityTower();
 }
+
+setInterval(() => {
+  if (lastKnownPt !== null && save.pt !== lastKnownPt) {
+    save.ptTamperFlag = true;
+    lastKnownPt = save.pt;
+    persistSave();
+  }
+}, PT_TAMPER_CHECK_INTERVAL_MS);
 
 function refreshMuteBtn() {
   el.muteBtn.textContent = save.muted ? '🔇' : '🔊';
@@ -3809,6 +3939,8 @@ el.topLogo.addEventListener('click', handleLogoClick);
 el.openSettingsBtn.addEventListener('click', () => {
   el.exportSaveText.value = exportSaveString();
   el.importSaveText.value = '';
+  el.syncCodeText.value = '';
+  el.syncCodeInput.value = '';
   el.bgmVolumeSlider.value = save.settings.bgmVolume;
   el.bgmVolumeValue.textContent = save.settings.bgmVolume;
   el.seVolumeSlider.value = save.settings.seVolume;
@@ -3885,6 +4017,19 @@ el.importSaveTextBtn.addEventListener('click', () => {
   if (!el.importSaveText.value.trim()) return;
   importSaveFromText(el.importSaveText.value);
 });
+el.showSyncCodeBtn.addEventListener('click', () => {
+  el.syncCodeText.value = buildSyncCode();
+});
+el.applySyncCodeBtn.addEventListener('click', () => {
+  if (!el.syncCodeInput.value.trim()) return;
+  const ok = window.confirm('この端末を、貼り付けた同期コードのプレイヤーとペアリングします。よろしいですか？');
+  if (!ok) return;
+  if (applySyncCode(el.syncCodeInput.value)) {
+    window.alert('ペアリングしました。続けて「ダウンロード」を押すと相手のデータを取得できます');
+  }
+});
+el.uploadSaveBtn.addEventListener('click', uploadSaveToCloud);
+el.downloadSaveBtn.addEventListener('click', downloadSaveFromCloud);
 el.discipleOpponents.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-idx]');
   if (!btn) return;

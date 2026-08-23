@@ -25,7 +25,16 @@ CREATE TABLE IF NOT EXISTS player_progress (
   pt INTEGER NOT NULL DEFAULT 0,
   total_pt_earned INTEGER NOT NULL DEFAULT 0,
   funnels_reached TEXT NOT NULL DEFAULT '[]',
+  pt_tamper_flag INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_player_progress_updated_at ON player_progress (updated_at);
+
+CREATE TABLE IF NOT EXISTS player_saves (
+  player_id TEXT PRIMARY KEY,
+  sync_token TEXT NOT NULL,
+  save_json TEXT NOT NULL,
+  last_modified_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);

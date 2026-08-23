@@ -628,6 +628,18 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
         <button id="importSaveTextBtn" class="choice-btn">テキストから読み込む</button>
         <p class="save-data-hint save-data-warn">読み込むと現在のセーブデータは上書きされます</p>
       </div>
+
+      <div class="save-data-subsection">
+        <h4>他端末と同期</h4>
+        <p class="save-data-hint">初回はどちらかの端末で「同期コードを表示」し、もう一方の端末の入力欄に貼り付けてペアリングしてください。ペアリング後は各端末でアップロード・ダウンロードができます（新しい方のデータが優先されます）</p>
+        <button id="showSyncCodeBtn" class="choice-btn">同期コードを表示</button>
+        <textarea id="syncCodeText" class="save-data-textarea" readonly></textarea>
+        <textarea id="syncCodeInput" class="save-data-textarea" placeholder="他端末の同期コードをここに貼り付け"></textarea>
+        <button id="applySyncCodeBtn" class="choice-btn">同期コードを入力してペアリング</button>
+        <button id="uploadSaveBtn" class="choice-btn">アップロード</button>
+        <button id="downloadSaveBtn" class="choice-btn">ダウンロード</button>
+        <p class="save-data-hint save-data-warn">ダウンロードすると現在のセーブデータが上書きされる場合があります</p>
+      </div>
     </div>
 
     <div class="save-data-section settings-section">

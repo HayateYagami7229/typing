@@ -15,6 +15,14 @@ export default {
       return handleProgressReport(request, env);
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/save/upload') {
+      return handleSaveUpload(request, env);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/save/download') {
+      return handleSaveDownload(request, env);
+    }
+
     if (request.method === 'GET' && url.pathname === '/admin/progress') {
       return handleProgressView(request, env, url);
     }
@@ -91,6 +99,7 @@ const PROGRESS_FIELDS = [
   'disciple_class_upped', 'maou_defeated', 'rico_unlocked', 'rico_fully_owned',
   'mechanical_egg_hatched', 'castle_unlocked', 'castle_progress', 'endless_mode_unlocked',
   'total_correct', 'total_play_time_min', 'best_kpm', 'dungeon_starts', 'pt', 'total_pt_earned',
+  'pt_tamper_flag',
 ];
 
 function clampInt(v, min, max) {
@@ -198,7 +207,7 @@ async function handleProgressReport(request, env) {
   const boolFields = new Set([
     'prestige_awakened', 'god_statue_completed', 'disciple_class_upped', 'maou_defeated',
     'rico_unlocked', 'rico_fully_owned', 'mechanical_egg_hatched', 'castle_unlocked',
-    'endless_mode_unlocked',
+    'endless_mode_unlocked', 'pt_tamper_flag',
   ]);
   const values = PROGRESS_FIELDS.map((f) => {
     if (boolFields.has(f)) return boolTo01(data[f]);
@@ -216,6 +225,85 @@ async function handleProgressReport(request, env) {
   `).bind(playerId, playerName, ...values, bestRank, funnelsReached, now).run();
 
   return new Response(null, { status: 204 });
+}
+
+const MAX_SAVE_JSON_BYTES = 512 * 1024;
+
+async function handleSaveUpload(request, env) {
+  if (!env.PROGRESS_SHARED_KEY || request.headers.get('x-progress-key') !== env.PROGRESS_SHARED_KEY) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  let data;
+  try {
+    data = await request.json();
+  } catch (e) {
+    return new Response('bad request', { status: 400 });
+  }
+  if (!data || typeof data.player_id !== 'string' || !data.player_id || data.player_id.length > 128) {
+    return new Response('bad request', { status: 400 });
+  }
+  if (typeof data.sync_token !== 'string' || !data.sync_token || data.sync_token.length > 128) {
+    return new Response('bad request', { status: 400 });
+  }
+  if (typeof data.save_json !== 'string' || !data.save_json || data.save_json.length > MAX_SAVE_JSON_BYTES) {
+    return new Response('bad request', { status: 400 });
+  }
+
+  const playerId = data.player_id.slice(0, 128);
+  const syncToken = data.sync_token.slice(0, 128);
+  const lastModifiedAt = clampInt(data.last_modified_at, 0, 9999999999999);
+  const now = Date.now();
+
+  const existing = await env.DB.prepare('SELECT sync_token FROM player_saves WHERE player_id = ?').bind(playerId).first();
+  if (existing && existing.sync_token !== syncToken) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  await env.DB.prepare(`
+    INSERT INTO player_saves (player_id, sync_token, save_json, last_modified_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(player_id) DO UPDATE SET
+      sync_token=excluded.sync_token, save_json=excluded.save_json,
+      last_modified_at=excluded.last_modified_at, updated_at=excluded.updated_at
+  `).bind(playerId, syncToken, data.save_json, lastModifiedAt, now).run();
+
+  return new Response(null, { status: 204 });
+}
+
+async function handleSaveDownload(request, env) {
+  if (!env.PROGRESS_SHARED_KEY || request.headers.get('x-progress-key') !== env.PROGRESS_SHARED_KEY) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  let data;
+  try {
+    data = await request.json();
+  } catch (e) {
+    return new Response('bad request', { status: 400 });
+  }
+  if (!data || typeof data.player_id !== 'string' || !data.player_id) {
+    return new Response('bad request', { status: 400 });
+  }
+  if (typeof data.sync_token !== 'string' || !data.sync_token) {
+    return new Response('bad request', { status: 400 });
+  }
+
+  const row = await env.DB.prepare(
+    'SELECT sync_token, save_json, last_modified_at FROM player_saves WHERE player_id = ?',
+  ).bind(data.player_id.slice(0, 128)).first();
+
+  if (!row || row.sync_token !== data.sync_token) {
+    return new Response(JSON.stringify({ found: false }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  return new Response(JSON.stringify({
+    found: true,
+    save_json: row.save_json,
+    last_modified_at: row.last_modified_at,
+  }), { headers: { 'content-type': 'application/json' } });
 }
 
 function fmtNum(n) {
@@ -251,6 +339,7 @@ async function handleProgressView(request, env, url) {
     endlessUnlocked: count((r) => r.endless_mode_unlocked),
     totalDungeonStarts: sum('dungeon_starts'),
     totalTypedKeys: sum('total_correct'),
+    ptTamperFlagged: count((r) => r.pt_tamper_flag),
   };
 
   const highlights = [
@@ -287,7 +376,7 @@ async function handleProgressView(request, env, url) {
     data-pt="${r.pt}" data-total_pt_earned="${r.total_pt_earned}" data-total_correct="${r.total_correct}"
     data-dungeon_starts="${r.dungeon_starts}" data-total_play_time_min="${r.total_play_time_min}"
     data-updated_at="${r.updated_at}">
-    <td>${escapeHtml(r.player_name || '')}</td>
+    <td>${escapeHtml(r.player_name || '')}${r.pt_tamper_flag ? ' <span title="pt改ざんの疑いあり">⚠️</span>' : ''}</td>
     <td>${r.progress}</td>
     <td>${r.god_statue_completed ? '✅' : ''}</td>
     <td>${r.garden_restorations >= 20 ? '✅' : ''}</td>
@@ -348,6 +437,7 @@ async function handleProgressView(request, env, url) {
   <div>魔王討伐: ${summary.maouDefeated}</div>
   <div>城建築解放: ${summary.castleUnlocked}</div>
   <div>Endless解放: ${summary.endlessUnlocked}</div>
+  <div>⚠️ pt改ざん疑いあり: ${summary.ptTamperFlagged}</div>
 </div>
 
 <h2>ファネル到達状況</h2>
