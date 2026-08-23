@@ -1164,6 +1164,7 @@ const el = {
   shopTabs: document.getElementById('shopTabs'),
   shopPt: document.getElementById('shopPt'),
   shopItemList: document.getElementById('shopItemList'),
+  timerItem: document.getElementById('timerItem'),
   timerDisplay: document.getElementById('timerDisplay'),
   timerElapsedLabel: document.getElementById('timerElapsedLabel'),
   timerElapsedDisplay: document.getElementById('timerElapsedDisplay'),
@@ -4918,6 +4919,7 @@ function formatTime(ms) {
 
 function renderTimerDisplay() {
   el.timerDisplay.textContent = formatTime(session.remainingMs);
+  el.timerItem.classList.toggle('timer-endless', session.endless);
   el.timerElapsedLabel.classList.toggle('hidden', !session.endless);
   el.timerElapsedDisplay.classList.toggle('hidden', !session.endless);
   if (session.endless) {

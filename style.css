@@ -1908,29 +1908,30 @@ body {
   color: var(--accent-2);
 }
 
-.timer-item {
-  padding-top: 6px;
-  padding-bottom: 6px;
-}
-
 .timer-value {
   display: block;
   font-size: 1.2rem;
   font-weight: 700;
-  line-height: 1.15;
+  color: var(--accent-2);
+}
+
+.timer-item.timer-endless .timer-value {
+  font-size: 1.53rem;
+  line-height: 1.05;
 }
 
 .timer-elapsed-label {
-  margin-top: 2px;
+  margin-top: 0px;
   font-size: 0.6rem;
   line-height: 1;
 }
 
 .timer-elapsed-value {
   display: block;
+  margin-top: 3px;
   font-size: 0.85rem;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1;
   color: var(--accent-2);
 }
 
