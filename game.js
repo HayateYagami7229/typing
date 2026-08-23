@@ -2326,7 +2326,7 @@ function renderCastle() {
   if (!visible) return;
   el.castleTitleText.textContent = `${save.profile.name || 'プレイヤー'}城の建築`;
   const pct = castleBuildProgressPct();
-  el.castleProgressText.textContent = `建築率 ${Math.floor(pct)}/100％`;
+  el.castleProgressText.textContent = `建築率 ${pct.toFixed(1)}/100％`;
   el.castleProgressBarFill.style.width = `${pct}%`;
   renderCastleEffectsList();
   CASTLE_MATERIALS.forEach((m) => {
