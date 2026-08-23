@@ -4914,6 +4914,17 @@ function formatTime(ms) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+function renderTimerDisplay() {
+  if (!session.endless) {
+    el.timerDisplay.textContent = formatTime(session.remainingMs);
+    return;
+  }
+  const elapsedSec = Math.floor(session.elapsedMs / 1000);
+  const m = Math.floor(elapsedSec / 60);
+  const s = elapsedSec % 60;
+  el.timerDisplay.innerHTML = `<span class="timer-infinity">∞</span><span class="timer-elapsed">${m}:${String(s).padStart(2, '0')}</span>`;
+}
+
 function renderHeartHud() {
   const owned = save.disciple.heartVesselOwned;
   el.heartHudItem.classList.toggle('hidden', !owned);
@@ -4921,7 +4932,7 @@ function renderHeartHud() {
 }
 
 function updateHud() {
-  el.timerDisplay.textContent = formatTime(session.remainingMs);
+  renderTimerDisplay();
   el.wordsDisplay.textContent = session.wordsCompleted;
   el.comboCount.textContent = session.combo;
   el.accuracyDisplay.textContent = `${session.accuracy}%`;
@@ -4963,7 +4974,7 @@ function startTimerLoop() {
   stopTimerLoop();
   timerHandle = setInterval(() => {
     if (!session) return;
-    el.timerDisplay.textContent = formatTime(session.remainingMs);
+    renderTimerDisplay();
     if (session.isTimeUp) finishSession();
   }, 150);
 }

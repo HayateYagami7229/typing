@@ -1908,6 +1908,20 @@ body {
   color: var(--accent-2);
 }
 
+.timer-infinity {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1.1;
+}
+
+.timer-elapsed {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text-dim);
+}
+
 .exp-gain span:last-child {
   color: #a06bff;
 }
