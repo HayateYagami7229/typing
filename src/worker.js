@@ -282,7 +282,7 @@ async function handleProgressView(request, env, url) {
     <td>${fmtNum(r.total_correct)}</td>
     <td>${fmtNum(r.dungeon_starts)}</td>
     <td>${fmtNum(r.total_play_time_min)}分</td>
-    <td>${new Date(r.updated_at).toLocaleString('ja-JP')}</td>
+    <td>${new Date(r.updated_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</td>
   </tr>`).join('');
 
   const html = `<!doctype html>
