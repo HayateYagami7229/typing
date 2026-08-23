@@ -5566,6 +5566,10 @@ function renderStats() {
   if ((save.maouPrayerCount || 0) > 0) {
     rows.push(['リコへの祈り回数', save.maouPrayerCount.toLocaleString()]);
   }
+  if (save.disciple.heartGrailOwned) {
+    const ptEarnedIndex = rows.findIndex(([label]) => label === '弟子が稼いだ累計pt');
+    rows.splice(ptEarnedIndex + 1, 0, ['[一括対戦]の回数', (save.batchBattleCount || 0).toLocaleString()]);
+  }
 
   el.statsGrid.innerHTML = '';
   rows.forEach(([label, value]) => {
