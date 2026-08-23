@@ -1737,6 +1737,7 @@ const ACHIEVEMENTS = [
   { id: 'prestige_once', icon: '🌟', label: '転生を達成', check: (s) => s.prestige >= 1 },
   { id: 'prestige_awaken', icon: '💫', label: '転生10回達成（覚醒）', check: (s) => !!s.prestigeAwakened },
   { id: 'prestige_super_awaken', icon: '🌌', label: '転生30回達成（超覚醒）', check: (s) => (s.prestigeAwakenedTiers || []).includes(30) },
+  { id: 'prestige_ultra_awaken', icon: '🪐', label: '転生50回達成（絶・超覚醒）', check: (s) => (s.prestigeAwakenedTiers || []).includes(50), sss: true },
   { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
   { id: 'disciple_streak_10000', icon: '🔥', label: '弟子が10000連勝を達成', check: (s) => discipleMaxStreakOf(s) >= 10000 },
   {
@@ -4086,11 +4087,17 @@ el.prestigeBtn.addEventListener('click', () => {
   renderAnnouncements();
   SFX.prestige();
   newTiers.forEach((tier) => {
-    pushAnnouncement('✨', `眠っていた力が目覚めました（pt倍率+${tier.ptBonus}・以後の経験値テーブルが${tier.expMultiplier}倍）`, true);
+    const heartPart = tier.rareHeartBonusChance
+      ? `・レアモンスター撃破時ハート追加率+${Math.round(tier.rareHeartBonusChance * 100)}%`
+      : '';
+    pushAnnouncement('✨', `眠っていた力が目覚めました（pt倍率+${tier.ptBonus}・以後の経験値テーブルが${tier.expMultiplier}倍${heartPart}）`, true);
     renderAnnouncements();
+    const heartLine = tier.rareHeartBonusChance
+      ? `\n※レアモンスター撃破時ハート追加率+${Math.round(tier.rareHeartBonusChance * 100)}%されました`
+      : '';
     queueReveal(
       '体が眩く光り出す…！',
-      `眠っていた力が目覚めたようだ。\n※pt倍率に+${tier.ptBonus}されました\n※以後の経験値テーブルが${tier.expMultiplier}倍になりました`,
+      `眠っていた力が目覚めたようだ。\n※pt倍率に+${tier.ptBonus}されました\n※以後の経験値テーブルが${tier.expMultiplier}倍になりました${heartLine}`,
     );
   });
   checkReincarnationNecklaceReveal();
