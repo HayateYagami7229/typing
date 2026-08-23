@@ -23,6 +23,10 @@ export default {
       return handleSaveDownload(request, env);
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/progress/delete') {
+      return handleProgressDelete(request, env);
+    }
+
     if (request.method === 'GET' && url.pathname === '/admin/progress') {
       return handleProgressView(request, env, url);
     }
@@ -223,6 +227,30 @@ async function handleProgressReport(request, env) {
       player_name=excluded.player_name, ${setClause}, best_rank=excluded.best_rank,
       funnels_reached=excluded.funnels_reached, updated_at=excluded.updated_at
   `).bind(playerId, playerName, ...values, bestRank, funnelsReached, now).run();
+
+  return new Response(null, { status: 204 });
+}
+
+async function handleProgressDelete(request, env) {
+  if (!env.PROGRESS_SHARED_KEY || request.headers.get('x-progress-key') !== env.PROGRESS_SHARED_KEY) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  let data;
+  try {
+    data = await request.json();
+  } catch (e) {
+    return new Response('bad request', { status: 400 });
+  }
+  if (!data || typeof data.player_id !== 'string' || !data.player_id || data.player_id.length > 128) {
+    return new Response('bad request', { status: 400 });
+  }
+
+  const playerId = data.player_id.slice(0, 128);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM player_progress WHERE player_id = ?').bind(playerId),
+    env.DB.prepare('DELETE FROM player_saves WHERE player_id = ?').bind(playerId),
+  ]);
 
   return new Response(null, { status: 204 });
 }

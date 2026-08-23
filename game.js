@@ -758,6 +758,16 @@ function buildSyncCode() {
   return `${getOrCreatePlayerId()}.${getOrCreateSyncToken()}`;
 }
 
+function deleteOldProgressRow(oldPlayerId) {
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+  fetch('/api/progress/delete', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-progress-key': PROGRESS_SHARED_KEY },
+    body: JSON.stringify({ player_id: oldPlayerId }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 function applySyncCode(code) {
   const trimmed = (code || '').trim();
   const parts = trimmed.split('.');
@@ -765,8 +775,12 @@ function applySyncCode(code) {
     window.alert('同期コードの形式が正しくありません');
     return false;
   }
+  const oldPlayerId = localStorage.getItem(PLAYER_ID_KEY);
   localStorage.setItem(PLAYER_ID_KEY, parts[0]);
   localStorage.setItem(SYNC_TOKEN_KEY, parts[1]);
+  if (oldPlayerId && oldPlayerId !== parts[0]) {
+    deleteOldProgressRow(oldPlayerId);
+  }
   return true;
 }
 
