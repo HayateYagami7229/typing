@@ -1165,6 +1165,8 @@ const el = {
   shopPt: document.getElementById('shopPt'),
   shopItemList: document.getElementById('shopItemList'),
   timerDisplay: document.getElementById('timerDisplay'),
+  timerElapsedLabel: document.getElementById('timerElapsedLabel'),
+  timerElapsedDisplay: document.getElementById('timerElapsedDisplay'),
   heartHudItem: document.getElementById('heartHudItem'),
   heartHudValue: document.getElementById('heartHudValue'),
   wordsDisplay: document.getElementById('wordsDisplay'),
@@ -4915,14 +4917,12 @@ function formatTime(ms) {
 }
 
 function renderTimerDisplay() {
-  if (!session.endless) {
-    el.timerDisplay.textContent = formatTime(session.remainingMs);
-    return;
+  el.timerDisplay.textContent = formatTime(session.remainingMs);
+  el.timerElapsedLabel.classList.toggle('hidden', !session.endless);
+  el.timerElapsedDisplay.classList.toggle('hidden', !session.endless);
+  if (session.endless) {
+    el.timerElapsedDisplay.textContent = formatTime(session.elapsedMs);
   }
-  const elapsedSec = Math.floor(session.elapsedMs / 1000);
-  const m = Math.floor(elapsedSec / 60);
-  const s = elapsedSec % 60;
-  el.timerDisplay.innerHTML = `<span class="timer-infinity">∞</span><span class="timer-elapsed">${m}:${String(s).padStart(2, '0')}</span>`;
 }
 
 function renderHeartHud() {
