@@ -116,6 +116,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.74',
+    items: [
+      '様々な修正、及びにメイン実装を反映しました。',
+    ],
+  },
+  {
     version: 'Beta0.73',
     items: [
       '特定条件を満たしている状態で尚且つ特定条件を満たしていない場合に、ヒントメッセージが表示されるようにしました。（メインシナリオ）',
