@@ -3696,8 +3696,8 @@ function renderDisciple() {
   const runawayReady = save.heartVesselRunawayActive && save.disciple.hearts >= 999;
   const lotModeActive = save.disciple.heartGrailOwned && save.disciple.hearts >= BATCH_BATTLE_HEART_LOT_SIZE;
   const batchLabel = lotModeActive ? '⚡ ♡×999 一括対戦' : '⚡ 一括対戦';
-  if (runawayReady) {
-    const streakMult = discipleStreakBonusMultiplier();
+  const streakMult = discipleStreakBonusMultiplier();
+  if (runawayReady && streakMult > 1) {
     const multText = Number.isInteger(streakMult) ? `${streakMult}` : streakMult.toFixed(1);
     el.discipleBatchBattleBtn.textContent = `${batchLabel}（ハートの器が暴走中 賞金${multText}倍！）`;
   } else {
