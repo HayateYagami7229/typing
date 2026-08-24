@@ -879,6 +879,12 @@ function totalDungeonStarts() {
     + (endlessCounts.word || 0) + (endlessCounts.sentence || 0) + (endlessCounts.long || 0);
 }
 
+function junkyardEffectiveProgress() {
+  if (!save.mechanicalEggHatched) return 0;
+  const remaining = Math.max(0, (save.junkyardDeck || []).length - (save.junkyardDraws || 0));
+  return Math.max(0, JUNKYARD_POOL_TOTAL - remaining);
+}
+
 function buildProgressPayload() {
   return {
     player_id: getOrCreatePlayerId(),
@@ -907,7 +913,7 @@ function buildProgressPayload() {
     pt: Math.floor(save.pt || 0),
     total_pt_earned: Math.floor(save.totalPtEarned || 0),
     pt_tamper_flag: !!save.ptTamperFlag,
-    junkyard_draws: save.junkyardDraws || 0,
+    junkyard_draws: junkyardEffectiveProgress(),
     funnels_reached: computeReachedFunnels(),
   };
 }
