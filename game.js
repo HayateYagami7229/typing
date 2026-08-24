@@ -428,6 +428,7 @@ function defaultSave() {
     totalPtSpent: 0,
     lastModifiedAt: Date.now(),
     ptTamperFlag: false,
+    ptCleanStreak: 0,
     saveChecksum: null,
     profile: { name: 'Typer', icon: '🗡️', cardDesign: 'default', iconFrame: 'none' },
     equipment: { swordId: null, shieldId: null, armorId: 'armor_cloth', ringId: null, titleFrontId: null, titleBackId: null, titleConnectiveId: 'conn_no', bgmId: 'bgm_default' },
@@ -628,6 +629,8 @@ function decodeSaveData(encoded) {
 }
 
 const SAVE_CHECKSUM_SALT = 'etl-integrity-v1';
+const PT_TAMPER_CLEAN_STREAK_TARGET = 20;
+let freshTamperDetection = false;
 
 function computeSaveChecksum(s) {
   const payload = [s.pt, s.totalPtEarned, s.totalPtSpent, s.level, s.prestige]
@@ -641,9 +644,18 @@ function computeSaveChecksum(s) {
   return (hash >>> 0).toString(16);
 }
 
+function isEffectivelyEmptySave(s) {
+  return (s.pt || 0) === 0
+    && (s.totalPtEarned || 0) === 0
+    && (s.level || 1) <= 1
+    && (s.prestige || 0) === 0;
+}
+
 function verifySaveChecksum(s) {
   if (s.saveChecksum && computeSaveChecksum(s) !== s.saveChecksum) {
     s.ptTamperFlag = true;
+    s.ptCleanStreak = 0;
+    freshTamperDetection = true;
   }
   return s;
 }
@@ -832,7 +844,11 @@ async function downloadSaveFromCloud() {
       window.alert('同期されたセーブデータが見つかりませんでした');
       return;
     }
-    if (typeof data.last_modified_at === 'number' && data.last_modified_at <= save.lastModifiedAt) {
+    if (
+      !isEffectivelyEmptySave(save)
+      && typeof data.last_modified_at === 'number'
+      && data.last_modified_at <= save.lastModifiedAt
+    ) {
       window.alert('手元のセーブデータの方が新しいか同じです。何もしませんでした');
       return;
     }
@@ -912,6 +928,18 @@ function persistSave() {
   updateFunnelUserProperties();
   save.lastModifiedAt = Date.now();
   save.saveChecksum = computeSaveChecksum(save);
+  if (save.ptTamperFlag) {
+    if (freshTamperDetection) {
+      freshTamperDetection = false;
+      save.ptCleanStreak = 0;
+    } else {
+      save.ptCleanStreak = (save.ptCleanStreak || 0) + 1;
+      if (save.ptCleanStreak >= PT_TAMPER_CLEAN_STREAK_TARGET) {
+        save.ptTamperFlag = false;
+        save.ptCleanStreak = 0;
+      }
+    }
+  }
   reportProgress();
   localStorage.setItem(SAVE_KEY, encodeSaveData(save));
 }
@@ -960,7 +988,9 @@ function importSaveFromText(text) {
     window.alert('セーブデータの読み込みに失敗しました（形式が正しくありません）');
     return false;
   }
-  const isOlder = typeof raw.lastModifiedAt === 'number' && raw.lastModifiedAt < save.lastModifiedAt;
+  const isOlder = !isEffectivelyEmptySave(save)
+    && typeof raw.lastModifiedAt === 'number'
+    && raw.lastModifiedAt < save.lastModifiedAt;
   const confirmMessage = isOlder
     ? '読み込もうとしたデータの方が古い可能性があります。それでも現在のセーブデータを上書きしますか？'
     : '現在のセーブデータを上書きします。よろしいですか？';
@@ -1653,6 +1683,8 @@ function refreshTotalPt() {
 setInterval(() => {
   if (lastKnownPt !== null && save.pt !== lastKnownPt) {
     save.ptTamperFlag = true;
+    save.ptCleanStreak = 0;
+    freshTamperDetection = true;
     lastKnownPt = save.pt;
     persistSave();
   }
