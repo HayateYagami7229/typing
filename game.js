@@ -395,6 +395,8 @@ const DISCIPLE_20000_STREAK_THRESHOLD = 20000;
 const DISCIPLE_20000_STREAK_MULTIPLIER = 2;
 const DISCIPLE_30000_STREAK_THRESHOLD = 30000;
 const DISCIPLE_30000_STREAK_MULTIPLIER = 2.5;
+const DISCIPLE_50000_STREAK_THRESHOLD = 50000;
+const DISCIPLE_50000_STREAK_MULTIPLIER = 3;
 const DISCIPLE_STAT_DEFS = [
   { key: 'hp', label: 'HP' },
   { key: 'str', label: 'STR' },
@@ -3569,6 +3571,7 @@ function discipleMaxStreak() {
 
 function discipleStreakBonusMultiplier() {
   const streak = discipleMaxStreak();
+  if (streak >= DISCIPLE_50000_STREAK_THRESHOLD) return DISCIPLE_50000_STREAK_MULTIPLIER;
   if (streak >= DISCIPLE_30000_STREAK_THRESHOLD) return DISCIPLE_30000_STREAK_MULTIPLIER;
   if (streak >= DISCIPLE_20000_STREAK_THRESHOLD) return DISCIPLE_20000_STREAK_MULTIPLIER;
   return 1;
@@ -3746,7 +3749,9 @@ function renderDisciple() {
   const s = save.disciple.streaks;
   const maxStreak = discipleMaxStreak();
   let streakBonusHtml = '';
-  if (maxStreak >= DISCIPLE_30000_STREAK_THRESHOLD) {
+  if (maxStreak >= DISCIPLE_50000_STREAK_THRESHOLD) {
+    streakBonusHtml = ` <span class="disciple-streak-20000-bonus">5万連勝ボーナス中!賞金${DISCIPLE_50000_STREAK_MULTIPLIER}倍!</span>`;
+  } else if (maxStreak >= DISCIPLE_30000_STREAK_THRESHOLD) {
     streakBonusHtml = ` <span class="disciple-streak-20000-bonus">3万連勝ボーナス中!賞金${DISCIPLE_30000_STREAK_MULTIPLIER}倍!</span>`;
   } else if (maxStreak >= DISCIPLE_20000_STREAK_THRESHOLD) {
     streakBonusHtml = ` <span class="disciple-streak-20000-bonus">2万連勝ボーナス中!賞金${DISCIPLE_20000_STREAK_MULTIPLIER}倍!</span>`;
