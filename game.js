@@ -3695,9 +3695,9 @@ function renderDisciple() {
   if (batchUnlocked) el.discipleBatchBattleBtn.disabled = batchFightHeartsToUse() <= 0;
   const runawayReady = save.heartVesselRunawayActive && save.disciple.hearts >= 999;
   const lotModeActive = save.disciple.heartGrailOwned && save.disciple.hearts >= BATCH_BATTLE_HEART_LOT_SIZE;
-  const batchLabel = lotModeActive ? '⚡ ♡×999 一括対戦' : '⚡ 一括対戦';
+  const batchLabel = lotModeActive ? '❤️999個を消費して一括対戦！' : '⚡ 一括対戦';
   el.discipleBatchBattleBtn.textContent = runawayReady
-    ? `${batchLabel}（ハートの器が暴走中 賞金2倍！）`
+    ? `${batchLabel}（ハートの器が暴走中 賞金2倍!）`
     : batchLabel;
   el.discipleBatchBattleBtn.classList.toggle('heart-vessel-runaway', runawayReady);
 
