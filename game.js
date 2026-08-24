@@ -1162,6 +1162,8 @@ let session = null;
 let screen = 'home';
 let timerHandle = null;
 let levelAtSessionStart = 1;
+let trueLevelAtSessionStart = 1;
+let sessionAutoPrestigeCount = 0;
 let sessionPtEarned = 0;
 let awaitingGraceNSwallow = false;
 let graceNSwallowDeadline = 0;
@@ -4272,6 +4274,7 @@ function checkAutoPrestige(levelBeforeWord) {
   doPrestige(save);
   pushAnnouncement('🌀', `ダンジョンにて自動転生 +${save.prestige} を達成しました`, true);
   levelAtSessionStart = save.level;
+  sessionAutoPrestigeCount += 1;
   renderPlayerCard();
   renderGameExpBar();
   renderAnnouncements();
@@ -4979,6 +4982,8 @@ function startSession() {
     endless: !!(save.endlessModeUnlocked && save.endlessModeOn),
   });
   levelAtSessionStart = save.level;
+  trueLevelAtSessionStart = save.level;
+  sessionAutoPrestigeCount = 0;
   sessionPtEarned = 0;
   sessionJunkyardTicketsFound = 0;
   sessionJunkyardDispenserTicketsFound = 0;
@@ -5096,6 +5101,17 @@ function formatTime(ms) {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function formatLevelProgressText(fromLevel, toLevel, autoPrestigeCount) {
+  if (autoPrestigeCount >= 3) {
+    return `Lv.${fromLevel} → LvMAX → 転生.....（${autoPrestigeCount}回・省略）→ Lv.${toLevel}`;
+  }
+  if (autoPrestigeCount > 0) {
+    const prestigeChain = ' → LvMAX → 転生！'.repeat(autoPrestigeCount);
+    return `Lv.${fromLevel}${prestigeChain} → Lv.${toLevel}`;
+  }
+  return `Lv.${fromLevel} → Lv.${toLevel}`;
 }
 
 function renderTimerDisplay() {
@@ -5435,7 +5451,8 @@ function finishSession() {
   if (save.history.length > 50) save.history.length = 50;
 
   if (levelsGained.length > 0) {
-    pushAnnouncement('🎉', `Lv.${levelAtSessionStart} → Lv.${save.level} に到達しました`);
+    const progressText = formatLevelProgressText(trueLevelAtSessionStart, save.level, sessionAutoPrestigeCount);
+    pushAnnouncement('🎉', `${progressText} に到達しました`);
   }
   if (!isEndless && isRankBetterThan(rank, prevBestRank)) {
     pushAnnouncement('🏆', `自己ベストランク ${rank}(${rankTitle(rank)})を達成しました`);
@@ -5461,7 +5478,12 @@ function finishSession() {
   renderPlayerCard();
   renderDungeonBadges();
   renderAnnouncements();
-  renderResult({ rank, levelsGained, levelBefore: levelAtSessionStart });
+  renderResult({
+    rank,
+    levelsGained,
+    levelBefore: trueLevelAtSessionStart,
+    autoPrestigeCount: sessionAutoPrestigeCount,
+  });
   setScreen('result');
 }
 
@@ -5491,14 +5513,14 @@ function handleLogoClick() {
   }
 }
 
-function renderResult({ rank, levelsGained, levelBefore }) {
+function renderResult({ rank, levelsGained, levelBefore, autoPrestigeCount }) {
   el.resultRankBadge.textContent = rank;
   el.resultRankBadge.className = `rank-badge rank-${rank}`;
   el.resultRankTitle.textContent = rankTitle(rank);
 
   el.resultLevelUpBanner.classList.toggle('hidden', levelsGained.length === 0);
   if (levelsGained.length > 0) {
-    el.resultLevelUpBanner.textContent = `🎉 レベルアップ！ Lv.${levelBefore} → Lv.${save.level}`;
+    el.resultLevelUpBanner.textContent = `🎉 レベルアップ！ ${formatLevelProgressText(levelBefore, save.level, autoPrestigeCount)}`;
   }
 
   const prestigeReady = canPrestige(save);
