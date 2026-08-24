@@ -3696,13 +3696,9 @@ function renderDisciple() {
   const runawayReady = save.heartVesselRunawayActive && save.disciple.hearts >= 999;
   const lotModeActive = save.disciple.heartGrailOwned && save.disciple.hearts >= BATCH_BATTLE_HEART_LOT_SIZE;
   const batchLabel = lotModeActive ? '⚡ ♡×999 一括対戦' : '⚡ 一括対戦';
-  const streakMult = discipleStreakBonusMultiplier();
-  if (runawayReady && streakMult > 1) {
-    const multText = Number.isInteger(streakMult) ? `${streakMult}` : streakMult.toFixed(1);
-    el.discipleBatchBattleBtn.textContent = `${batchLabel}（ハートの器が暴走中 賞金${multText}倍！）`;
-  } else {
-    el.discipleBatchBattleBtn.textContent = batchLabel;
-  }
+  el.discipleBatchBattleBtn.textContent = runawayReady
+    ? `${batchLabel}（ハートの器が暴走中 賞金2倍！）`
+    : batchLabel;
   el.discipleBatchBattleBtn.classList.toggle('heart-vessel-runaway', runawayReady);
 
   const s = save.disciple.streaks;
@@ -4695,7 +4691,7 @@ function itemEffectLabel(item) {
   if (item.effect === 'exp') return `即座にEXP+${item.value}`;
   if (item.effect === 'rare_chance_next_game') return `次のゲームでレア出現率+${Math.round(item.value * 100)}%`;
   if (item.effect === 'heart_cap_up') return `弟子のハート上限が${item.value}になる（永続）`;
-  if (item.effect === 'heart_cap_up_grail') return `弟子のハート上限が${item.value}になる（永続）\n一括対戦は999個単位で消費されるようになる`;
+  if (item.effect === 'heart_cap_up_grail') return `弟子のハート上限が${item.value}になる（永続）\n一括対戦は最大で一気に999個単位で消費されるようになる`;
   if (item.effect === 'castle_material_converter') return '何をどうしたらそうなるのか分からないが\n一番持っている素材5個が一番持っていない素材1個に変換される';
   if (item.effect === 'auto_prestige') return '条件を達成するとダンジョン内で自動転生する\n（ただし10の倍数のレベルアップ時のみ自動転生は行われない）';
   if (item.effect === 'unlock_eternal_combo') return '永続コンボシステムを開放する';
@@ -4727,6 +4723,7 @@ function renderItemShop() {
     if (item.requiresBatchBattleCount && !oneTimeOwned && (save.batchBattleCount || 0) < item.requiresBatchBattleCount) return;
     if (item.requiresCastleMaterialsCollected && !oneTimeOwned
       && (save.castleMaterialsCollected || 0) < item.requiresCastleMaterialsCollected) return;
+    if (item.requiresHeartsMaxedOnce && !oneTimeOwned && !save.discipleHeartsMaxedOnce) return;
     if (item.effect === 'mechanical_egg_charge' && (
       !save.mechanicalEggOwned
       || (!save.mechanicalEggHatched && (save.mechanicalEggChargeKeys || 0) < MECHANICAL_EGG_BATTERY_UNLOCK_KEYS)
