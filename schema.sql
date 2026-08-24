@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS player_progress (
   total_pt_earned INTEGER NOT NULL DEFAULT 0,
   funnels_reached TEXT NOT NULL DEFAULT '[]',
   pt_tamper_flag INTEGER NOT NULL DEFAULT 0,
+  junkyard_draws INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL DEFAULT 0
 );
 

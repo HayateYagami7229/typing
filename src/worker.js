@@ -2,6 +2,7 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const SHARE_ID_LENGTH = 16;
 const DAILY_UPLOAD_CAP = 300;
 const CASTLE_BUILD_TOTAL = 500;
+const JUNKYARD_POOL_TOTAL = 500;
 
 export default {
   async fetch(request, env) {
@@ -103,7 +104,7 @@ const PROGRESS_FIELDS = [
   'disciple_class_upped', 'maou_defeated', 'rico_unlocked', 'rico_fully_owned',
   'mechanical_egg_hatched', 'castle_unlocked', 'castle_progress', 'endless_mode_unlocked',
   'total_correct', 'total_play_time_min', 'best_kpm', 'dungeon_starts', 'pt', 'total_pt_earned',
-  'pt_tamper_flag',
+  'pt_tamper_flag', 'junkyard_draws',
 ];
 
 function clampInt(v, min, max) {
@@ -130,6 +131,7 @@ const FIELD_CAPS = {
   dungeon_starts: 10000000,
   pt: 1e15,
   total_pt_earned: 1e15,
+  junkyard_draws: 500,
 };
 
 const VALID_FUNNEL_IDS = new Set([
@@ -401,6 +403,7 @@ async function handleProgressView(request, env, url) {
   const tableRows = rows.map((r) => `<tr
     data-progress="${r.progress}"
     data-disciple_total_params="${r.disciple_total_params}" data-castle_progress="${r.castle_progress}"
+    data-junkyard_draws="${r.junkyard_draws}"
     data-pt="${r.pt}" data-total_pt_earned="${r.total_pt_earned}" data-total_correct="${r.total_correct}"
     data-dungeon_starts="${r.dungeon_starts}" data-total_play_time_min="${r.total_play_time_min}"
     data-updated_at="${r.updated_at}">
@@ -411,6 +414,7 @@ async function handleProgressView(request, env, url) {
     <td>${r.disciple_total_params}</td>
     <td>${r.maou_defeated ? '✅' : ''}</td>
     <td>${r.castle_unlocked ? `${Math.min(100, (r.castle_progress / CASTLE_BUILD_TOTAL) * 100).toFixed(1)}%` : ''}</td>
+    <td>${r.junkyard_draws >= JUNKYARD_POOL_TOTAL ? '✅' : `${fmtNum(r.junkyard_draws)}/${JUNKYARD_POOL_TOTAL}`}</td>
     <td>${r.endless_mode_unlocked ? '✅' : ''}</td>
     <td>${fmtNum(r.pt)}</td>
     <td>${fmtNum(r.total_pt_earned)}</td>
@@ -487,6 +491,7 @@ async function handleProgressView(request, env, url) {
 <thead><tr>
   <th>名前</th><th data-sort="progress">Lv</th><th>女神像</th>
   <th>園復興</th><th data-sort="disciple_total_params">弟子params</th><th>魔王討伐</th><th data-sort="castle_progress">城進捗</th>
+  <th data-sort="junkyard_draws">がらくた抽選</th>
   <th>Endless</th><th data-sort="pt">所持pt</th><th data-sort="total_pt_earned">総獲得pt</th>
   <th data-sort="total_correct">総タイプ数</th><th data-sort="dungeon_starts">開始回数</th>
   <th data-sort="total_play_time_min">総プレイ時間</th><th data-sort="updated_at">最終更新</th>

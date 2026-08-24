@@ -905,6 +905,7 @@ function buildProgressPayload() {
     pt: Math.floor(save.pt || 0),
     total_pt_earned: Math.floor(save.totalPtEarned || 0),
     pt_tamper_flag: !!save.ptTamperFlag,
+    junkyard_draws: save.junkyardDraws || 0,
     funnels_reached: computeReachedFunnels(),
   };
 }
