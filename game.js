@@ -365,6 +365,8 @@ const NSP_2000M3_RARE_HEART_BONUS = 0.20;
 const CASTLE_BUILD_TOTAL = 500;
 const CASTLE_MATERIAL_GEN_COST = 7500000000;
 const CASTLE_MATERIAL_DROP_CHANCE = { word: 0.01, sentence: 0.10, long: 0.35 };
+const CASTLE_EFFECT_5_MATERIAL_MULTIPLIER = 2;
+const CASTLE_EFFECT_10_RARE_HEART_BONUS = 0.25;
 const CASTLE_MATERIALS = [
   { id: 'abyssObsidian', name: 'アビス・オブシディアン' },
   { id: 'voidPlaster', name: 'ヴォイド・プラスター' },
@@ -512,6 +514,7 @@ function defaultSave() {
     causalityTowerFloor: 1,
     castleConstructionUnlocked: false,
     castleConstructionProgress: 0,
+    castleEffectsAnnounced: [],
     castleMaterials: {
       abyssObsidian: 0, voidPlaster: 0, rebellionWood: 0, stellaLuminous: 0,
     },
@@ -1931,7 +1934,8 @@ function fullPtMultiplier() {
 function totalRareHeartBonusChance() {
   return prestigeRareHeartBonusChance(save)
     + junkyardRareHeartBonusChance()
-    + (save.castleConstructionUnlocked ? NSP_2000M3_RARE_HEART_BONUS : 0);
+    + (save.castleConstructionUnlocked ? NSP_2000M3_RARE_HEART_BONUS : 0)
+    + (castleBuildProgressPct() >= 10 ? CASTLE_EFFECT_10_RARE_HEART_BONUS : 0);
 }
 
 function rankAtLeast(rank, threshold) {
@@ -2519,6 +2523,26 @@ const CASTLE_EFFECTS = Array.from({ length: 20 }, (_, i) => {
   const atPercent = (i + 1) * 5;
   return { atPercent, id: `castle_effect_${atPercent}`, label: '（効果未設定）' };
 });
+CASTLE_EFFECTS[0].label = `ダンジョンでの建築素材ドロップ率${CASTLE_EFFECT_5_MATERIAL_MULTIPLIER}倍`;
+CASTLE_EFFECTS[1].label = `城の加護でレアモンスター撃破時 ハート追加ドロップ率+${Math.round(CASTLE_EFFECT_10_RARE_HEART_BONUS * 100)}%`;
+
+function castleMaterialDropMultiplier() {
+  return castleBuildProgressPct() >= 5 ? CASTLE_EFFECT_5_MATERIAL_MULTIPLIER : 1;
+}
+
+function checkCastleEffectUnlocks() {
+  const pct = castleBuildProgressPct();
+  save.castleEffectsAnnounced = save.castleEffectsAnnounced || [];
+  CASTLE_EFFECTS.forEach((effect) => {
+    if (pct >= effect.atPercent && !save.castleEffectsAnnounced.includes(effect.atPercent)) {
+      save.castleEffectsAnnounced.push(effect.atPercent);
+      queueReveal(
+        '城の加護',
+        `城建設率 ${effect.atPercent.toFixed(2)}％達成！\n城の加護が発動し\n${effect.label}\nが得られるようになった！`,
+      );
+    }
+  });
+}
 
 function unlockedCastleEffects() {
   const pct = castleBuildProgressPct();
@@ -2549,6 +2573,7 @@ function buildCastle() {
     save.castleMaterials[m.id] -= 1;
   });
   save.castleConstructionProgress = (save.castleConstructionProgress || 0) + 1;
+  checkCastleEffectUnlocks();
   persistSave();
   renderCastle();
 }
@@ -5397,9 +5422,10 @@ function handleTypedChar(ch) {
         const levelsGainedFromRare = gainExp(res.rareBonus.exp, { countsForHappyGrass: false });
         renderGameExpBar();
         if (levelsGainedFromRare.length > 0) showLevelUpPopup(save.level);
-        if (Math.random() < totalRareHeartBonusChance()) {
-          res.rareBonus.heart += 1;
-        }
+        const rareHeartChance = totalRareHeartBonusChance();
+        const guaranteedRareHearts = Math.floor(rareHeartChance);
+        const rareHeartRemainder = rareHeartChance - guaranteedRareHearts;
+        res.rareBonus.heart += guaranteedRareHearts + (Math.random() < rareHeartRemainder ? 1 : 0);
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
         save.rareMonstersDefeated += 1;
         refreshTotalPt();
@@ -5420,7 +5446,7 @@ function handleTypedChar(ch) {
         }
       }
       if (save.maouDefeated && save.castleConstructionUnlocked) {
-        const materialDropChance = CASTLE_MATERIAL_DROP_CHANCE[currentMode] || 0;
+        const materialDropChance = (CASTLE_MATERIAL_DROP_CHANCE[currentMode] || 0) * castleMaterialDropMultiplier();
         if (Math.random() < materialDropChance) {
           const pick = CASTLE_MATERIALS[Math.floor(Math.random() * CASTLE_MATERIALS.length)];
           save.castleMaterials[pick.id] = (save.castleMaterials[pick.id] || 0) + 1;
