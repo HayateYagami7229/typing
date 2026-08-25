@@ -646,12 +646,6 @@ function computeSaveChecksum(s) {
   return (hash >>> 0).toString(16);
 }
 
-function isEffectivelyEmptySave(s) {
-  return (s.pt || 0) === 0
-    && (s.totalPtEarned || 0) === 0
-    && (s.level || 1) <= 1
-    && (s.prestige || 0) === 0;
-}
 
 function verifySaveChecksum(s) {
   if (s.saveChecksum && computeSaveChecksum(s) !== s.saveChecksum) {
@@ -846,12 +840,17 @@ async function downloadSaveFromCloud() {
       window.alert('同期されたセーブデータが見つかりませんでした');
       return;
     }
-    if (
-      !isEffectivelyEmptySave(save)
-      && typeof data.last_modified_at === 'number'
-      && data.last_modified_at <= save.lastModifiedAt
-    ) {
-      window.alert('手元のセーブデータの方が新しいか同じです。何もしませんでした');
+    let incomingTotalPtEarned = 0;
+    try {
+      const parsed = JSON.parse(data.save_json);
+      const raw = typeof parsed.data === 'string' ? decodeSaveData(parsed.data) : (parsed.save || parsed);
+      incomingTotalPtEarned = raw.totalPtEarned || 0;
+    } catch (e) {
+      window.alert('ダウンロードデータの読み込みに失敗しました');
+      return;
+    }
+    if (incomingTotalPtEarned < (save.totalPtEarned || 0)) {
+      window.alert('手元のセーブデータの方が進んでいるようです。何もしませんでした');
       return;
     }
     importSaveFromText(data.save_json);
@@ -997,11 +996,9 @@ function importSaveFromText(text) {
     window.alert('セーブデータの読み込みに失敗しました（形式が正しくありません）');
     return false;
   }
-  const isOlder = !isEffectivelyEmptySave(save)
-    && typeof raw.lastModifiedAt === 'number'
-    && raw.lastModifiedAt < save.lastModifiedAt;
-  const confirmMessage = isOlder
-    ? '読み込もうとしたデータの方が古い可能性があります。それでも現在のセーブデータを上書きしますか？'
+  const isBehind = (raw.totalPtEarned || 0) < (save.totalPtEarned || 0);
+  const confirmMessage = isBehind
+    ? '読み込もうとしたデータの方が進んでいない可能性があります。それでも現在のセーブデータを上書きしますか？'
     : '現在のセーブデータを上書きします。よろしいですか？';
   const ok = window.confirm(confirmMessage);
   if (!ok) return false;
