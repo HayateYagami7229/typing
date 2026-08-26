@@ -367,6 +367,11 @@ const CASTLE_MATERIAL_GEN_COST = 7500000000;
 const CASTLE_MATERIAL_DROP_CHANCE = { word: 0.01, sentence: 0.10, long: 0.35 };
 const CASTLE_EFFECT_5_MATERIAL_MULTIPLIER = 2;
 const CASTLE_EFFECT_10_RARE_HEART_BONUS = 0.25;
+const CASTLE_EFFECT_30_MATERIAL_MULTIPLIER = 3;
+const CASTLE_EFFECT_35_RARE_HEART_BONUS = 0.25;
+const CASTLE_EFFECT_40_PT_BONUS = 15000;
+const CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER = 2.5;
+const CASTLE_EFFECT_50_DICE_COUNT = 2;
 const CASTLE_MATERIALS = [
   { id: 'abyssObsidian', name: 'アビス・オブシディアン' },
   { id: 'voidPlaster', name: 'ヴォイド・プラスター' },
@@ -399,6 +404,10 @@ const DISCIPLE_30000_STREAK_THRESHOLD = 30000;
 const DISCIPLE_30000_STREAK_MULTIPLIER = 2.5;
 const DISCIPLE_50000_STREAK_THRESHOLD = 50000;
 const DISCIPLE_50000_STREAK_MULTIPLIER = 3;
+const DISCIPLE_70000_STREAK_THRESHOLD = 70000;
+const DISCIPLE_70000_STREAK_MULTIPLIER = 3.5;
+const DISCIPLE_100000_STREAK_THRESHOLD = 100000;
+const DISCIPLE_100000_STREAK_MULTIPLIER = 5;
 const DISCIPLE_STAT_DEFS = [
   { key: 'hp', label: 'HP' },
   { key: 'str', label: 'STR' },
@@ -1931,11 +1940,12 @@ function fullPtMultiplier() {
   const base = 1 + levelBonus + prestigeBonus;
   const awakeningBonus = prestigeAwakeningPtBonus(save);
   const ricoBonus = save.maouDefeated && isRicoFullyOwned(save) ? 10000 : 0;
-  const preCastleTotal = base * (1 + swordBonus) + awakeningBonus + ricoBonus;
+  const castleFortyBonus = castleBuildProgressPct() >= 40 ? CASTLE_EFFECT_40_PT_BONUS : 0;
+  const preCastleTotal = base * (1 + swordBonus) + awakeningBonus + ricoBonus + castleFortyBonus;
   const castleMultiplier = save.castleConstructionUnlocked ? NSP_2000M3_PT_MULTIPLIER : 1;
   const total = preCastleTotal * castleMultiplier;
   return {
-    levelBonus, prestigeBonus, swordBonus, awakeningBonus, ricoBonus, castleMultiplier, total,
+    levelBonus, prestigeBonus, swordBonus, awakeningBonus, ricoBonus, castleFortyBonus, castleMultiplier, total,
   };
 }
 
@@ -1943,7 +1953,8 @@ function totalRareHeartBonusChance() {
   return prestigeRareHeartBonusChance(save)
     + junkyardRareHeartBonusChance()
     + (save.castleConstructionUnlocked ? NSP_2000M3_RARE_HEART_BONUS : 0)
-    + (castleBuildProgressPct() >= 10 ? CASTLE_EFFECT_10_RARE_HEART_BONUS : 0);
+    + (castleBuildProgressPct() >= 10 ? CASTLE_EFFECT_10_RARE_HEART_BONUS : 0)
+    + (castleBuildProgressPct() >= 35 ? CASTLE_EFFECT_35_RARE_HEART_BONUS : 0);
 }
 
 function rankAtLeast(rank, threshold) {
@@ -2060,6 +2071,7 @@ function renderPlayerCard() {
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
   const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
   const ricoPart = mult.ricoBonus > 0 ? ` リコの加護ボーナス+${mult.ricoBonus.toLocaleString()}` : '';
+  const castleFortyPart = mult.castleFortyBonus > 0 ? ` 城の加護+${mult.castleFortyBonus.toLocaleString()}` : '';
   const castlePart = mult.castleMultiplier > 1 ? ` NSP-2000M3 x${mult.castleMultiplier}` : '';
   const junkyardExpStacks = junkyardBuffStacks('buff_exp');
   const junkyardExpPart = junkyardExpStacks > 0 ? ` EXPボーナス+${junkyardExpStacks}%` : '';
@@ -2069,7 +2081,8 @@ function renderPlayerCard() {
   const junkyardRareChancePart = junkyardRareChanceStacks > 0 ? ` レアエネミー出現率+${junkyardRareChanceStacks}%` : '';
   const rareHeartChance = totalRareHeartBonusChance();
   const rareHeartPart = rareHeartChance > 0 ? ` レアモンスター撃破時+1ハート追加率${Math.round(rareHeartChance * 100)}%` : '';
-  el.ptMultiplier.textContent = `pt倍率 x${mult.total.toFixed(1)}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}${ricoPart}${castlePart}${junkyardExpPart}${junkyardDiscipleRewardPart}${junkyardRareChancePart}${rareHeartPart}）`;
+  const totalText = mult.total.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  el.ptMultiplier.textContent = `pt倍率 x${totalText}（Lv+${mult.levelBonus.toFixed(1)} 転生+${mult.prestigeBonus.toFixed(1)}${swordPart}${awakeningPart}${ricoPart}${castleFortyPart}${castlePart}${junkyardExpPart}${junkyardDiscipleRewardPart}${junkyardRareChancePart}${rareHeartPart}）`;
   el.prestigeBtn.classList.toggle('hidden', !canPrestige(save));
 
   el.playerCard.className = `player-card design-${save.profile.cardDesign}`;
@@ -2091,6 +2104,10 @@ function causalityTowerCastleDefeatMultiplier() {
   if (pct >= 15) mult += 1;
   if (pct >= 20) mult += 1;
   return mult;
+}
+
+function heartVesselRunawayMultiplier() {
+  return castleBuildProgressPct() >= 45 ? CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER : 2;
 }
 
 function causalityTowerDefeatCount() {
@@ -2168,11 +2185,15 @@ function startCausalityTowerDiceSequence() {
   el.causalityTowerDicePopup.classList.remove('hidden');
 }
 
+function causalityTowerDiceCount() {
+  return castleBuildProgressPct() >= 50 ? CASTLE_EFFECT_50_DICE_COUNT : 1;
+}
+
 function showCausalityTowerDiceStep2() {
   el.causalityTowerDiceTitle.textContent = '何フロア進めるかサイコロで決めよう';
   el.causalityTowerDiceDesc.textContent = '';
   el.causalityTowerDiceImage.classList.add('hidden');
-  el.causalityTowerDiceFace.textContent = CAUSALITY_TOWER_DICE_FACES[0];
+  el.causalityTowerDiceFace.textContent = Array.from({ length: causalityTowerDiceCount() }, () => CAUSALITY_TOWER_DICE_FACES[0]).join(' ');
   el.causalityTowerDiceFace.classList.remove('hidden');
   el.causalityTowerDiceNextBtn.classList.add('hidden');
   el.causalityTowerDiceRollBtn.classList.remove('hidden');
@@ -2180,10 +2201,14 @@ function showCausalityTowerDiceStep2() {
   el.causalityTowerDiceRollBtn.onclick = rollCausalityTowerDice;
 }
 
+let causalityTowerDiceRollDetails = [];
+
 function rollCausalityTowerDice() {
   el.causalityTowerDiceRollBtn.disabled = true;
-  const finalRoll = 1 + Math.floor(Math.random() * 6);
-  causalityTowerDiceRollResult = finalRoll;
+  const diceCount = causalityTowerDiceCount();
+  const finalRolls = Array.from({ length: diceCount }, () => 1 + Math.floor(Math.random() * 6));
+  causalityTowerDiceRollDetails = finalRolls;
+  causalityTowerDiceRollResult = finalRolls.reduce((sum, v) => sum + v, 0);
   let ticks = 0;
   const maxTicks = 15;
   clearInterval(causalityTowerDiceRollTimer);
@@ -2191,17 +2216,19 @@ function rollCausalityTowerDice() {
     ticks += 1;
     if (ticks >= maxTicks) {
       clearInterval(causalityTowerDiceRollTimer);
-      el.causalityTowerDiceFace.textContent = CAUSALITY_TOWER_DICE_FACES[finalRoll - 1];
+      el.causalityTowerDiceFace.textContent = finalRolls.map((v) => CAUSALITY_TOWER_DICE_FACES[v - 1]).join(' ');
       setTimeout(showCausalityTowerDiceStep3, 500);
       return;
     }
-    const randomFace = 1 + Math.floor(Math.random() * 6);
-    el.causalityTowerDiceFace.textContent = CAUSALITY_TOWER_DICE_FACES[randomFace - 1];
+    const randomFaces = Array.from({ length: diceCount }, () => CAUSALITY_TOWER_DICE_FACES[Math.floor(Math.random() * 6)]);
+    el.causalityTowerDiceFace.textContent = randomFaces.join(' ');
   }, 80);
 }
 
 function showCausalityTowerDiceStep3() {
-  el.causalityTowerDiceDesc.textContent = `出た目：${causalityTowerDiceRollResult}`;
+  el.causalityTowerDiceDesc.textContent = causalityTowerDiceRollDetails.length > 1
+    ? `出た目：${causalityTowerDiceRollDetails.join('+')}＝${causalityTowerDiceRollResult}`
+    : `出た目：${causalityTowerDiceRollResult}`;
   el.causalityTowerDiceRollBtn.classList.add('hidden');
   el.causalityTowerDiceNextBtn.classList.remove('hidden');
   el.causalityTowerDiceNextBtn.onclick = showCausalityTowerDiceStep4;
@@ -2643,10 +2670,18 @@ CASTLE_EFFECTS[0].label = `ダンジョンでの建築素材ドロップ率${CAS
 CASTLE_EFFECTS[1].label = `城の加護でレアモンスター撃破時 ハート追加ドロップ率+${Math.round(CASTLE_EFFECT_10_RARE_HEART_BONUS * 100)}%`;
 CASTLE_EFFECTS[2].label = '因果の巨塔モンスター撃破ボーナス+100%';
 CASTLE_EFFECTS[3].label = '因果の巨塔モンスター撃破ボーナス+100%';
-CASTLE_EFFECTS[4].label = '因果の巨塔に結界。モンスター復活を阻止。';
+CASTLE_EFFECTS[4].label = '因果の巨塔に結界。モンスター復活を阻止';
+CASTLE_EFFECTS[5].label = `ダンジョンでの建築素材ドロップ率${CASTLE_EFFECT_30_MATERIAL_MULTIPLIER}倍（300％）`;
+CASTLE_EFFECTS[6].label = `城の加護でレアモンスター撃破時 ハート追加ドロップ率+${Math.round(CASTLE_EFFECT_35_RARE_HEART_BONUS * 100)}%（合計50%）`;
+CASTLE_EFFECTS[7].label = `pt倍率+${CASTLE_EFFECT_40_PT_BONUS.toLocaleString()}`;
+CASTLE_EFFECTS[8].label = `ハートの器暴走ボーナスが2倍から${CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER}倍に`;
+CASTLE_EFFECTS[9].label = `因果の巨塔のサイコロが${CASTLE_EFFECT_50_DICE_COUNT}個になる`;
 
 function castleMaterialDropMultiplier() {
-  return castleBuildProgressPct() >= 5 ? CASTLE_EFFECT_5_MATERIAL_MULTIPLIER : 1;
+  const pct = castleBuildProgressPct();
+  if (pct >= 30) return CASTLE_EFFECT_30_MATERIAL_MULTIPLIER;
+  if (pct >= 5) return CASTLE_EFFECT_5_MATERIAL_MULTIPLIER;
+  return 1;
 }
 
 function checkCastleEffectUnlocks() {
@@ -3718,6 +3753,8 @@ function discipleMaxStreak() {
 
 function discipleStreakBonusMultiplier() {
   const streak = discipleMaxStreak();
+  if (streak >= DISCIPLE_100000_STREAK_THRESHOLD) return DISCIPLE_100000_STREAK_MULTIPLIER;
+  if (streak >= DISCIPLE_70000_STREAK_THRESHOLD) return DISCIPLE_70000_STREAK_MULTIPLIER;
   if (streak >= DISCIPLE_50000_STREAK_THRESHOLD) return DISCIPLE_50000_STREAK_MULTIPLIER;
   if (streak >= DISCIPLE_30000_STREAK_THRESHOLD) return DISCIPLE_30000_STREAK_MULTIPLIER;
   if (streak >= DISCIPLE_20000_STREAK_THRESHOLD) return DISCIPLE_20000_STREAK_MULTIPLIER;
@@ -3889,14 +3926,18 @@ function renderDisciple() {
   const lotModeActive = save.disciple.heartGrailOwned && save.disciple.hearts >= BATCH_BATTLE_HEART_LOT_SIZE;
   const batchLabel = lotModeActive ? '❤️999個を消費して一括対戦！' : '⚡ 一括対戦';
   el.discipleBatchBattleBtn.textContent = runawayReady
-    ? `${batchLabel}（ハートの器が暴走中 賞金2倍!）`
+    ? `${batchLabel}（ハートの器が暴走中 賞金${heartVesselRunawayMultiplier()}倍!）`
     : batchLabel;
   el.discipleBatchBattleBtn.classList.toggle('heart-vessel-runaway', runawayReady);
 
   const s = save.disciple.streaks;
   const maxStreak = discipleMaxStreak();
   let streakBonusHtml = '';
-  if (maxStreak >= DISCIPLE_50000_STREAK_THRESHOLD) {
+  if (maxStreak >= DISCIPLE_100000_STREAK_THRESHOLD) {
+    streakBonusHtml = ` <span class="disciple-streak-20000-bonus">10万連勝ボーナス中!賞金${DISCIPLE_100000_STREAK_MULTIPLIER}倍!</span>`;
+  } else if (maxStreak >= DISCIPLE_70000_STREAK_THRESHOLD) {
+    streakBonusHtml = ` <span class="disciple-streak-20000-bonus">7万連勝ボーナス中!賞金${DISCIPLE_70000_STREAK_MULTIPLIER}倍!</span>`;
+  } else if (maxStreak >= DISCIPLE_50000_STREAK_THRESHOLD) {
     streakBonusHtml = ` <span class="disciple-streak-20000-bonus">5万連勝ボーナス中!賞金${DISCIPLE_50000_STREAK_MULTIPLIER}倍!</span>`;
   } else if (maxStreak >= DISCIPLE_30000_STREAK_THRESHOLD) {
     streakBonusHtml = ` <span class="disciple-streak-20000-bonus">3万連勝ボーナス中!賞金${DISCIPLE_30000_STREAK_MULTIPLIER}倍!</span>`;
@@ -4011,7 +4052,7 @@ function batchFightStrongOpponents() {
     }
   }
 
-  if (save.heartVesselRunawayActive && heartsToUse >= 999) ptEarned *= 2;
+  if (save.heartVesselRunawayActive && heartsToUse >= 999) ptEarned *= heartVesselRunawayMultiplier();
 
   save.disciple.hearts -= heartsToUse;
   save.disciple.battleCount += heartsToUse;
