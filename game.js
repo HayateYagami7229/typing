@@ -118,6 +118,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.77',
+    items: [
+      'ショップの閲覧性をアップデートしました',
+    ],
+  },
+  {
     version: 'Beta0.76',
     items: [
       '特定の機能による表記が本来と異なる数値を指し示していた問題を修正しました。'
