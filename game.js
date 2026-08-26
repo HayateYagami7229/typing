@@ -1271,6 +1271,14 @@ const el = {
   causalityTowerMonstersText: document.getElementById('causalityTowerMonstersText'),
   causalityTowerFloorText: document.getElementById('causalityTowerFloorText'),
   causalityTowerBtn: document.getElementById('causalityTowerBtn'),
+  causalityTowerDicePopup: document.getElementById('causalityTowerDicePopup'),
+  causalityTowerDiceImage: document.getElementById('causalityTowerDiceImage'),
+  causalityTowerDiceTitle: document.getElementById('causalityTowerDiceTitle'),
+  causalityTowerDiceDesc: document.getElementById('causalityTowerDiceDesc'),
+  causalityTowerDiceFace: document.getElementById('causalityTowerDiceFace'),
+  causalityTowerDiceRollBtn: document.getElementById('causalityTowerDiceRollBtn'),
+  causalityTowerDiceNextBtn: document.getElementById('causalityTowerDiceNextBtn'),
+  causalityTowerDiceCloseBtn: document.getElementById('causalityTowerDiceCloseBtn'),
   castlePanel: document.getElementById('castlePanel'),
   castleEffectsList: document.getElementById('castleEffectsList'),
   castleTitleText: document.getElementById('castleTitleText'),
@@ -2077,8 +2085,21 @@ function renderPlayerCard() {
   renderCastle();
 }
 
+function causalityTowerCastleDefeatMultiplier() {
+  const pct = castleBuildProgressPct();
+  let mult = 1;
+  if (pct >= 15) mult += 1;
+  if (pct >= 20) mult += 1;
+  return mult;
+}
+
 function causalityTowerDefeatCount() {
-  return Math.max(0, (discipleTotalParams() - CAUSALITY_TOWER_DISCIPLE_THRESHOLD) * CAUSALITY_TOWER_DEFEAT_MULTIPLIER);
+  return Math.max(0, (discipleTotalParams() - CAUSALITY_TOWER_DISCIPLE_THRESHOLD) * CAUSALITY_TOWER_DEFEAT_MULTIPLIER)
+    * causalityTowerCastleDefeatMultiplier();
+}
+
+function causalityTowerBarrierActive() {
+  return castleBuildProgressPct() >= 25;
 }
 
 function renderCausalityTower() {
@@ -2088,26 +2109,36 @@ function renderCausalityTower() {
   el.causalityTowerMonstersText.textContent = `巨塔の周りのモンスター ${(save.causalityTowerMonsters || 0).toLocaleString()}/${CAUSALITY_TOWER_MONSTERS_TOTAL.toLocaleString()}`;
   el.causalityTowerFloorText.textContent = `階層 ${save.causalityTowerFloor || 1}F/300F`;
   el.causalityTowerBtn.disabled = save.pt < CAUSALITY_TOWER_ADVANCE_COST
-    || (save.causalityTowerMonsters || 0) <= 0;
+    || ((save.causalityTowerMonsters || 0) <= 0 && !causalityTowerBarrierActive());
 }
 
 function advanceCausalityTower() {
   if (save.pt < CAUSALITY_TOWER_ADVANCE_COST) return;
-  if ((save.causalityTowerMonsters || 0) <= 0) return;
+  const monstersPresent = (save.causalityTowerMonsters || 0) > 0;
+  if (!monstersPresent && !causalityTowerBarrierActive()) return;
 
   save.pt -= CAUSALITY_TOWER_ADVANCE_COST;
-  const defeatable = causalityTowerDefeatCount();
-  const defeated = Math.min(defeatable, save.causalityTowerMonsters || 0);
-  save.causalityTowerMonsters = Math.max(0, (save.causalityTowerMonsters || 0) - defeated);
 
-  if (!save.causalityTowerIntroShown) {
-    save.causalityTowerIntroShown = true;
-    queueReveal('因果の巨塔', '塔を登る為にはまず敵を\n片付けなくては……！！');
-  }
-  if (defeated > 0) {
-    queueReveal('', `${save.disciple.name}と協力して\nモンスターを${defeated.toLocaleString()}体蹴散らした！\n一度、状況を立て直そう`);
+  if (monstersPresent) {
+    const defeatable = causalityTowerDefeatCount();
+    const defeated = Math.min(defeatable, save.causalityTowerMonsters || 0);
+    save.causalityTowerMonsters = Math.max(0, (save.causalityTowerMonsters || 0) - defeated);
+    const waveCleared = (save.causalityTowerMonsters || 0) <= 0;
+
+    if (!save.causalityTowerIntroShown) {
+      save.causalityTowerIntroShown = true;
+      queueReveal('因果の巨塔', '塔を登る為にはまず敵を\n片付けなくては……！！');
+    }
+    if (defeated > 0) {
+      const defeatDesc = waveCleared
+        ? `${save.disciple.name}と協力して\nモンスターを${defeated.toLocaleString()}体蹴散らした！`
+        : `${save.disciple.name}と協力して\nモンスターを${defeated.toLocaleString()}体蹴散らした！\n一度、状況を立て直そう`;
+      queueReveal('', defeatDesc, waveCleared ? startCausalityTowerDiceSequence : undefined);
+    } else {
+      queueReveal('', `${save.disciple.name}と協力したが\nモンスターには歯が立たなかった。\n一度、状況と弟子のパラメーターを立て直そう`);
+    }
   } else {
-    queueReveal('', `${save.disciple.name}と協力したが\nモンスターには歯が立たなかった。\n一度、状況と弟子のパラメーターを立て直そう`);
+    startCausalityTowerDiceSequence();
   }
 
   persistSave();
@@ -2115,6 +2146,91 @@ function advanceCausalityTower() {
   renderCausalityTower();
 }
 el.causalityTowerBtn.addEventListener('click', advanceCausalityTower);
+
+const CAUSALITY_TOWER_DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+let causalityTowerDiceRollResult = 0;
+let causalityTowerDiceFloorBefore = 1;
+let causalityTowerDiceBarrierWasActive = false;
+let causalityTowerDiceRollTimer = null;
+
+function startCausalityTowerDiceSequence() {
+  causalityTowerDiceFloorBefore = save.causalityTowerFloor || 1;
+  causalityTowerDiceBarrierWasActive = causalityTowerBarrierActive();
+  el.causalityTowerDiceTitle.textContent = '因果の巨塔に辿り着いた';
+  el.causalityTowerDiceDesc.textContent = '遂に因果の巨塔に辿り着いた。\n巨塔を登ろう';
+  el.causalityTowerDiceImage.src = 'img/tower.png';
+  el.causalityTowerDiceImage.classList.remove('hidden');
+  el.causalityTowerDiceFace.classList.add('hidden');
+  el.causalityTowerDiceRollBtn.classList.add('hidden');
+  el.causalityTowerDiceNextBtn.classList.remove('hidden');
+  el.causalityTowerDiceCloseBtn.classList.add('hidden');
+  el.causalityTowerDiceNextBtn.onclick = showCausalityTowerDiceStep2;
+  el.causalityTowerDicePopup.classList.remove('hidden');
+}
+
+function showCausalityTowerDiceStep2() {
+  el.causalityTowerDiceTitle.textContent = '何フロア進めるかサイコロで決めよう';
+  el.causalityTowerDiceDesc.textContent = '';
+  el.causalityTowerDiceImage.classList.add('hidden');
+  el.causalityTowerDiceFace.textContent = CAUSALITY_TOWER_DICE_FACES[0];
+  el.causalityTowerDiceFace.classList.remove('hidden');
+  el.causalityTowerDiceNextBtn.classList.add('hidden');
+  el.causalityTowerDiceRollBtn.classList.remove('hidden');
+  el.causalityTowerDiceRollBtn.disabled = false;
+  el.causalityTowerDiceRollBtn.onclick = rollCausalityTowerDice;
+}
+
+function rollCausalityTowerDice() {
+  el.causalityTowerDiceRollBtn.disabled = true;
+  const finalRoll = 1 + Math.floor(Math.random() * 6);
+  causalityTowerDiceRollResult = finalRoll;
+  let ticks = 0;
+  const maxTicks = 15;
+  clearInterval(causalityTowerDiceRollTimer);
+  causalityTowerDiceRollTimer = setInterval(() => {
+    ticks += 1;
+    if (ticks >= maxTicks) {
+      clearInterval(causalityTowerDiceRollTimer);
+      el.causalityTowerDiceFace.textContent = CAUSALITY_TOWER_DICE_FACES[finalRoll - 1];
+      setTimeout(showCausalityTowerDiceStep3, 500);
+      return;
+    }
+    const randomFace = 1 + Math.floor(Math.random() * 6);
+    el.causalityTowerDiceFace.textContent = CAUSALITY_TOWER_DICE_FACES[randomFace - 1];
+  }, 80);
+}
+
+function showCausalityTowerDiceStep3() {
+  el.causalityTowerDiceDesc.textContent = `出た目：${causalityTowerDiceRollResult}`;
+  el.causalityTowerDiceRollBtn.classList.add('hidden');
+  el.causalityTowerDiceNextBtn.classList.remove('hidden');
+  el.causalityTowerDiceNextBtn.onclick = showCausalityTowerDiceStep4;
+}
+
+function showCausalityTowerDiceStep4() {
+  const floorBefore = causalityTowerDiceFloorBefore;
+  const floorAfter = Math.min(300, floorBefore + causalityTowerDiceRollResult);
+  save.causalityTowerFloor = floorAfter;
+
+  el.causalityTowerDiceTitle.textContent = '巨塔を登った';
+  el.causalityTowerDiceFace.classList.add('hidden');
+  el.causalityTowerDiceNextBtn.classList.add('hidden');
+  el.causalityTowerDiceCloseBtn.classList.remove('hidden');
+  el.causalityTowerDiceCloseBtn.onclick = closeCausalityTowerDicePopup;
+
+  if (causalityTowerDiceBarrierWasActive) {
+    el.causalityTowerDiceDesc.textContent = `${floorBefore}F→${floorAfter}Fまで進んだ。\nモンスターの大群が見えたが結界が守ってくれているようだ。`;
+  } else {
+    save.causalityTowerMonsters = CAUSALITY_TOWER_MONSTERS_TOTAL;
+    el.causalityTowerDiceDesc.textContent = `${floorBefore}F→${floorAfter}Fまで進んだ。\n一度拠点に戻ろうとした時。\nあのモンスターの大群が再び迫って来ている事に気付いた。\n急いで戻ろう。`;
+  }
+  persistSave();
+  renderCausalityTower();
+}
+
+function closeCausalityTowerDicePopup() {
+  el.causalityTowerDicePopup.classList.add('hidden');
+}
 
 function renderEndlessModeToggle() {
   const visible = !!save.endlessModeUnlocked;
@@ -2525,6 +2641,9 @@ const CASTLE_EFFECTS = Array.from({ length: 20 }, (_, i) => {
 });
 CASTLE_EFFECTS[0].label = `ダンジョンでの建築素材ドロップ率${CASTLE_EFFECT_5_MATERIAL_MULTIPLIER}倍`;
 CASTLE_EFFECTS[1].label = `城の加護でレアモンスター撃破時 ハート追加ドロップ率+${Math.round(CASTLE_EFFECT_10_RARE_HEART_BONUS * 100)}%`;
+CASTLE_EFFECTS[2].label = '因果の巨塔モンスター撃破ボーナス+100%';
+CASTLE_EFFECTS[3].label = '因果の巨塔モンスター撃破ボーナス+100%';
+CASTLE_EFFECTS[4].label = '因果の巨塔に結界。モンスター復活を阻止。';
 
 function castleMaterialDropMultiplier() {
   return castleBuildProgressPct() >= 5 ? CASTLE_EFFECT_5_MATERIAL_MULTIPLIER : 1;

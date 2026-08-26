@@ -1474,6 +1474,13 @@ body {
   text-align: left;
 }
 
+.causality-tower-dice-face {
+  font-size: 5rem;
+  line-height: 1;
+  margin: 10px auto 18px;
+  text-align: center;
+}
+
 .junkyard-header-icon {
   width: 34px;
   height: 34px;
