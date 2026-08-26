@@ -23,6 +23,7 @@ const PRESTIGE_AWAKENING_TIERS = [
   { at: 30, ptBonus: 5000, expMultiplier: 2 },
   { at: 40, ptBonus: 15000, expMultiplier: 2, rareHeartBonusChance: 0.25 },
   { at: 50, ptBonus: 25000, expMultiplier: 2, rareHeartBonusChance: 0.25 },
+  { at: 60, ptBonus: 20000, expMultiplier: 2, rareHeartBonusChance: 0.25 },
 ];
 
 function prestigeAwakeningPtBonus(save) {
