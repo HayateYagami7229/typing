@@ -1710,6 +1710,10 @@ function refreshTotalPt() {
   el.totalPt.textContent = Math.floor(save.pt).toLocaleString();
   lastKnownPt = save.pt;
   renderCausalityTower();
+  renderDiscipleStats();
+  renderGodStatue();
+  renderJunkyard();
+  renderCastle();
 }
 
 setInterval(() => {
