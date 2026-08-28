@@ -322,8 +322,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 18px 10px;
+  gap: 4px;
+  padding: 12px 10px;
   border-radius: 14px;
   border: 1px solid var(--border);
   background: var(--panel-gradient);
@@ -460,7 +460,7 @@ body {
 }
 
 .dungeon-icon {
-  font-size: 1.9rem;
+  font-size: 1.6rem;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
 }
 
@@ -1899,6 +1899,18 @@ body {
   color: var(--accent-2);
   font-weight: 700;
   min-height: 1em;
+}
+
+.dungeon-bonus-badge {
+  font-size: 0.66rem;
+  line-height: 1.15;
+  color: #e2c2ff;
+  font-weight: 900;
+  text-shadow: 0 0 12px rgba(194, 107, 255, 0.7);
+}
+
+.dungeon-bonus-badge.hidden {
+  display: none;
 }
 
 .nav-row {

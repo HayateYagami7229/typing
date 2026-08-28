@@ -378,6 +378,8 @@ const CASTLE_EFFECT_35_RARE_HEART_BONUS = 0.25;
 const CASTLE_EFFECT_40_PT_BONUS = 15000;
 const CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER = 2.5;
 const CASTLE_EFFECT_50_DICE_COUNT = 2;
+const CASTLE_EFFECT_55_SENTENCE_RARE_HEART_MULTIPLIER = 5;
+const CASTLE_EFFECT_60_LONG_RARE_HEART_MULTIPLIER = 30;
 const CASTLE_MATERIALS = [
   { id: 'abyssObsidian', name: 'アビス・オブシディアン' },
   { id: 'voidPlaster', name: 'ヴォイド・プラスター' },
@@ -2686,6 +2688,14 @@ CASTLE_EFFECTS[6].label = `城の加護でレアモンスター撃破時 ハー�
 CASTLE_EFFECTS[7].label = `pt倍率+${CASTLE_EFFECT_40_PT_BONUS.toLocaleString()}`;
 CASTLE_EFFECTS[8].label = `ハートの器暴走ボーナスが2倍から${CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER}倍に`;
 CASTLE_EFFECTS[9].label = `因果の巨塔のサイコロが${CASTLE_EFFECT_50_DICE_COUNT}個になる`;
+CASTLE_EFFECTS[10].label = `文章の回廊でレアモンスター撃破時のハート獲得数${CASTLE_EFFECT_55_SENTENCE_RARE_HEART_MULTIPLIER}倍`;
+CASTLE_EFFECTS[11].label = `長文の塔でレアモンスター撃破時のハート獲得数${CASTLE_EFFECT_60_LONG_RARE_HEART_MULTIPLIER}倍`;
+
+function dungeonRareHeartMultiplier(mode) {
+  if (mode === 'sentence') return castleBuildProgressPct() >= 55 ? CASTLE_EFFECT_55_SENTENCE_RARE_HEART_MULTIPLIER : 1;
+  if (mode === 'long') return castleBuildProgressPct() >= 60 ? CASTLE_EFFECT_60_LONG_RARE_HEART_MULTIPLIER : 1;
+  return 1;
+}
 
 function castleMaterialDropMultiplier() {
   const pct = castleBuildProgressPct();
@@ -2806,6 +2816,7 @@ function renderCastle() {
   el.castleGenerateBtn.disabled = save.pt < CASTLE_MATERIAL_GEN_COST;
   el.castleConvertBtn.classList.toggle('hidden', !save.castleConverterOwned);
   if (save.castleConverterOwned) el.castleConvertBtn.disabled = !canConvertCastleMaterials();
+  renderDungeonBadges();
 }
 
 function checkMechanicalEggHatch() {
@@ -4394,9 +4405,16 @@ function renderIconPicker() {
 function renderDungeonBadges() {
   Object.keys(DUNGEONS).forEach((mode) => {
     const badge = document.getElementById(`bestBadge-${mode}`);
-    if (!badge) return;
-    const rank = save.bestRankByKey[`${currentLang}:${mode}`];
-    badge.textContent = rank ? `Best: ${rank}` : '';
+    if (badge) {
+      const rank = save.bestRankByKey[`${currentLang}:${mode}`];
+      badge.textContent = rank ? `Best: ${rank}` : '';
+    }
+    const bonusBadge = document.getElementById(`bonusBadge-${mode}`);
+    if (bonusBadge) {
+      const mult = dungeonRareHeartMultiplier(mode);
+      bonusBadge.textContent = mult > 1 ? `レアモンスター撃破時のハート獲得数${mult}倍!!` : '';
+      bonusBadge.classList.toggle('hidden', mult <= 1);
+    }
   });
   const maouAuraStoryActive = save.maouGateRevealed && !save.maouDefeated;
   const junkyardActive = isJunkyardAuraFrameActive();
@@ -5596,6 +5614,7 @@ function handleTypedChar(ch) {
         const guaranteedRareHearts = Math.floor(rareHeartChance);
         const rareHeartRemainder = rareHeartChance - guaranteedRareHearts;
         res.rareBonus.heart += guaranteedRareHearts + (Math.random() < rareHeartRemainder ? 1 : 0);
+        res.rareBonus.heart *= dungeonRareHeartMultiplier(currentMode);
         save.disciple.hearts = Math.min(effectiveDiscipleHeartMax(), save.disciple.hearts + res.rareBonus.heart);
         save.rareMonstersDefeated += 1;
         refreshTotalPt();

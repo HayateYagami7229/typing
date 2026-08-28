@@ -109,12 +109,14 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
             <span class="dungeon-name">文章の回廊</span>
             <span class="dungeon-desc">短文が連続で出題</span>
             <span class="dungeon-best" id="bestBadge-sentence"></span>
+            <span class="dungeon-bonus-badge hidden" id="bonusBadge-sentence"></span>
           </button>
           <button class="dungeon-card" data-mode="long">
             <span class="dungeon-icon">🏰</span>
             <span class="dungeon-name">長文の塔</span>
             <span class="dungeon-desc">長文が連続で出題</span>
             <span class="dungeon-best" id="bestBadge-long"></span>
+            <span class="dungeon-bonus-badge hidden" id="bonusBadge-long"></span>
           </button>
         </div>
         <label class="endless-mode-toggle-row hidden" id="endlessModeToggleRow">
@@ -675,7 +677,7 @@ if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
   </div>
 </div>
 
-<div id="appVersion" class="app-version">Beta0.77b</div>
+<div id="appVersion" class="app-version">Beta0.77c</div>
 
 <script src="data.js"></script>
 <script src="kana.js"></script>
