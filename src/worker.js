@@ -389,11 +389,13 @@ async function handleProgressView(request, env, url) {
   const yagaminTyped = yagaminRow ? (Number(yagaminRow.total_correct) || 0) : 0;
   const othersTyped = summary.totalTypedKeys - yagaminTyped;
   const yagaminSharePct = summary.totalTypedKeys > 0 ? (yagaminTyped / summary.totalTypedKeys * 100).toFixed(1) : '0.0';
+  const typedDiff = Math.abs(yagaminTyped - othersTyped);
+  const typedWinner = yagaminTyped === othersTyped ? '同数' : (yagaminTyped > othersTyped ? 'やがみん' : 'それ以外');
   const yagaminVsOthersCard = `
     <div class="highlight">
       <div class="highlight-label">やがみん vs それ以外（総タイプ数）</div>
       <div class="highlight-value">${fmtNum(yagaminTyped)} / ${fmtNum(othersTyped)}</div>
-      <div class="highlight-name">全体の${yagaminSharePct}%がやがみん</div>
+      <div class="highlight-name">全体の${yagaminSharePct}%がやがみん・${typedWinner}が勝ち（差 ${fmtNum(typedDiff)}）</div>
     </div>`;
 
   const funnelCounts = {};
