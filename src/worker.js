@@ -385,6 +385,17 @@ async function handleProgressView(request, env, url) {
       <div class="highlight-name">${escapeHtml(h.row.player_name || '')}</div>
     </div>`).join('');
 
+  const yagaminRow = rows.find((r) => r.player_name === 'やがみん');
+  const yagaminTyped = yagaminRow ? (Number(yagaminRow.total_correct) || 0) : 0;
+  const othersTyped = summary.totalTypedKeys - yagaminTyped;
+  const yagaminSharePct = summary.totalTypedKeys > 0 ? (yagaminTyped / summary.totalTypedKeys * 100).toFixed(1) : '0.0';
+  const yagaminVsOthersCard = `
+    <div class="highlight">
+      <div class="highlight-label">やがみん vs それ以外（総タイプ数）</div>
+      <div class="highlight-value">${fmtNum(yagaminTyped)} / ${fmtNum(othersTyped)}</div>
+      <div class="highlight-name">全体の${yagaminSharePct}%がやがみん</div>
+    </div>`;
+
   const funnelCounts = {};
   Object.keys(FUNNEL_LABELS).forEach((id) => { funnelCounts[id] = 0; });
   rows.forEach((r) => {
@@ -461,7 +472,7 @@ async function handleProgressView(request, env, url) {
     <span>総タイピング数: <b>${fmtNum(summary.totalTypedKeys)}</b></span>
   </span>
 </h1>
-<div class="highlights">${highlightCards}</div>
+<div class="highlights">${highlightCards}${yagaminVsOthersCard}</div>
 <div class="summary">
   <div>転生経験者: ${summary.prestigeAny}</div>
   <div>女神像送付経験者: ${summary.godStatueAny}</div>
