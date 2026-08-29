@@ -380,6 +380,10 @@ const CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER = 2.5;
 const CASTLE_EFFECT_50_DICE_COUNT = 2;
 const CASTLE_EFFECT_55_SENTENCE_RARE_HEART_MULTIPLIER = 5;
 const CASTLE_EFFECT_60_LONG_RARE_HEART_MULTIPLIER = 30;
+const CASTLE_EFFECT_65_MATERIAL_MULTIPLIER = 5;
+const CASTLE_EFFECT_70_PT_BONUS = 75000;
+const CASTLE_EFFECT_75_DICE_COUNT = 3;
+const CASTLE_EFFECT_75_ZOROME_MULTIPLIER = 2;
 const CASTLE_MATERIALS = [
   { id: 'abyssObsidian', name: 'アビス・オブシディアン' },
   { id: 'voidPlaster', name: 'ヴォイド・プラスター' },
@@ -1953,11 +1957,22 @@ function fullPtMultiplier() {
   const awakeningBonus = prestigeAwakeningPtBonus(save);
   const ricoBonus = save.maouDefeated && isRicoFullyOwned(save) ? 10000 : 0;
   const castleFortyBonus = castleBuildProgressPct() >= 40 ? CASTLE_EFFECT_40_PT_BONUS : 0;
-  const preCastleTotal = base * (1 + swordBonus) + awakeningBonus + ricoBonus + castleFortyBonus;
+  const castleSeventyBonus = castleBuildProgressPct() >= 70 ? CASTLE_EFFECT_70_PT_BONUS : 0;
+  const castleBlessingPtBonus = castleFortyBonus + castleSeventyBonus;
+  const preCastleTotal = base * (1 + swordBonus) + awakeningBonus + ricoBonus + castleBlessingPtBonus;
   const castleMultiplier = save.castleConstructionUnlocked ? NSP_2000M3_PT_MULTIPLIER : 1;
   const total = preCastleTotal * castleMultiplier;
   return {
-    levelBonus, prestigeBonus, swordBonus, awakeningBonus, ricoBonus, castleFortyBonus, castleMultiplier, total,
+    levelBonus,
+    prestigeBonus,
+    swordBonus,
+    awakeningBonus,
+    ricoBonus,
+    castleFortyBonus,
+    castleSeventyBonus,
+    castleBlessingPtBonus,
+    castleMultiplier,
+    total,
   };
 }
 
@@ -2085,7 +2100,7 @@ function renderPlayerCard() {
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
   const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
   const ricoPart = mult.ricoBonus > 0 ? ` リコの加護ボーナス+${mult.ricoBonus.toLocaleString()}` : '';
-  const castleFortyPart = mult.castleFortyBonus > 0 ? ` 城の加護+${mult.castleFortyBonus.toLocaleString()}` : '';
+  const castleFortyPart = mult.castleBlessingPtBonus > 0 ? ` 城の加護+${mult.castleBlessingPtBonus.toLocaleString()}` : '';
   const castlePart = mult.castleMultiplier > 1 ? ` NSP-2000M3 x${mult.castleMultiplier}` : '';
   const junkyardExpStacks = junkyardBuffStacks('buff_exp');
   const junkyardExpPart = junkyardExpStacks > 0 ? ` EXPボーナス+${junkyardExpStacks}%` : '';
@@ -2183,6 +2198,7 @@ let causalityTowerDiceRollResult = 0;
 let causalityTowerDiceFloorBefore = 1;
 let causalityTowerDiceBarrierWasActive = false;
 let causalityTowerDiceRollTimer = null;
+let causalityTowerDiceZoromeActive = false;
 
 function startCausalityTowerDiceSequence() {
   causalityTowerDiceFloorBefore = save.causalityTowerFloor || 1;
@@ -2200,7 +2216,14 @@ function startCausalityTowerDiceSequence() {
 }
 
 function causalityTowerDiceCount() {
-  return castleBuildProgressPct() >= 50 ? CASTLE_EFFECT_50_DICE_COUNT : 1;
+  const pct = castleBuildProgressPct();
+  if (pct >= 75) return CASTLE_EFFECT_75_DICE_COUNT;
+  if (pct >= 50) return CASTLE_EFFECT_50_DICE_COUNT;
+  return 1;
+}
+
+function causalityTowerIsZorome(rolls) {
+  return rolls.length >= 3 && rolls.every((v) => v === rolls[0]);
 }
 
 function showCausalityTowerDiceStep2() {
@@ -2222,7 +2245,11 @@ function rollCausalityTowerDice() {
   const diceCount = causalityTowerDiceCount();
   const finalRolls = Array.from({ length: diceCount }, () => 1 + Math.floor(Math.random() * 6));
   causalityTowerDiceRollDetails = finalRolls;
-  causalityTowerDiceRollResult = finalRolls.reduce((sum, v) => sum + v, 0);
+  causalityTowerDiceZoromeActive = causalityTowerIsZorome(finalRolls);
+  const rollSum = finalRolls.reduce((sum, v) => sum + v, 0);
+  causalityTowerDiceRollResult = causalityTowerDiceZoromeActive
+    ? rollSum * CASTLE_EFFECT_75_ZOROME_MULTIPLIER
+    : rollSum;
   let ticks = 0;
   const maxTicks = 15;
   clearInterval(causalityTowerDiceRollTimer);
@@ -2240,9 +2267,13 @@ function rollCausalityTowerDice() {
 }
 
 function showCausalityTowerDiceStep3() {
-  el.causalityTowerDiceDesc.textContent = causalityTowerDiceRollDetails.length > 1
-    ? `出た目：${causalityTowerDiceRollDetails.join('+')}＝${causalityTowerDiceRollResult}`
-    : `出た目：${causalityTowerDiceRollResult}`;
+  const rollSum = causalityTowerDiceRollDetails.reduce((sum, v) => sum + v, 0);
+  const baseText = causalityTowerDiceRollDetails.length > 1
+    ? `出た目：${causalityTowerDiceRollDetails.join('+')}＝${rollSum}`
+    : `出た目：${rollSum}`;
+  el.causalityTowerDiceDesc.textContent = causalityTowerDiceZoromeActive
+    ? `${baseText}\n🎉ぞろ目！ ボーナスで${causalityTowerDiceRollResult}に！`
+    : baseText;
   el.causalityTowerDiceRollBtn.classList.add('hidden');
   el.causalityTowerDiceNextBtn.classList.remove('hidden');
   el.causalityTowerDiceNextBtn.onclick = showCausalityTowerDiceStep4;
@@ -2259,11 +2290,12 @@ function showCausalityTowerDiceStep4() {
   el.causalityTowerDiceCloseBtn.classList.remove('hidden');
   el.causalityTowerDiceCloseBtn.onclick = closeCausalityTowerDicePopup;
 
+  const zoromePrefix = causalityTowerDiceZoromeActive ? '🎉ぞろ目ボーナスで通常の2倍進んだ！\n' : '';
   if (causalityTowerDiceBarrierWasActive) {
-    el.causalityTowerDiceDesc.textContent = `${floorBefore}F→${floorAfter}Fまで進んだ。\nモンスターの大群が見えたが結界が守ってくれているようだ。`;
+    el.causalityTowerDiceDesc.textContent = `${zoromePrefix}${floorBefore}F→${floorAfter}Fまで進んだ。\nモンスターの大群が見えたが結界が守ってくれているようだ。`;
   } else {
     save.causalityTowerMonsters = CAUSALITY_TOWER_MONSTERS_TOTAL;
-    el.causalityTowerDiceDesc.textContent = `${floorBefore}F→${floorAfter}Fまで進んだ。\n一度拠点に戻ろうとした時。\nあのモンスターの大群が再び迫って来ている事に気付いた。\n急いで戻ろう。`;
+    el.causalityTowerDiceDesc.textContent = `${zoromePrefix}${floorBefore}F→${floorAfter}Fまで進んだ。\n一度拠点に戻ろうとした時。\nあのモンスターの大群が再び迫って来ている事に気付いた。\n急いで戻ろう。`;
   }
   persistSave();
   renderCausalityTower();
@@ -2692,6 +2724,9 @@ CASTLE_EFFECTS[8].label = `ハートの器暴走ボーナスが2倍から${CASTL
 CASTLE_EFFECTS[9].label = `因果の巨塔のサイコロが${CASTLE_EFFECT_50_DICE_COUNT}個になる`;
 CASTLE_EFFECTS[10].label = `文章の回廊でレアモンスター撃破時のハート獲得数${CASTLE_EFFECT_55_SENTENCE_RARE_HEART_MULTIPLIER}倍`;
 CASTLE_EFFECTS[11].label = `長文の塔でレアモンスター撃破時のハート獲得数${CASTLE_EFFECT_60_LONG_RARE_HEART_MULTIPLIER}倍`;
+CASTLE_EFFECTS[12].label = `ダンジョンでの建築素材ドロップ率${CASTLE_EFFECT_65_MATERIAL_MULTIPLIER}倍（500％）`;
+CASTLE_EFFECTS[13].label = `pt倍率+${CASTLE_EFFECT_70_PT_BONUS.toLocaleString()}`;
+CASTLE_EFFECTS[14].label = `因果の巨塔のサイコロが${CASTLE_EFFECT_75_DICE_COUNT}個になる（ぞろ目で進む階層${CASTLE_EFFECT_75_ZOROME_MULTIPLIER}倍）`;
 
 function dungeonRareHeartMultiplier(mode) {
   if (mode === 'sentence') return castleBuildProgressPct() >= 55 ? CASTLE_EFFECT_55_SENTENCE_RARE_HEART_MULTIPLIER : 1;
@@ -2701,6 +2736,7 @@ function dungeonRareHeartMultiplier(mode) {
 
 function castleMaterialDropMultiplier() {
   const pct = castleBuildProgressPct();
+  if (pct >= 65) return CASTLE_EFFECT_65_MATERIAL_MULTIPLIER;
   if (pct >= 30) return CASTLE_EFFECT_30_MATERIAL_MULTIPLIER;
   if (pct >= 5) return CASTLE_EFFECT_5_MATERIAL_MULTIPLIER;
   return 1;
