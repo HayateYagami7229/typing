@@ -1988,6 +1988,8 @@ const ACHIEVEMENTS = [
   { id: 'prestige_ultra_awaken', icon: '🪐', label: '転生50回達成（絶・超覚醒）', check: (s) => (s.prestigeAwakenedTiers || []).includes(50), sss: true },
   { id: 'disciple_streak_1000', icon: '🔥', label: '弟子が1000連勝を達成', check: (s) => discipleMaxStreakOf(s) > 1000 },
   { id: 'disciple_streak_10000', icon: '🔥', label: '弟子が10000連勝を達成', check: (s) => discipleMaxStreakOf(s) >= 10000 },
+  { id: 'disciple_streak_50000', icon: '🔥', label: '弟子が50000連勝を達成', check: (s) => discipleMaxStreakOf(s) >= 50000 },
+  { id: 'disciple_streak_100000', icon: '🔥', label: '弟子が100000連勝を達成', check: (s) => discipleMaxStreakOf(s) >= 100000 },
   {
     id: 'rank_sss_any',
     icon: '🌠',
