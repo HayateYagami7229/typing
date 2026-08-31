@@ -2787,7 +2787,7 @@ function buildCastle() {
   save.castleConstructionProgress = (save.castleConstructionProgress || 0) + 1;
   checkCastleEffectUnlocks();
   persistSave();
-  renderCastle();
+  renderPlayerCard();
 }
 
 function incrementCastleMaterialsCollected() {
@@ -2808,7 +2808,7 @@ function generateCastleMaterial() {
   incrementCastleMaterialsCollected();
   persistSave();
   refreshTotalPt();
-  renderCastle();
+  renderPlayerCard();
   renderAnnouncements();
   renderShopList();
   queueReveal('', `${pick.name}を生成した！`);
@@ -2832,7 +2832,7 @@ function convertCastleMaterials() {
   save.castleMaterials[pickedMax.id] -= CASTLE_CONVERTER_COST_AMOUNT;
   save.castleMaterials[pickedMin.id] += CASTLE_CONVERTER_GAIN_AMOUNT;
   persistSave();
-  renderCastle();
+  renderPlayerCard();
   queueReveal('', `${pickedMax.name}が${CASTLE_CONVERTER_COST_AMOUNT}個減り、\n${pickedMin.name}が${CASTLE_CONVERTER_GAIN_AMOUNT}個増えた！`);
 }
 
