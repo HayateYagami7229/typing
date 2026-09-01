@@ -118,6 +118,13 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.78',
+    items: [
+      '弟子のパラメーター表記がDEF、SPDとスピードに纏わる内容が2個あることをこのタイミングまで気が付きませんでした。'
+      + '<br>DEX→DEF（守備力）が正しい表記となるため修正しました。',
+    ],
+  },
+  {
     version: 'Beta0.77',
     items: [
       'ショップの閲覧性をアップデートしました',
