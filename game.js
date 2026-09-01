@@ -423,7 +423,7 @@ const DISCIPLE_100000_STREAK_MULTIPLIER = 5;
 const DISCIPLE_STAT_DEFS = [
   { key: 'hp', label: 'HP' },
   { key: 'str', label: 'STR' },
-  { key: 'dex', label: 'DEX' },
+  { key: 'dex', label: 'DEF' },
   { key: 'spd', label: 'SPD' },
 ];
 const DISCIPLE_BULK_THRESHOLDS = [
@@ -4044,7 +4044,7 @@ function renderDiscipleOpponents() {
       <div class="opponent-stats-grid">
         <div class="opponent-stat"><span class="opponent-stat-label">HP</span><span class="opponent-stat-value">${opp.hp}</span></div>
         <div class="opponent-stat"><span class="opponent-stat-label">STR</span><span class="opponent-stat-value">${opp.str}</span></div>
-        <div class="opponent-stat"><span class="opponent-stat-label">DEX</span><span class="opponent-stat-value">${opp.dex}</span></div>
+        <div class="opponent-stat"><span class="opponent-stat-label">DEF</span><span class="opponent-stat-value">${opp.dex}</span></div>
         <div class="opponent-stat"><span class="opponent-stat-label">SPD</span><span class="opponent-stat-value">${opp.spd}</span></div>
       </div>
       ${streak > 0 ? `<div class="opponent-streak">🔥 ${streak}連勝中</div>` : ''}

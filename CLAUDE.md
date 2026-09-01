@@ -54,7 +54,8 @@ a feature area, check pre-existing catalog entries too, not just what you're act
 
 1. Type words/sentences/long-text in one of 3 dungeon modes (単語の間 / 文章の回廊 / 長文の塔),
    JP or EN, earning pt + EXP per correct keystroke and per word/sentence completion.
-2. Spend pt on: disciple (弟子) stat upgrades (HP/STR/DEX/SPD), shop equipment (sword/shield/armor/
+2. Spend pt on: disciple (弟子) stat upgrades (HP/STR/DEF/SPD — internal save/data key is still `dex`,
+   only the display label reads DEF), shop equipment (sword/shield/armor/
    ring — boost pt multiplier or combo mechanics), one-time system unlocks (heart vessel, eternal
    combo, mechanical egg, etc.).
 3. EXP → level → prestige (転生: resets to Lv.1 for permanent bonuses, level cap `MAX_LEVEL = 99`
