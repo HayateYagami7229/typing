@@ -391,6 +391,10 @@ const CASTLE_EFFECT_65_MATERIAL_MULTIPLIER = 5;
 const CASTLE_EFFECT_70_PT_BONUS = 75000;
 const CASTLE_EFFECT_75_DICE_COUNT = 3;
 const CASTLE_EFFECT_75_ZOROME_MULTIPLIER = 2;
+const CASTLE_EFFECT_80_RARE_HEART_BONUS = 0.25;
+const CASTLE_EFFECT_85_TOWER_COST_MULTIPLIER = 0.5;
+const CASTLE_EFFECT_90_HEART_VESSEL_RUNAWAY_MULTIPLIER = 3;
+const CASTLE_EFFECT_95_NSP_MULTIPLIER = 75;
 const CASTLE_MATERIALS = [
   { id: 'abyssObsidian', name: 'アビス・オブシディアン' },
   { id: 'voidPlaster', name: 'ヴォイド・プラスター' },
@@ -1967,7 +1971,7 @@ function fullPtMultiplier() {
   const castleSeventyBonus = castleBuildProgressPct() >= 70 ? CASTLE_EFFECT_70_PT_BONUS : 0;
   const castleBlessingPtBonus = castleFortyBonus + castleSeventyBonus;
   const preCastleTotal = base * (1 + swordBonus) + awakeningBonus + ricoBonus + castleBlessingPtBonus;
-  const castleMultiplier = save.castleConstructionUnlocked ? NSP_2000M3_PT_MULTIPLIER : 1;
+  const castleMultiplier = save.castleConstructionUnlocked ? nspPtMultiplier() : 1;
   const total = preCastleTotal * castleMultiplier;
   return {
     levelBonus,
@@ -1988,7 +1992,18 @@ function totalRareHeartBonusChance() {
     + junkyardRareHeartBonusChance()
     + (save.castleConstructionUnlocked ? NSP_2000M3_RARE_HEART_BONUS : 0)
     + (castleBuildProgressPct() >= 10 ? CASTLE_EFFECT_10_RARE_HEART_BONUS : 0)
-    + (castleBuildProgressPct() >= 35 ? CASTLE_EFFECT_35_RARE_HEART_BONUS : 0);
+    + (castleBuildProgressPct() >= 35 ? CASTLE_EFFECT_35_RARE_HEART_BONUS : 0)
+    + (castleBuildProgressPct() >= 80 ? CASTLE_EFFECT_80_RARE_HEART_BONUS : 0);
+}
+
+function nspPtMultiplier() {
+  return castleBuildProgressPct() >= 95 ? CASTLE_EFFECT_95_NSP_MULTIPLIER : NSP_2000M3_PT_MULTIPLIER;
+}
+
+function causalityTowerAdvanceCost() {
+  return castleBuildProgressPct() >= 85
+    ? Math.round(CAUSALITY_TOWER_ADVANCE_COST * CASTLE_EFFECT_85_TOWER_COST_MULTIPLIER)
+    : CAUSALITY_TOWER_ADVANCE_COST;
 }
 
 function rankAtLeast(rank, threshold) {
@@ -2143,7 +2158,10 @@ function causalityTowerCastleDefeatMultiplier() {
 }
 
 function heartVesselRunawayMultiplier() {
-  return castleBuildProgressPct() >= 45 ? CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER : 2;
+  const pct = castleBuildProgressPct();
+  if (pct >= 90) return CASTLE_EFFECT_90_HEART_VESSEL_RUNAWAY_MULTIPLIER;
+  if (pct >= 45) return CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER;
+  return 2;
 }
 
 function causalityTowerDefeatCount() {
@@ -2161,16 +2179,19 @@ function renderCausalityTower() {
   if (!visible) return;
   el.causalityTowerMonstersText.textContent = `巨塔の周りのモンスター ${(save.causalityTowerMonsters || 0).toLocaleString()}/${CAUSALITY_TOWER_MONSTERS_TOTAL.toLocaleString()}`;
   el.causalityTowerFloorText.textContent = `階層 ${save.causalityTowerFloor || 1}F/300F`;
-  el.causalityTowerBtn.disabled = save.pt < CAUSALITY_TOWER_ADVANCE_COST
+  const advanceCost = causalityTowerAdvanceCost();
+  el.causalityTowerBtn.textContent = `🗼 巨塔に向かう（${advanceCost.toLocaleString()}pt）`;
+  el.causalityTowerBtn.disabled = save.pt < advanceCost
     || ((save.causalityTowerMonsters || 0) <= 0 && !causalityTowerBarrierActive());
 }
 
 function advanceCausalityTower() {
-  if (save.pt < CAUSALITY_TOWER_ADVANCE_COST) return;
+  const advanceCost = causalityTowerAdvanceCost();
+  if (save.pt < advanceCost) return;
   const monstersPresent = (save.causalityTowerMonsters || 0) > 0;
   if (!monstersPresent && !causalityTowerBarrierActive()) return;
 
-  save.pt -= CAUSALITY_TOWER_ADVANCE_COST;
+  save.pt -= advanceCost;
 
   if (monstersPresent) {
     const defeatable = causalityTowerDefeatCount();
@@ -2734,6 +2755,11 @@ CASTLE_EFFECTS[11].label = `長文の塔でレアモンスター撃破時のハ�
 CASTLE_EFFECTS[12].label = `ダンジョンでの建築素材ドロップ率${CASTLE_EFFECT_65_MATERIAL_MULTIPLIER}倍（500％）`;
 CASTLE_EFFECTS[13].label = `pt倍率+${CASTLE_EFFECT_70_PT_BONUS.toLocaleString()}`;
 CASTLE_EFFECTS[14].label = `因果の巨塔のサイコロが${CASTLE_EFFECT_75_DICE_COUNT}個になる（ぞろ目で進む階層${CASTLE_EFFECT_75_ZOROME_MULTIPLIER}倍）`;
+CASTLE_EFFECTS[15].label = `城の加護でレアモンスター撃破時 ハート追加ドロップ率+${Math.round(CASTLE_EFFECT_80_RARE_HEART_BONUS * 100)}%（合計75%）`;
+CASTLE_EFFECTS[16].label = `因果の巨塔に辿り着くコストが永久的に${Math.round(CAUSALITY_TOWER_ADVANCE_COST * CASTLE_EFFECT_85_TOWER_COST_MULTIPLIER).toLocaleString()}ptに半減`;
+CASTLE_EFFECTS[17].label = `ハートの器暴走ボーナスが${CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER}倍から${CASTLE_EFFECT_90_HEART_VESSEL_RUNAWAY_MULTIPLIER}倍に`;
+CASTLE_EFFECTS[18].label = `NSP-2000M3の倍率が${NSP_2000M3_PT_MULTIPLIER}倍→${CASTLE_EFFECT_95_NSP_MULTIPLIER}倍に`;
+CASTLE_EFFECTS[19].label = '因果の巨塔の頂上に光が差し込んでいる';
 
 function dungeonRareHeartMultiplier(mode) {
   if (mode === 'sentence') return castleBuildProgressPct() >= 55 ? CASTLE_EFFECT_55_SENTENCE_RARE_HEART_MULTIPLIER : 1;
