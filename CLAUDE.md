@@ -123,6 +123,35 @@ a feature area, check pre-existing catalog entries too, not just what you're act
   behaving oddly under automation) — don't trust automated verification of reload-dependent flows;
   say so plainly and ask the user to do that one step themselves rather than reporting a false pass.
 
+### UI refresh architecture — `renderPlayerCard()` is the one chokepoint
+This game has no reactive framework; every render is a manual, hand-picked function call after a
+`save` mutation. That caused the same bug to recur many times in one session: a display (a
+button's disabled state, a multiplier's text, a bonus label) went stale because the specific
+action that changed the underlying state didn't happen to call the specific render function that
+displays it. Concrete instances this cost a full round-trip to catch: the causality-tower button,
+disciple stat upgrade buttons, god statue/garden/blessing buttons, junkyard dig button, castle
+material-generate button, the player-card pt-multiplier breakdown text, and the heart-vessel-
+runaway multiplier label on the batch-battle button — all the same root cause, found and patched
+one at a time before the pattern was named.
+
+**Fix, as of Beta0.78d: `renderPlayerCard()` is the single canonical "re-render everything that
+could depend on save state" function.** It already calls `renderAchievements`, `renderEquipmentSummary`,
+`renderGodStatue`, `renderMaouGate`, `renderMechanicalEgg`, `renderJunkyard`, `renderCausalityTower`,
+`renderEndlessModeToggle`, `renderCastle`, and `renderDisciple` (which itself calls
+`renderDiscipleStats`). `refreshTotalPt()` (used ~28 places, mainly pt-earning paths) now just
+updates the pt text/`lastKnownPt` and delegates to `renderPlayerCard()` — it used to hand-call a
+narrower subset of the same functions, which was the actual bug: two competing partial chokepoints
+that silently drifted apart.
+
+**When adding any new save-state-dependent display, don't invent a new manual call site — add it
+inside `renderPlayerCard()` (or a function it already calls), so every existing caller of either
+`refreshTotalPt()` or `renderPlayerCard()` picks it up automatically.** Before wiring a render
+function in anywhere new, verify it doesn't itself call `refreshTotalPt()` or `renderPlayerCard()`
+(directly or transitively) — that would recurse. None of the current tree does; keep it that way.
+This was a deliberate correctness-over-micro-perf trade: `renderPlayerCard()` does a bit more DOM
+work per call than the old narrow refreshes, but it's cheap (a handful of small lists/text nodes)
+and only runs on user actions, never in a hot per-keystroke or per-battle-iteration loop.
+
 ### Hosting & deployment (Cloudflare)
 - This is a **Cloudflare Workers** project (Workers Builds, GitHub-integrated), not Cloudflare Pages
   — that distinction matters. Worker name: `endlesstypeloop`. Custom domain: endless-type-loop.online

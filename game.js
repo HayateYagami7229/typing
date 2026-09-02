@@ -431,6 +431,8 @@ const DISCIPLE_70000_STREAK_THRESHOLD = 70000;
 const DISCIPLE_70000_STREAK_MULTIPLIER = 3.5;
 const DISCIPLE_100000_STREAK_THRESHOLD = 100000;
 const DISCIPLE_100000_STREAK_MULTIPLIER = 5;
+const DISCIPLE_150000_STREAK_THRESHOLD = 150000;
+const DISCIPLE_150000_STREAK_MULTIPLIER = 6;
 const DISCIPLE_STAT_DEFS = [
   { key: 'hp', label: 'HP' },
   { key: 'str', label: 'STR' },
@@ -1723,14 +1725,18 @@ function showHelpPopup() {
 
 let lastKnownPt = null;
 
+// refreshTotalPt() and renderPlayerCard() used to be two separate, hand-maintained
+// "refresh some of the UI" chokepoints — every time a new display depended on pt/castle/
+// disciple state, both had to be updated by hand, and it kept getting missed (causality
+// tower button, disciple stat buttons, god statue/garden/blessing, junkyard, castle
+// material buttons, the pt-multiplier text, the heart-vessel-runaway label — all the
+// same bug class). renderPlayerCard() is now the single source of truth for "re-render
+// everything that could depend on save state"; refreshTotalPt() just delegates to it.
+// Add any new pt/state-dependent render function inside renderPlayerCard(), not here.
 function refreshTotalPt() {
   el.totalPt.textContent = Math.floor(save.pt).toLocaleString();
   lastKnownPt = save.pt;
-  renderCausalityTower();
-  renderDiscipleStats();
-  renderGodStatue();
-  renderJunkyard();
-  renderCastle();
+  renderPlayerCard();
 }
 
 setInterval(() => {
@@ -3882,6 +3888,7 @@ function discipleMaxStreak() {
 
 function discipleStreakBonusMultiplier() {
   const streak = discipleMaxStreak();
+  if (streak >= DISCIPLE_150000_STREAK_THRESHOLD) return DISCIPLE_150000_STREAK_MULTIPLIER;
   if (streak >= DISCIPLE_100000_STREAK_THRESHOLD) return DISCIPLE_100000_STREAK_MULTIPLIER;
   if (streak >= DISCIPLE_70000_STREAK_THRESHOLD) return DISCIPLE_70000_STREAK_MULTIPLIER;
   if (streak >= DISCIPLE_50000_STREAK_THRESHOLD) return DISCIPLE_50000_STREAK_MULTIPLIER;
@@ -4062,7 +4069,9 @@ function renderDisciple() {
   const s = save.disciple.streaks;
   const maxStreak = discipleMaxStreak();
   let streakBonusHtml = '';
-  if (maxStreak >= DISCIPLE_100000_STREAK_THRESHOLD) {
+  if (maxStreak >= DISCIPLE_150000_STREAK_THRESHOLD) {
+    streakBonusHtml = ` <span class="disciple-streak-20000-bonus">15万連勝ボーナス中!賞金${DISCIPLE_150000_STREAK_MULTIPLIER}倍!</span>`;
+  } else if (maxStreak >= DISCIPLE_100000_STREAK_THRESHOLD) {
     streakBonusHtml = ` <span class="disciple-streak-20000-bonus">10万連勝ボーナス中!賞金${DISCIPLE_100000_STREAK_MULTIPLIER}倍!</span>`;
   } else if (maxStreak >= DISCIPLE_70000_STREAK_THRESHOLD) {
     streakBonusHtml = ` <span class="disciple-streak-20000-bonus">7万連勝ボーナス中!賞金${DISCIPLE_70000_STREAK_MULTIPLIER}倍!</span>`;
