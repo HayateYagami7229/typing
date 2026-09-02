@@ -2309,13 +2309,27 @@ function showCausalityTowerDiceStep3() {
 
 function showCausalityTowerDiceStep4() {
   const floorBefore = causalityTowerDiceFloorBefore;
-  const floorAfter = Math.min(300, floorBefore + causalityTowerDiceRollResult);
+  const rawFloorAfter = floorBefore + causalityTowerDiceRollResult;
+
+  if (rawFloorAfter >= 300 && !isCastleComplete()) {
+    save.causalityTowerFloor = 299;
+    if (!causalityTowerDiceBarrierWasActive) {
+      save.causalityTowerMonsters = CAUSALITY_TOWER_MONSTERS_TOTAL;
+    }
+    persistSave();
+    renderCausalityTower();
+    showCausalityTowerSummitBlockedStep1();
+    return;
+  }
+
+  const floorAfter = Math.min(300, rawFloorAfter);
   save.causalityTowerFloor = floorAfter;
 
   el.causalityTowerDiceTitle.textContent = '巨塔を登った';
   el.causalityTowerDiceFace.classList.add('hidden');
   el.causalityTowerDiceNextBtn.classList.add('hidden');
   el.causalityTowerDiceCloseBtn.classList.remove('hidden');
+  el.causalityTowerDiceCloseBtn.textContent = '閉じる';
   el.causalityTowerDiceCloseBtn.onclick = closeCausalityTowerDicePopup;
 
   const zoromePrefix = causalityTowerDiceZoromeActive ? '🎉ぞろ目ボーナスで通常の2倍進んだ！\n' : '';
@@ -2327,6 +2341,24 @@ function showCausalityTowerDiceStep4() {
   }
   persistSave();
   renderCausalityTower();
+}
+
+function showCausalityTowerSummitBlockedStep1() {
+  el.causalityTowerDiceTitle.textContent = '因果の巨塔頂上に辿り着いた';
+  el.causalityTowerDiceDesc.textContent = 'しかし頂上には暗雲が立ちこめているだけで何も無い。\nまだ何かが足りないと言うのだろうか？';
+  el.causalityTowerDiceFace.classList.add('hidden');
+  el.causalityTowerDiceRollBtn.classList.add('hidden');
+  el.causalityTowerDiceCloseBtn.classList.add('hidden');
+  el.causalityTowerDiceNextBtn.classList.remove('hidden');
+  el.causalityTowerDiceNextBtn.onclick = showCausalityTowerSummitBlockedStep2;
+}
+
+function showCausalityTowerSummitBlockedStep2() {
+  el.causalityTowerDiceDesc.textContent = '次の瞬間、床が崩れ去り1F戻されてしまった。\nその瞬間に崩れたはずの床が再生している。\nまるで何かに辿り着く事を拒否されているようだった';
+  el.causalityTowerDiceNextBtn.classList.add('hidden');
+  el.causalityTowerDiceCloseBtn.classList.remove('hidden');
+  el.causalityTowerDiceCloseBtn.textContent = 'ホームに戻る';
+  el.causalityTowerDiceCloseBtn.onclick = closeCausalityTowerDicePopup;
 }
 
 function closeCausalityTowerDicePopup() {
@@ -2734,6 +2766,10 @@ function playJunkyardExplorationCompleteSequence() {
 
 function castleBuildProgressPct() {
   return Math.min(100, ((save.castleConstructionProgress || 0) / CASTLE_BUILD_TOTAL) * 100);
+}
+
+function isCastleComplete() {
+  return castleBuildProgressPct() >= 100;
 }
 
 const CASTLE_EFFECTS = Array.from({ length: 20 }, (_, i) => {
