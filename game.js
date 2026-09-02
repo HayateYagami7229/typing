@@ -2867,6 +2867,19 @@ function triggerCastleCompleteSequence() {
   queueReveal('', 'そして同時にその光が自身を包む……\nEXP+50％\n獲得pt 100000pt\nの効果を永続的に得た！');
 }
 
+// 城完成の演出/お知らせ/実績は「その瞬間に建築したプレイヤー」だけでなく、この機能を実装する前に
+// 既に100%へ到達していたセーブでも起動時に一度だけ後追いで発火するよう、進捗ではなく
+// save.castleCompleteAnnouncedフラグで一度きり管理する（buildCastle()からも起動時init側からも
+// 同じ関数を呼べば良いようにする）。
+function checkCastleCompleteAnnouncement() {
+  if (!isCastleComplete() || save.castleCompleteAnnounced) return;
+  save.castleCompleteAnnounced = true;
+  pushAnnouncement('🏯', `${save.profile.name || 'プレイヤー'}城が完成した！`, true);
+  persistSave();
+  renderAnnouncements();
+  triggerCastleCompleteSequence();
+}
+
 function buildCastle() {
   if (!save.castleConstructionUnlocked) return;
   if ((save.castleConstructionProgress || 0) >= CASTLE_BUILD_TOTAL) return;
@@ -2876,16 +2889,9 @@ function buildCastle() {
   });
   save.castleConstructionProgress = (save.castleConstructionProgress || 0) + 1;
   checkCastleEffectUnlocks();
-  const justCompleted = save.castleConstructionProgress >= CASTLE_BUILD_TOTAL;
-  if (justCompleted) {
-    pushAnnouncement('🏯', `${save.profile.name || 'プレイヤー'}城が完成した！`, true);
-  }
   persistSave();
   renderPlayerCard();
-  if (justCompleted) {
-    renderAnnouncements();
-    triggerCastleCompleteSequence();
-  }
+  checkCastleCompleteAnnouncement();
 }
 
 function incrementCastleMaterialsCollected() {
@@ -6408,6 +6414,7 @@ renderPlayerCard();
 renderDungeonBadges();
 renderAnnouncements();
 renderDisciple();
+checkCastleCompleteAnnouncement();
 updateLogos();
 setScreen('home');
 if (!save.helpPopupSeen) {
