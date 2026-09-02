@@ -2147,6 +2147,7 @@ function renderPlayerCard() {
   renderCausalityTower();
   renderEndlessModeToggle();
   renderCastle();
+  renderDisciple();
 }
 
 function causalityTowerCastleDefeatMultiplier() {
