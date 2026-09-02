@@ -395,6 +395,8 @@ const CASTLE_EFFECT_80_RARE_HEART_BONUS = 0.25;
 const CASTLE_EFFECT_85_TOWER_COST_MULTIPLIER = 0.5;
 const CASTLE_EFFECT_90_HEART_VESSEL_RUNAWAY_MULTIPLIER = 3;
 const CASTLE_EFFECT_95_NSP_MULTIPLIER = 100;
+const CASTLE_COMPLETE_EXP_BONUS = 0.5;
+const CASTLE_COMPLETE_PT_BONUS = 100000;
 const CASTLE_MATERIALS = [
   { id: 'abyssObsidian', name: 'アビス・オブシディアン' },
   { id: 'voidPlaster', name: 'ヴォイド・プラスター' },
@@ -1689,7 +1691,7 @@ function isJunkyardAuraFrameActive() {
 }
 
 function isCastleAuraFrameActive() {
-  return !!save.castleConstructionUnlocked && !!save.maouDefeated;
+  return !!save.castleConstructionUnlocked && !!save.maouDefeated && !isCastleComplete();
 }
 
 function showPhase2Announcement() {
@@ -1975,7 +1977,8 @@ function fullPtMultiplier() {
   const ricoBonus = save.maouDefeated && isRicoFullyOwned(save) ? 10000 : 0;
   const castleFortyBonus = castleBuildProgressPct() >= 40 ? CASTLE_EFFECT_40_PT_BONUS : 0;
   const castleSeventyBonus = castleBuildProgressPct() >= 70 ? CASTLE_EFFECT_70_PT_BONUS : 0;
-  const castleBlessingPtBonus = castleFortyBonus + castleSeventyBonus;
+  const castleCompleteBonus = isCastleComplete() ? CASTLE_COMPLETE_PT_BONUS : 0;
+  const castleBlessingPtBonus = castleFortyBonus + castleSeventyBonus + castleCompleteBonus;
   const preCastleTotal = base * (1 + swordBonus) + awakeningBonus + ricoBonus + castleBlessingPtBonus;
   const castleMultiplier = save.castleConstructionUnlocked ? nspPtMultiplier() : 1;
   const total = preCastleTotal * castleMultiplier;
@@ -2056,6 +2059,7 @@ const ACHIEVEMENTS = [
   { id: 'maou_defeated', icon: '💀', label: '魔王を倒した', check: (s) => !!s.maouDefeated, sss: true },
   { id: 'mechanical_egg_hatched', icon: '🐦', iconImage: 'img/bird_icon.png', label: '機械仕掛けの卵をふ化させた', check: (s) => !!s.mechanicalEggHatched },
   { id: 'junkyard_cleaned', icon: '🧹', label: 'ジャンクヤードを綺麗にした', check: (s) => !!s.castleConstructionUnlocked },
+  { id: 'castle_completed', icon: '🏯', label: '城を完成させた', check: (s) => (s.castleConstructionProgress || 0) >= CASTLE_BUILD_TOTAL, sss: true },
   { id: 'rico_prayer_once', icon: '🙏', label: 'リコの位牌に初めて祈った', check: (s) => (s.maouPrayerCount || 0) >= 1 },
   { id: 'maou_seal_learned', icon: '🔒', label: '封紋章の作り方を教わった', check: (s) => !!s.maouSealUnlocked },
   { id: 'fairy_dust_500', icon: '🧚', label: '妖精の粉を500回購入した', hoverText: '不思議な粉', check: (s) => ((s.itemPurchaseCounts && s.itemPurchaseCounts.item_fairy_dust) || 0) >= 500 },
@@ -2128,7 +2132,7 @@ function renderPlayerCard() {
   const swordPart = mult.swordBonus > 0 ? ` 剣+${Math.round(mult.swordBonus * 100)}%` : '';
   const awakeningPart = mult.awakeningBonus > 0 ? ` 覚醒+${mult.awakeningBonus.toFixed(1)}` : '';
   const ricoPart = mult.ricoBonus > 0 ? ` リコの加護ボーナス+${mult.ricoBonus.toLocaleString()}` : '';
-  const castleFortyPart = mult.castleBlessingPtBonus > 0 ? ` 城の加護+${mult.castleBlessingPtBonus.toLocaleString()}` : '';
+  const castleFortyPart = (mult.castleBlessingPtBonus > 0 && !isCastleComplete()) ? ` 城の加護+${mult.castleBlessingPtBonus.toLocaleString()}` : '';
   const castlePart = mult.castleMultiplier > 1 ? ` NSP-2000M3 x${mult.castleMultiplier}` : '';
   const junkyardExpStacks = junkyardBuffStacks('buff_exp');
   const junkyardExpPart = junkyardExpStacks > 0 ? ` EXPボーナス+${junkyardExpStacks}%` : '';
@@ -2187,7 +2191,10 @@ function renderCausalityTower() {
   el.causalityTowerMonstersText.textContent = `巨塔の周りのモンスター ${(save.causalityTowerMonsters || 0).toLocaleString()}/${CAUSALITY_TOWER_MONSTERS_TOTAL.toLocaleString()}`;
   el.causalityTowerFloorText.textContent = `階層 ${save.causalityTowerFloor || 1}F/300F`;
   const advanceCost = causalityTowerAdvanceCost();
-  el.causalityTowerBtn.textContent = `🗼 巨塔に向かう（${advanceCost.toLocaleString()}pt）`;
+  const diceGuaranteedNext = (save.causalityTowerMonsters || 0) <= 0 && causalityTowerBarrierActive();
+  const diceCount = causalityTowerDiceCount();
+  const diceSuffix = (diceGuaranteedNext && diceCount > 1) ? ` サイコロの数が${diceCount}個！！` : '';
+  el.causalityTowerBtn.textContent = `🗼 巨塔に向かう（${advanceCost.toLocaleString()}pt）${diceSuffix}`;
   el.causalityTowerBtn.disabled = save.pt < advanceCost
     || ((save.causalityTowerMonsters || 0) <= 0 && !causalityTowerBarrierActive());
 }
@@ -2779,7 +2786,9 @@ function isCastleComplete() {
   return castleBuildProgressPct() >= 100;
 }
 
-const CASTLE_EFFECTS = Array.from({ length: 20 }, (_, i) => {
+// length 19: 5%〜95%. 100%（城の完成）は checkCastleEffectUnlocks() の汎用ポップアップではなく
+// triggerCastleCompleteSequence() の専用演出で扱う（テキストが重複するため）。
+const CASTLE_EFFECTS = Array.from({ length: 19 }, (_, i) => {
   const atPercent = (i + 1) * 5;
   return { atPercent, id: `castle_effect_${atPercent}`, label: '（効果未設定）' };
 });
@@ -2802,7 +2811,6 @@ CASTLE_EFFECTS[15].label = `城の加護でレアモンスター撃破時 ハー
 CASTLE_EFFECTS[16].label = `因果の巨塔に辿り着くコストが永久的に${Math.round(CAUSALITY_TOWER_ADVANCE_COST * CASTLE_EFFECT_85_TOWER_COST_MULTIPLIER).toLocaleString()}ptに半減`;
 CASTLE_EFFECTS[17].label = `ハートの器暴走ボーナスが${CASTLE_EFFECT_45_HEART_VESSEL_RUNAWAY_MULTIPLIER}倍から${CASTLE_EFFECT_90_HEART_VESSEL_RUNAWAY_MULTIPLIER}倍に`;
 CASTLE_EFFECTS[18].label = `NSP-2000M3の倍率が${NSP_2000M3_PT_MULTIPLIER}倍→${CASTLE_EFFECT_95_NSP_MULTIPLIER}倍に`;
-CASTLE_EFFECTS[19].label = '因果の巨塔の頂上に光が差し込んでいる';
 
 function dungeonRareHeartMultiplier(mode) {
   if (mode === 'sentence') return castleBuildProgressPct() >= 55 ? CASTLE_EFFECT_55_SENTENCE_RARE_HEART_MULTIPLIER : 1;
@@ -2853,6 +2861,12 @@ function canCastleBuild() {
   return CASTLE_MATERIALS.every((m) => (save.castleMaterials[m.id] || 0) >= 1);
 }
 
+function triggerCastleCompleteSequence() {
+  queueReveal('城を完成させた！', '遂に城が完成した！\n完成した途端に城が揺れ動きだした……');
+  queueReveal('', '城が一瞬、眩い光に包まれると城のてっぺんから\n光が差し込んでいる。\n光は因果の巨塔に伸びているようだ。\n何が待っているのだろう……');
+  queueReveal('', 'そして同時にその光が自身を包む……\nEXP+50％\n獲得pt 100000pt\nの効果を永続的に得た！');
+}
+
 function buildCastle() {
   if (!save.castleConstructionUnlocked) return;
   if ((save.castleConstructionProgress || 0) >= CASTLE_BUILD_TOTAL) return;
@@ -2862,8 +2876,10 @@ function buildCastle() {
   });
   save.castleConstructionProgress = (save.castleConstructionProgress || 0) + 1;
   checkCastleEffectUnlocks();
+  const justCompleted = save.castleConstructionProgress >= CASTLE_BUILD_TOTAL;
   persistSave();
   renderPlayerCard();
+  if (justCompleted) triggerCastleCompleteSequence();
 }
 
 function incrementCastleMaterialsCollected() {
@@ -2913,7 +2929,7 @@ function convertCastleMaterials() {
 }
 
 function renderCastle() {
-  const visible = !!save.castleConstructionUnlocked;
+  const visible = !!save.castleConstructionUnlocked && !isCastleComplete();
   el.castlePanel.classList.toggle('hidden', !visible);
   if (!visible) return;
   el.castleTitleText.textContent = `${save.profile.name || 'プレイヤー'}城の建築`;
@@ -3957,8 +3973,14 @@ function gainHappyGrassStock(exp) {
   if (save.happyGrassStock >= maxStock) save.happyGrassExpProgress = 0;
 }
 
+function castleCompleteExpMultiplier() {
+  return isCastleComplete() ? 1 + CASTLE_COMPLETE_EXP_BONUS : 1;
+}
+
 function gainExp(amount, opts = {}) {
-  const boosted = Math.round(amount * godStatueExpMultiplier() * junkyardExpBonusMultiplier());
+  const boosted = Math.round(
+    amount * godStatueExpMultiplier() * junkyardExpBonusMultiplier() * castleCompleteExpMultiplier(),
+  );
   if (opts.countsForHappyGrass !== false) gainHappyGrassStock(boosted);
   return addExp(save, boosted);
 }
@@ -5751,7 +5773,7 @@ function handleTypedChar(ch) {
           sessionJunkyardTicketsFound += 1;
         }
       }
-      if (save.maouDefeated && save.castleConstructionUnlocked) {
+      if (save.maouDefeated && save.castleConstructionUnlocked && !isCastleComplete()) {
         const materialDropChance = (CASTLE_MATERIAL_DROP_CHANCE[currentMode] || 0) * castleMaterialDropMultiplier();
         if (Math.random() < materialDropChance) {
           const pick = CASTLE_MATERIALS[Math.floor(Math.random() * CASTLE_MATERIALS.length)];
