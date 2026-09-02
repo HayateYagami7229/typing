@@ -2877,9 +2877,15 @@ function buildCastle() {
   save.castleConstructionProgress = (save.castleConstructionProgress || 0) + 1;
   checkCastleEffectUnlocks();
   const justCompleted = save.castleConstructionProgress >= CASTLE_BUILD_TOTAL;
+  if (justCompleted) {
+    pushAnnouncement('🏯', `${save.profile.name || 'プレイヤー'}城が完成した！`, true);
+  }
   persistSave();
   renderPlayerCard();
-  if (justCompleted) triggerCastleCompleteSequence();
+  if (justCompleted) {
+    renderAnnouncements();
+    triggerCastleCompleteSequence();
+  }
 }
 
 function incrementCastleMaterialsCollected() {
