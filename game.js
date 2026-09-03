@@ -2245,6 +2245,16 @@ let causalityTowerDiceZoromeActive = false;
 function startCausalityTowerDiceSequence() {
   causalityTowerDiceFloorBefore = save.causalityTowerFloor || 1;
   causalityTowerDiceBarrierWasActive = causalityTowerBarrierActive();
+  el.causalityTowerDicePopup.classList.remove('hidden');
+
+  // 結界発動後はモンスターが二度と復活しないので、以後の訪問は毎回サイコロが確定。
+  // 「因果の巨塔に辿り着いた」の到着演出は初回だけで十分なので、結界発動中はスキップして
+  // 直接サイコロを振る画面から始める。
+  if (causalityTowerDiceBarrierWasActive) {
+    showCausalityTowerDiceStep2();
+    return;
+  }
+
   el.causalityTowerDiceTitle.textContent = '因果の巨塔に辿り着いた';
   el.causalityTowerDiceDesc.textContent = '遂に因果の巨塔に辿り着いた。\n巨塔を登ろう';
   el.causalityTowerDiceImage.src = 'img/tower.png';
@@ -2254,7 +2264,6 @@ function startCausalityTowerDiceSequence() {
   el.causalityTowerDiceNextBtn.classList.remove('hidden');
   el.causalityTowerDiceCloseBtn.classList.add('hidden');
   el.causalityTowerDiceNextBtn.onclick = showCausalityTowerDiceStep2;
-  el.causalityTowerDicePopup.classList.remove('hidden');
 }
 
 function causalityTowerDiceCount() {
