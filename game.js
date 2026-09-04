@@ -118,6 +118,12 @@ const SECRET_KEYBOARD_LINES = [
 
 const CHANGELOG = [
   {
+    version: 'Beta0.79',
+    items: [
+      'タイプ中にスペースキーを押すとコンボが途切れてしまう現象を解消しました',
+    ],
+  },
+  {
     version: 'Beta0.78',
     items: [
       '弟子のパラメーター表記がDEX、SPDとスピードに纏わる内容が2個あることをこのタイミングまで気が付きませんでした。'
