@@ -6389,6 +6389,10 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
+  if (e.key === ' ') {
+    e.preventDefault();
+    return;
+  }
   if (e.key.length !== 1) return;
   e.preventDefault();
   handleTypedChar(e.key);
