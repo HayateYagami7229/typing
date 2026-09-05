@@ -189,6 +189,21 @@ function escapeHtml(str) {
   }[c]));
 }
 
+const RANK_ORDER_LIST = ['E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
+function betterRank(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return RANK_ORDER_LIST.indexOf(b) > RANK_ORDER_LIST.indexOf(a) ? b : a;
+}
+
+function mergeFunnelsReached(existingJson, newJson) {
+  let existingList = [];
+  try { existingList = JSON.parse(existingJson || '[]'); } catch (e) { existingList = []; }
+  let newList = [];
+  try { newList = JSON.parse(newJson || '[]'); } catch (e) { newList = []; }
+  return JSON.stringify(Array.from(new Set([...existingList, ...newList])).slice(0, 35));
+}
+
 async function handleProgressReport(request, env) {
   if (!env.PROGRESS_SHARED_KEY || request.headers.get('x-progress-key') !== env.PROGRESS_SHARED_KEY) {
     return new Response('Unauthorized', { status: 401 });
@@ -206,8 +221,8 @@ async function handleProgressReport(request, env) {
 
   const playerId = data.player_id.slice(0, 128);
   const playerName = String(data.player_name || '').slice(0, 64);
-  const bestRank = data.best_rank ? String(data.best_rank).slice(0, 8) : null;
-  const funnelsReached = sanitizeFunnelsReached(data.funnels_reached);
+  const incomingBestRank = data.best_rank ? String(data.best_rank).slice(0, 8) : null;
+  const incomingFunnels = sanitizeFunnelsReached(data.funnels_reached);
   const now = Date.now();
 
   const boolFields = new Set([
@@ -215,11 +230,44 @@ async function handleProgressReport(request, env) {
     'rico_unlocked', 'rico_fully_owned', 'mechanical_egg_hatched', 'castle_unlocked',
     'endless_mode_unlocked', 'pt_tamper_flag',
   ]);
-  const values = PROGRESS_FIELDS.map((f) => {
-    if (boolFields.has(f)) return boolTo01(data[f]);
-    return clampInt(data[f], 0, FIELD_CAPS[f] || 1000000);
+  const incoming = {};
+  PROGRESS_FIELDS.forEach((f) => {
+    incoming[f] = boolFields.has(f) ? boolTo01(data[f]) : clampInt(data[f], 0, FIELD_CAPS[f] || 1000000);
   });
 
+  // Progress is expected to only move forward over a player's lifetime, but a player can have
+  // multiple devices (PC + phone, etc.) independently reporting on their own schedule. Without
+  // merging, whichever device's report lands last would blindly clobber a more-advanced device's
+  // numbers, making the dashboard look like the player "rolled back" even though nothing was lost
+  // locally. So: merge with the previous row instead of overwriting it outright.
+  const existing = await env.DB.prepare(
+    `SELECT ${PROGRESS_FIELDS.join(', ')}, best_rank, funnels_reached FROM player_progress WHERE player_id = ?`,
+  ).bind(playerId).first();
+
+  let merged = incoming;
+  let bestRank = incomingBestRank;
+  let funnelsReached = incomingFunnels;
+  if (existing) {
+    merged = {};
+    PROGRESS_FIELDS.forEach((f) => {
+      if (f === 'level') return;
+      if (f === 'pt_tamper_flag') { merged[f] = incoming[f]; return; }
+      merged[f] = Math.max(existing[f] || 0, incoming[f]);
+    });
+    // level resets to 1 on prestige, so it isn't monotonic on its own — only accept a lower level
+    // when it comes from a report that's actually further along in prestige than what we had.
+    if (incoming.prestige > (existing.prestige || 0)) {
+      merged.level = incoming.level;
+    } else if (incoming.prestige === (existing.prestige || 0)) {
+      merged.level = Math.max(existing.level || 0, incoming.level);
+    } else {
+      merged.level = existing.level || 0;
+    }
+    bestRank = betterRank(existing.best_rank, incomingBestRank);
+    funnelsReached = mergeFunnelsReached(existing.funnels_reached, incomingFunnels);
+  }
+
+  const values = PROGRESS_FIELDS.map((f) => merged[f]);
   const setClause = PROGRESS_FIELDS.map((f) => `${f}=excluded.${f}`).join(', ');
   await env.DB.prepare(`
     INSERT INTO player_progress (
